@@ -68,7 +68,6 @@ function isoProject(col: number, row: number) {
 export class IsoRenderer {
   private canvas: HTMLCanvasElement;
   private ctx: CanvasRenderingContext2D;
-  private contributions: ContributionData[];
   private theme: ThemeConfig;
   private sprites: Record<number, HTMLImageElement[]>;
   private gridOffsetX = 0;
@@ -86,7 +85,6 @@ export class IsoRenderer {
   ) {
     this.canvas = canvas;
     this.ctx = canvas.getContext('2d')!;
-    this.contributions = contributions;
     this.theme = theme;
     this.sprites = sprites;
 

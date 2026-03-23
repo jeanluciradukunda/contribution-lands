@@ -3,8 +3,16 @@
   "category": "city",
   "author": "Jean Luc Iradukunda",
   "background": "#0a0e14",
+  "ui_accent": "#ffcc73",
   "ground_colors": ["#3a3a40", "#35353b", "#404046"],
   "ground_stroke": "#2a2a30",
+  "preview_sprites": {
+    "0": "level-0-a.png",
+    "1": "level-1-a.png",
+    "2": "level-2-a.png",
+    "3": "level-3-b.png",
+    "4": "level-4-b.png"
+  },
   "entities": [
     { "type": "taxi", "count": 4, "speed": 0.025 },
     { "type": "person", "count": 8, "speed": 0.012 },
