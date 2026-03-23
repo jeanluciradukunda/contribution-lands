@@ -87,16 +87,20 @@
       4: ['../themes/city-nyc/sprites/level-4-a.png', '../themes/city-nyc/sprites/level-4-b.png', '../themes/city-nyc/sprites/level-4-c.png'],
     };
 
-    // Level 0 decorative sprites (placed on non-road cells)
-    const L0_DECOR = {
-      park:      '../themes/city-nyc/sprites/level-0-d.png',
-      sidewalk:  '../themes/city-nyc/sprites/level-0-c.png',
-      empty_lot: '../themes/city-nyc/sprites/level-0-a.png',
+    // L0 sprites grouped by category
+    const L0_SPRITES = {
+      road:     ['../themes/city-nyc/sprites/level-0-i.png'],
+      crosswalk:['../themes/city-nyc/sprites/level-0-j.png'],
+      sidewalk: ['../themes/city-nyc/sprites/level-0-k.png', '../themes/city-nyc/sprites/level-0-l.png'],
+      grass:    ['../themes/city-nyc/sprites/level-0-f.png', '../themes/city-nyc/sprites/level-0-g.png', '../themes/city-nyc/sprites/level-0-h.png'],
+      park:     ['../themes/city-nyc/sprites/level-0-d.png', '../themes/city-nyc/sprites/level-0-n.png'],
+      parking:  ['../themes/city-nyc/sprites/level-0-m.png'],
+      lot:      ['../themes/city-nyc/sprites/level-0-a.png', '../themes/city-nyc/sprites/level-0-c.png'],
     };
 
     // Road grid config
-    const ROAD_INTERVAL = 8;  // Avenue every N columns
-    const CROSS_STREETS = [0, 6]; // Rows that are cross streets
+    const ROAD_INTERVAL = 8;
+    const CROSS_STREETS = [0, 6];
 
     // ========== SEEDED RNG ==========
     function mulberry32(seed) {
@@ -176,120 +180,105 @@
         }
       }
 
-      // Load L0 decorative sprites
+      // Load L0 categorized sprites
       sprites.l0 = {};
-      for (const [type, path] of Object.entries(L0_DECOR)) {
-        const img = new Image();
-        const p = new Promise((resolve) => {
-          img.onload = () => { sprites.l0[type] = img; resolve(); };
-          img.onerror = () => { console.warn(`Failed to load L0: ${path}`); resolve(); };
-        });
-        img.src = path;
-        promises.push(p);
+      for (const [category, paths] of Object.entries(L0_SPRITES)) {
+        sprites.l0[category] = [];
+        for (const path of paths) {
+          const img = new Image();
+          const p = new Promise((resolve) => {
+            img.onload = () => { sprites.l0[category].push(img); resolve(); };
+            img.onerror = () => { console.warn(`Failed to load L0: ${path}`); resolve(); };
+          });
+          img.src = path;
+          promises.push(p);
+        }
       }
 
       await Promise.all(promises);
       return sprites;
     }
 
-    // ========== ROAD GRID ==========
-    function isRoad(w, d) {
+    // ========== L0 PLACEMENT RULES MATRIX ==========
+    //
+    // The grid is treated as city blocks:
+    //   - Roads: avenues (every ROAD_INTERVAL cols) + cross streets (specific rows)
+    //   - Intersections: where avenues meet cross streets → crosswalk
+    //   - Sidewalk: cells directly adjacent to roads OR buildings
+    //   - Parks/grass: clusters in open areas away from roads
+    //   - Parking: occasional, near buildings
+    //   - Empty lots: filler
+    //
+    // This creates a layout where future entities make sense:
+    //   - Taxis/cyclists move along road cells
+    //   - Pedestrians walk on sidewalk cells
+    //   - Dog walkers roam park/grass cells
+
+    function isRoadCell(w, d) {
       return (w % ROAD_INTERVAL === 0) || CROSS_STREETS.includes(d);
     }
 
-    function drawRoads(ctx, contributions) {
-      // Draw connected road lines along the isometric grid.
-      // Avenues run vertically (along columns), cross streets run horizontally (along rows).
-
-      ctx.lineCap = 'round';
-
-      // --- Draw avenues (every ROAD_INTERVAL columns) ---
-      for (let w = 0; w < WEEKS; w += ROAD_INTERVAL) {
-        for (let d = 0; d < DAYS - 1; d++) {
-          const from = gridToScreen(w, d);
-          const to = gridToScreen(w, d + 1);
-
-          // Road surface (dark gray)
-          ctx.strokeStyle = '#2a2a30';
-          ctx.lineWidth = TILE_W * 0.6;
-          ctx.beginPath(); ctx.moveTo(from.x, from.y); ctx.lineTo(to.x, to.y); ctx.stroke();
-
-          // Center line (yellow dashes)
-          ctx.strokeStyle = '#aa9933';
-          ctx.lineWidth = 0.5;
-          ctx.setLineDash([3, 4]);
-          ctx.beginPath(); ctx.moveTo(from.x, from.y); ctx.lineTo(to.x, to.y); ctx.stroke();
-          ctx.setLineDash([]);
-        }
-      }
-
-      // --- Draw cross streets (specific rows) ---
-      for (const d of CROSS_STREETS) {
-        for (let w = 0; w < WEEKS - 1; w++) {
-          const from = gridToScreen(w, d);
-          const to = gridToScreen(w + 1, d);
-
-          // Road surface
-          ctx.strokeStyle = '#2a2a30';
-          ctx.lineWidth = TILE_H * 1.2;
-          ctx.beginPath(); ctx.moveTo(from.x, from.y); ctx.lineTo(to.x, to.y); ctx.stroke();
-
-          // Center line
-          ctx.strokeStyle = '#aa9933';
-          ctx.lineWidth = 0.5;
-          ctx.setLineDash([3, 4]);
-          ctx.beginPath(); ctx.moveTo(from.x, from.y); ctx.lineTo(to.x, to.y); ctx.stroke();
-          ctx.setLineDash([]);
-        }
-      }
-
-      // --- Intersections: small filled diamonds ---
-      for (let w = 0; w < WEEKS; w += ROAD_INTERVAL) {
-        for (const d of CROSS_STREETS) {
-          const scr = gridToScreen(w, d);
-          drawIsoDiamond(ctx, scr.x, scr.y, TILE_W * 0.8, TILE_H * 0.8, '#333338', null);
-
-          // Crosswalk stripes
-          ctx.strokeStyle = '#eeeeee';
-          ctx.lineWidth = 0.8;
-          ctx.setLineDash([1.5, 2]);
-          // Stripes across the intersection
-          for (let i = -2; i <= 2; i++) {
-            const offset = i * 1.5;
-            ctx.beginPath();
-            ctx.moveTo(scr.x - TILE_W * 0.3 + offset, scr.y - 1);
-            ctx.lineTo(scr.x + TILE_W * 0.3 + offset, scr.y + 1);
-            ctx.stroke();
-          }
-          ctx.setLineDash([]);
-        }
-      }
+    function isIntersection(w, d) {
+      return (w % ROAD_INTERVAL === 0) && CROSS_STREETS.includes(d);
     }
 
-    // ========== L0 PLACEMENT RULES (non-road cells) ==========
-    function pickL0Decor(w, d, contributions) {
-      // Skip road cells — they're drawn by drawRoads()
-      if (isRoad(w, d)) return null;
-
-      // Adjacent to a building → sidewalk
-      const neighbors = [[w-1,d],[w+1,d],[w,d-1],[w,d+1]];
-      for (const [nw, nd] of neighbors) {
+    function getNeighborLevels(w, d, contributions) {
+      const dirs = [[w-1,d],[w+1,d],[w,d-1],[w,d+1],[w-1,d-1],[w+1,d+1],[w-1,d+1],[w+1,d-1]];
+      let hasBuilding = false, hasRoad = false, emptyCount = 0;
+      for (const [nw, nd] of dirs) {
         if (nw >= 0 && nw < WEEKS && nd >= 0 && nd < DAYS) {
-          if (contributions[nw][nd].level > 0) return 'sidewalk';
+          if (contributions[nw][nd].level > 0) hasBuilding = true;
+          if (isRoadCell(nw, nd) && contributions[nw][nd].level === 0) hasRoad = true;
+          if (contributions[nw][nd].level === 0 && !isRoadCell(nw, nd)) emptyCount++;
+        }
+      }
+      return { hasBuilding, hasRoad, emptyCount };
+    }
+
+    // Pre-compute L0 type for every cell
+    function buildL0Map(contributions) {
+      const map = Array.from({ length: WEEKS }, () => Array(DAYS).fill(null));
+
+      for (let w = 0; w < WEEKS; w++) {
+        for (let d = 0; d < DAYS; d++) {
+          if (contributions[w][d].level > 0) continue; // has a building
+
+          // Rule 1: Intersections → crosswalk
+          if (isIntersection(w, d)) { map[w][d] = 'crosswalk'; continue; }
+
+          // Rule 2: Road cells → road
+          if (isRoadCell(w, d)) { map[w][d] = 'road'; continue; }
+
+          const { hasBuilding, hasRoad, emptyCount } = getNeighborLevels(w, d, contributions);
+          const rng = mulberry32((w * 7 + d) * 99991 + 54321);
+
+          // Rule 3: Adjacent to road → sidewalk (pedestrians walk here)
+          if (hasRoad) { map[w][d] = rng() < 0.7 ? 'sidewalk' : 'lot'; continue; }
+
+          // Rule 4: Adjacent to building → sidewalk or parking
+          if (hasBuilding) {
+            const r = rng();
+            if (r < 0.6) map[w][d] = 'sidewalk';
+            else if (r < 0.8) map[w][d] = 'parking';
+            else map[w][d] = 'lot';
+            continue;
+          }
+
+          // Rule 5: Surrounded by empty → grass or park (dog walkers, joggers)
+          if (emptyCount >= 4) {
+            map[w][d] = rng() < 0.6 ? 'grass' : 'park';
+            continue;
+          }
+
+          // Rule 6: Default fill
+          const r = rng();
+          if (r < 0.4) map[w][d] = 'grass';
+          else if (r < 0.7) map[w][d] = 'lot';
+          else map[w][d] = 'sidewalk';
         }
       }
 
-      // Adjacent to a road → sidewalk (sidewalks line roads)
-      for (const [nw, nd] of neighbors) {
-        if (nw >= 0 && nw < WEEKS && nd >= 0 && nd < DAYS) {
-          if (isRoad(nw, nd)) return 'sidewalk';
-        }
-      }
-
-      // Otherwise: park or empty lot
-      const seed = (w * 7 + d) * 99991 + 54321;
-      const rng = mulberry32(seed);
-      return rng() < 0.45 ? 'park' : 'empty_lot';
+      return map;
     }
 
     // ========== MAIN ==========
@@ -317,17 +306,8 @@
       ctx.fillStyle = THEME.bg;
       ctx.fillRect(0, 0, canvasW, canvasH);
 
-      // Draw ground tiles first (base layer)
-      for (let w = 0; w < WEEKS; w++) {
-        for (let d = 0; d < DAYS; d++) {
-          const scr = gridToScreen(w, d);
-          const groundColor = THEME.groundColors[((w + d) * 7 + w) % THEME.groundColors.length];
-          drawIsoDiamond(ctx, scr.x, scr.y, TILE_W, TILE_H, groundColor, THEME.groundStroke);
-        }
-      }
-
-      // Draw connected road network on top of ground
-      drawRoads(ctx, contributions);
+      // Pre-compute the L0 placement map
+      const l0Map = buildL0Map(contributions);
 
       // Build draw list for depth-sorted sprites
       const drawList = [];
@@ -359,11 +339,11 @@
         const cellRng = mulberry32(seed);
 
         if (cell.level === 0) {
-          // L0: roads are drawn as connected lines already.
-          // Place decorative sprites on non-road L0 cells.
-          const decorType = pickL0Decor(w, d, contributions);
-          if (decorType && sprites.l0[decorType]) {
-            spriteImg = sprites.l0[decorType];
+          // L0: pick from categorized sprites based on rules matrix
+          const l0Type = l0Map[w][d];
+          if (l0Type && sprites.l0[l0Type] && sprites.l0[l0Type].length > 0) {
+            const variants = sprites.l0[l0Type];
+            spriteImg = variants[Math.floor(cellRng() * variants.length)];
           }
         } else if (sprites[cell.level] && sprites[cell.level].length > 0) {
           // L1-4: random variant
