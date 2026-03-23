@@ -87,20 +87,48 @@
       4: ['../themes/city-nyc/sprites/level-4-a.png', '../themes/city-nyc/sprites/level-4-b.png', '../themes/city-nyc/sprites/level-4-c.png'],
     };
 
-    // L0 sprites grouped by category
+    // L0 sprites grouped by category for placement rules
     const L0_SPRITES = {
-      road:     ['../themes/city-nyc/sprites/level-0-i.png'],
-      crosswalk:['../themes/city-nyc/sprites/level-0-j.png'],
-      sidewalk: ['../themes/city-nyc/sprites/level-0-k.png', '../themes/city-nyc/sprites/level-0-l.png'],
-      grass:    ['../themes/city-nyc/sprites/level-0-f.png', '../themes/city-nyc/sprites/level-0-g.png', '../themes/city-nyc/sprites/level-0-h.png'],
-      park:     ['../themes/city-nyc/sprites/level-0-d.png', '../themes/city-nyc/sprites/level-0-n.png'],
-      parking:  ['../themes/city-nyc/sprites/level-0-m.png'],
-      lot:      ['../themes/city-nyc/sprites/level-0-a.png', '../themes/city-nyc/sprites/level-0-c.png'],
+      // Roads are drawn programmatically (filled diamonds) — no sprites needed
+      sidewalk: [
+        '../themes/city-nyc/sprites/level-0-k.png',
+        '../themes/city-nyc/sprites/level-0-l.png',
+        '../themes/city-nyc/sprites/level-0-u.png',  // subway entrance
+      ],
+      grass: [
+        '../themes/city-nyc/sprites/level-0-f.png',
+        '../themes/city-nyc/sprites/level-0-g.png',
+        '../themes/city-nyc/sprites/level-0-h.png',  // street tree
+        '../themes/city-nyc/sprites/level-0-p.png',  // big park tree
+        '../themes/city-nyc/sprites/level-0-t.png',  // autumn tree row
+      ],
+      park: [
+        '../themes/city-nyc/sprites/level-0-d.png',  // bench + fence
+        '../themes/city-nyc/sprites/level-0-n.png',  // brick plaza + planter
+        '../themes/city-nyc/sprites/level-0-o.png',  // bridge
+        '../themes/city-nyc/sprites/level-0-r.png',  // basketball court
+        '../themes/city-nyc/sprites/level-0-s.png',  // fountain
+        '../themes/city-nyc/sprites/level-0-v.png',  // dog park
+      ],
+      urban: [
+        '../themes/city-nyc/sprites/level-0-a.png',  // empty lot
+        '../themes/city-nyc/sprites/level-0-c.png',  // lamp + sidewalk
+        '../themes/city-nyc/sprites/level-0-m.png',  // parking + taxi
+        '../themes/city-nyc/sprites/level-0-q.png',  // food truck
+      ],
     };
 
     // Road grid config
     const ROAD_INTERVAL = 8;
     const CROSS_STREETS = [0, 6];
+
+    // Road rendering colors
+    const ROAD_COLORS = {
+      asphalt: '#33333a',
+      asphaltLight: '#3a3a42',
+      lane: '#aa9933',
+      crosswalk: '#cccccc',
+    };
 
     // ========== SEEDED RNG ==========
     function mulberry32(seed) {
@@ -253,27 +281,28 @@
           const rng = mulberry32((w * 7 + d) * 99991 + 54321);
 
           // Rule 3: Adjacent to road → sidewalk (pedestrians walk here)
-          if (hasRoad) { map[w][d] = rng() < 0.7 ? 'sidewalk' : 'lot'; continue; }
+          if (hasRoad) { map[w][d] = rng() < 0.7 ? 'sidewalk' : 'urban'; continue; }
 
-          // Rule 4: Adjacent to building → sidewalk or parking
+          // Rule 4: Adjacent to building → sidewalk, urban, or parking
           if (hasBuilding) {
             const r = rng();
-            if (r < 0.6) map[w][d] = 'sidewalk';
-            else if (r < 0.8) map[w][d] = 'parking';
-            else map[w][d] = 'lot';
+            if (r < 0.5) map[w][d] = 'sidewalk';
+            else if (r < 0.8) map[w][d] = 'urban';
+            else map[w][d] = 'grass';
             continue;
           }
 
-          // Rule 5: Surrounded by empty → grass or park (dog walkers, joggers)
+          // Rule 5: Surrounded by empty → park or grass (dog walkers, joggers)
           if (emptyCount >= 4) {
-            map[w][d] = rng() < 0.6 ? 'grass' : 'park';
+            map[w][d] = rng() < 0.5 ? 'park' : 'grass';
             continue;
           }
 
           // Rule 6: Default fill
           const r = rng();
-          if (r < 0.4) map[w][d] = 'grass';
-          else if (r < 0.7) map[w][d] = 'lot';
+          if (r < 0.35) map[w][d] = 'grass';
+          else if (r < 0.55) map[w][d] = 'park';
+          else if (r < 0.8) map[w][d] = 'urban';
           else map[w][d] = 'sidewalk';
         }
       }
@@ -309,6 +338,56 @@
       // Pre-compute the L0 placement map
       const l0Map = buildL0Map(contributions);
 
+      // Draw base: ground tiles + road network
+      for (let w = 0; w < WEEKS; w++) {
+        for (let d = 0; d < DAYS; d++) {
+          const scr = gridToScreen(w, d);
+
+          if (contributions[w][d].level === 0 && isRoadCell(w, d)) {
+            // Road cells: filled dark asphalt diamond
+            const isInt = isIntersection(w, d);
+            drawIsoDiamond(ctx, scr.x, scr.y, TILE_W, TILE_H,
+              isInt ? ROAD_COLORS.asphaltLight : ROAD_COLORS.asphalt,
+              '#222228');
+
+            // Lane markings (yellow dashed center line)
+            if (!isInt) {
+              ctx.strokeStyle = ROAD_COLORS.lane;
+              ctx.lineWidth = 0.6;
+              ctx.setLineDash([2, 2]);
+              if (CROSS_STREETS.includes(d)) {
+                // Horizontal road — line goes left-right in iso
+                ctx.beginPath();
+                ctx.moveTo(scr.x - TILE_W * 0.3, scr.y);
+                ctx.lineTo(scr.x + TILE_W * 0.3, scr.y);
+                ctx.stroke();
+              } else {
+                // Vertical avenue — line goes top-bottom in iso
+                ctx.beginPath();
+                ctx.moveTo(scr.x, scr.y - TILE_H * 0.3);
+                ctx.lineTo(scr.x, scr.y + TILE_H * 0.3);
+                ctx.stroke();
+              }
+              ctx.setLineDash([]);
+            } else {
+              // Crosswalk stripes at intersections
+              ctx.strokeStyle = ROAD_COLORS.crosswalk;
+              ctx.lineWidth = 0.6;
+              for (let i = -2; i <= 2; i++) {
+                ctx.beginPath();
+                ctx.moveTo(scr.x - TILE_W * 0.25, scr.y + i * 1.2);
+                ctx.lineTo(scr.x + TILE_W * 0.25, scr.y + i * 1.2);
+                ctx.stroke();
+              }
+            }
+          } else {
+            // Non-road: regular ground tile
+            const groundColor = THEME.groundColors[((w + d) * 7 + w) % THEME.groundColors.length];
+            drawIsoDiamond(ctx, scr.x, scr.y, TILE_W, TILE_H, groundColor, THEME.groundStroke);
+          }
+        }
+      }
+
       // Build draw list for depth-sorted sprites
       const drawList = [];
       const hitMap = [];
@@ -339,9 +418,10 @@
         const cellRng = mulberry32(seed);
 
         if (cell.level === 0) {
-          // L0: pick from categorized sprites based on rules matrix
+          // L0: roads already drawn as diamonds. Place sprites on non-road cells.
           const l0Type = l0Map[w][d];
-          if (l0Type && sprites.l0[l0Type] && sprites.l0[l0Type].length > 0) {
+          if (l0Type && l0Type !== 'road' && l0Type !== 'crosswalk'
+              && sprites.l0[l0Type] && sprites.l0[l0Type].length > 0) {
             const variants = sprites.l0[l0Type];
             spriteImg = variants[Math.floor(cellRng() * variants.length)];
           }
