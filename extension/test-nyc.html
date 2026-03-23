@@ -425,6 +425,114 @@
         ctx.setLineDash([]);
       }
 
+      // ---- LAYER 3: Road decorations (sprites placed ON roads) ----
+      // Rules:
+      //   - Max 1 bridge per road, only on roads with 8+ cells, not near intersections
+      //   - Max 1 tunnel per road, not on same road as bridge
+      //   - Street trees every 3-5 cells along road edges
+      //   - Street lamps every 4-6 cells
+      //   - Parked cars / food trucks sparse, near block edges
+      //   - Never same decoration on adjacent cells
+      //   - Intersections get their own decoration (crosswalk sprite)
+
+      const roadDecorMap = Array.from({ length: WEEKS }, () => Array(DAYS).fill(null));
+
+      function decorateRoadSegment(cells, isVertical) {
+        // cells = array of {w, d} for one continuous road segment
+        if (cells.length < 2) return;
+
+        const rng = mulberry32(cells[0].w * 1000 + cells[0].d * 77 + 42);
+
+        // Track what's been placed on this segment
+        let hasBridge = false;
+        let hasTunnel = false;
+        let lastDecoAt = -10; // index of last decoration placement
+
+        for (let i = 0; i < cells.length; i++) {
+          const { w, d } = cells[i];
+          const r = rng();
+
+          // Skip intersections — they're where avenues meet cross streets
+          if (isAvenue(w) && isCrossStreet(d)) {
+            roadDecorMap[w][d] = 'road_cross';
+            lastDecoAt = i;
+            continue;
+          }
+
+          const distFromLast = i - lastDecoAt;
+          const distFromEnd = Math.min(i, cells.length - 1 - i);
+
+          // Bridge: once per road, only long roads, not near edges or intersections
+          if (!hasBridge && cells.length >= 8 && distFromEnd >= 3 && distFromLast >= 4 && r < 0.15) {
+            roadDecorMap[w][d] = 'road_bridge';
+            hasBridge = true;
+            lastDecoAt = i;
+            continue;
+          }
+
+          // Tunnel: once per road, not if bridge already placed, not near edges
+          if (!hasTunnel && !hasBridge && cells.length >= 6 && distFromEnd >= 2 && distFromLast >= 4 && r < 0.12) {
+            roadDecorMap[w][d] = 'road_tunnel';
+            hasTunnel = true;
+            lastDecoAt = i;
+            continue;
+          }
+
+          // Street trees: every 3-5 cells
+          if (distFromLast >= 3 && r < 0.35) {
+            roadDecorMap[w][d] = 'tree';
+            lastDecoAt = i;
+            continue;
+          }
+
+          // Street lamps: every 4-6 cells, not adjacent to trees
+          if (distFromLast >= 4 && r < 0.25) {
+            roadDecorMap[w][d] = 'lamp';
+            lastDecoAt = i;
+            continue;
+          }
+
+          // Parked cars / food truck: sparse, near block edges
+          if (distFromLast >= 3 && distFromEnd <= 2 && r < 0.3) {
+            roadDecorMap[w][d] = r < 0.15 ? 'food_truck' : 'parking';
+            lastDecoAt = i;
+            continue;
+          }
+        }
+      }
+
+      // Collect avenue segments (column road cells between intersections)
+      for (let w = 0; w < WEEKS; w += ROAD_INTERVAL) {
+        const cells = [];
+        for (let d = 0; d < DAYS; d++) {
+          cells.push({ w, d });
+        }
+        decorateRoadSegment(cells, true);
+      }
+
+      // Collect cross street segments (row road cells between intersections)
+      for (const d of CROSS_STREETS) {
+        const cells = [];
+        for (let w = 0; w < WEEKS; w++) {
+          cells.push({ w, d });
+        }
+        decorateRoadSegment(cells, false);
+      }
+
+      // Road decoration sprite mapping
+      const roadDecorSprites = {
+        road_cross: sprites.l0.road_cross,
+        road_bridge: sprites.l0.road_bridge,
+        road_tunnel: sprites.l0.road_tunnel,
+        parking: sprites.l0.road_park,
+        tree: sprites.l0.grass,      // reuse grass sprites (street trees)
+        lamp: sprites.l0.sidewalk,   // reuse sidewalk sprites (street lamps)
+        food_truck: sprites.l0.urban, // reuse urban sprites (food trucks)
+      };
+
+      // Draw road decorations (depth sorted with everything else)
+      // We'll add them to the main draw list below
+
       // Build draw list for depth-sorted sprites
       const drawList = [];
       const hitMap = [];
@@ -454,10 +562,21 @@
         const seed = (w * 7 + d) * 31337 + 12345;
         const cellRng = mulberry32(seed);
 
-        // Road cells: NEVER draw buildings — roads always show through
+        // Road cells: draw road decoration sprite if assigned, never buildings
         if (isRoadCell(w, d)) {
-          // Roads are already painted in Layer 2. Skip this cell.
-          continue;
+          const decor = roadDecorMap[w][d];
+          if (decor && roadDecorSprites[decor] && roadDecorSprites[decor].length > 0) {
+            const variants = roadDecorSprites[decor];
+            spriteImg = variants[Math.floor(cellRng() * variants.length)];
+          }
+          if (spriteImg) {
+            const sw = spriteImg.width * SPRITE_SCALE;
+            const sh = spriteImg.height * SPRITE_SCALE;
+            const sx = scr.x - sw / 2;
+            const sy = scr.y - sh + TILE_H / 4;
+            ctx.drawImage(spriteImg, sx, sy, sw, sh);
+          }
+          continue; // Never draw buildings on roads
         }
 
         if (cell.level === 0) {
