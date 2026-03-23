@@ -1,78 +1,108 @@
 /**
  * Contribution Lands — Content Script
  *
- * Injected into GitHub profile pages. Reads the contribution calendar,
- * replaces it with an isometric themed visualization using sprites.
- *
- * How isometric-contributions does it (our reference):
- *   1. Wait for .js-calendar-graph to appear in DOM
- *   2. Read <td class="ContributionCalendar-day"> elements
- *   3. Extract data-date and data-level (0-4) from each cell
- *   4. Create a <canvas> overlay
- *   5. Render isometric view
- *   6. Toggle between original/isometric via injected buttons
- *   7. MutationObserver to re-init on SPA navigation
- *
- * We follow the same pattern but render sprites instead of obelisk.js cubes.
+ * Mirrors the exact initialization pattern from isometric-contributions:
+ *   1. Wait for .vcard-names-container (confirms profile page)
+ *   2. MutationObserver on <main> or <body> watching for .js-calendar-graph
+ *   3. Parse contribution data from DOM
+ *   4. Inject canvas + toggle buttons
+ *   5. Re-init on turbo:load (GitHub SPA navigation)
  */
 
 import { IsoRenderer, type ContributionData } from './renderer';
 
 // ============================================================
-//  DOM SELECTORS (matching GitHub's contribution graph)
+//  STATE
 // ============================================================
 
-const SELECTORS = {
-  calendarGraph: '.js-calendar-graph',
-  calendarTable: '.js-calendar-graph-table',
-  contributionDay: 'td.ContributionCalendar-day',
-  yearlyContributions: '.js-yearly-contributions',
-  profileIndicator: '.vcard-names-container, [itemtype="http://schema.org/Person"]',
-};
+let contributionsWrapper: HTMLElement | null = null;
+let observer: MutationObserver | null = null;
+let viewSetting: 'squares' | 'cubes' | 'both' = 'cubes';
 
 // ============================================================
-//  CONTRIBUTION DATA EXTRACTION
+//  STORAGE (same pattern as isometric-contributions)
 // ============================================================
 
-function parseContributionGraph(): ContributionData[] | null {
-  const table = document.querySelector(SELECTORS.calendarTable);
-  if (!table) return null;
+function getStorage() {
+  if (typeof chrome !== 'undefined' && chrome?.storage?.local) {
+    return chrome.storage.local;
+  }
+  return null;
+}
 
-  const cells = table.querySelectorAll(SELECTORS.contributionDay);
-  if (!cells.length) return null;
+async function loadSetting<T>(key: string, defaultValue: T): Promise<T> {
+  const storage = getStorage();
+  if (storage && typeof storage.get === 'function') {
+    return new Promise((resolve) => {
+      storage.get([key], (result: Record<string, T>) => {
+        resolve(result[key] ?? defaultValue);
+      });
+    });
+  }
+  return defaultValue;
+}
+
+function saveSetting(key: string, value: unknown) {
+  const storage = getStorage();
+  if (storage && typeof storage.set === 'function') {
+    storage.set({ [key]: value });
+  }
+}
+
+// ============================================================
+//  DOM PARSING (adapted from isometric-contributions/utils.js)
+// ============================================================
+
+function getContributionCount(text: string): number {
+  const match = text.match(/(\d+|No) contributions? on/);
+  if (!match) return 0;
+  return match[1] === 'No' ? 0 : parseInt(match[1], 10);
+}
+
+function parseCalendarGraph(): ContributionData[] | null {
+  const dayElements = document.querySelectorAll(
+    '.js-calendar-graph-table tbody td.ContributionCalendar-day'
+  );
+  const tooltipElements = document.querySelectorAll(
+    '.js-calendar-graph tool-tip'
+  );
+
+  if (!dayElements.length) {
+    console.log('[CL] No calendar day elements found');
+    return null;
+  }
+
+  console.log(`[CL] Found ${dayElements.length} day cells, ${tooltipElements.length} tooltips`);
+
+  // Build tooltip lookup
+  const tooltipMap = new Map<string, number>();
+  tooltipElements.forEach((t) => {
+    tooltipMap.set(t.id, getContributionCount(t.textContent ?? ''));
+  });
 
   const data: ContributionData[] = [];
 
-  cells.forEach((cell) => {
-    const td = cell as HTMLElement;
-    const date = td.getAttribute('data-date');
-    const level = parseInt(td.getAttribute('data-level') ?? '0', 10);
-
+  dayElements.forEach((el) => {
+    const td = el as HTMLElement;
+    const date = td.dataset.date;
     if (!date) return;
 
-    // data-ix is the week index (column position)
-    const week = parseInt(td.getAttribute('data-ix') ?? '0', 10);
+    const week = parseInt(td.dataset.ix ?? '0', 10);
+    const level = parseInt(td.getAttribute('data-level') ?? '0', 10);
 
-    // Row position from the <tr> parent (0 = Sun, 6 = Sat)
+    // Get row index (day of week)
     const tr = td.closest('tr');
-    const rows = tr?.parentElement?.querySelectorAll('tr');
     let day = 0;
-    if (rows) {
+    if (tr?.parentElement) {
+      const rows = tr.parentElement.querySelectorAll('tr');
       rows.forEach((row, idx) => {
         if (row === tr) day = idx;
       });
     }
 
-    // Get contribution count from tooltip
-    let count = 0;
-    const tooltipId = td.getAttribute('aria-labelledby');
-    if (tooltipId) {
-      const tooltip = document.getElementById(tooltipId);
-      if (tooltip) {
-        const match = tooltip.textContent?.match(/(\d+)\s+contribution/);
-        if (match) count = parseInt(match[1], 10);
-      }
-    }
+    // Get count from tooltip
+    const tid = td.getAttribute('aria-labelledby') ?? '';
+    const count = tooltipMap.get(tid) ?? 0;
 
     data.push({
       date,
@@ -87,269 +117,257 @@ function parseContributionGraph(): ContributionData[] | null {
 }
 
 // ============================================================
-//  UI INJECTION
+//  THEME + SPRITE LOADING
 // ============================================================
 
-type ViewMode = 'original' | 'isometric' | 'both';
-
-function createToggleButtons(
-  container: HTMLElement,
-  onToggle: (mode: ViewMode) => void,
-): HTMLElement {
-  const wrapper = document.createElement('div');
-  wrapper.className = 'cl-toggle-wrapper';
-  wrapper.style.cssText = `
-    display: flex; gap: 4px; margin-bottom: 8px;
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
-  `;
-
-  const modes: { label: string; value: ViewMode }[] = [
-    { label: '■ Squares', value: 'original' },
-    { label: '◆ Lands', value: 'isometric' },
-    { label: '■◆ Both', value: 'both' },
-  ];
-
-  modes.forEach(({ label, value }) => {
-    const btn = document.createElement('button');
-    btn.textContent = label;
-    btn.dataset.clMode = value;
-    btn.style.cssText = `
-      padding: 3px 10px; font-size: 12px; border-radius: 6px;
-      border: 1px solid #30363d; background: #21262d; color: #8b949e;
-      cursor: pointer; transition: all 0.15s;
-    `;
-    btn.addEventListener('click', () => {
-      wrapper.querySelectorAll('button').forEach((b) => {
-        (b as HTMLElement).style.background = '#21262d';
-        (b as HTMLElement).style.color = '#8b949e';
-        (b as HTMLElement).style.borderColor = '#30363d';
-      });
-      btn.style.background = '#1f6feb';
-      btn.style.color = '#fff';
-      btn.style.borderColor = '#1f6feb';
-      onToggle(value);
-    });
-    wrapper.appendChild(btn);
-  });
-
-  // Find the H2 heading before the graph and insert toggle before it
-  const heading = container.querySelector('h2');
-  if (heading?.parentElement) {
-    heading.parentElement.insertBefore(wrapper, heading);
-  } else {
-    container.prepend(wrapper);
-  }
-
-  return wrapper;
-}
-
-function createCanvasContainer(): HTMLElement {
-  const div = document.createElement('div');
-  div.id = 'contribution-lands-container';
-  div.style.cssText = `
-    width: 100%; overflow-x: auto; margin-top: 8px;
-    border-radius: 6px; position: relative;
-  `;
-  return div;
-}
-
-// ============================================================
-//  THEME LOADING
-// ============================================================
-
-interface ThemeConfig {
-  name: string;
-  background: string;
-  ground_colors: string[];
-  ground_stroke: string;
-}
-
-async function loadSelectedTheme(): Promise<{
-  themeId: string;
-  config: ThemeConfig;
-  sprites: Record<number, HTMLImageElement[]>;
-}> {
-  // Read theme selection from chrome.storage
-  let themeId = 'city-nyc'; // default
+async function loadThemeAndSprites() {
+  let themeId = 'city-nyc';
   try {
-    const stored = await chrome.storage.sync.get('selectedThemeId');
-    if (stored.selectedThemeId) themeId = stored.selectedThemeId;
-  } catch {
-    // Not in extension context (e.g., testing). Use default.
-  }
+    themeId = await loadSetting('selectedThemeId', 'city-nyc');
+  } catch {}
 
-  // Load theme.json
-  const themeUrl = chrome.runtime.getURL(`themes/${themeId}/theme.json`);
-  let config: ThemeConfig;
+  // Load theme config
+  let config = {
+    name: 'NYC Skyline',
+    background: '#0a0e14',
+    ground_colors: ['#3a3a40', '#35353b', '#404046'],
+    ground_stroke: '#2a2a30',
+  };
+
   try {
-    const res = await fetch(themeUrl);
+    const url = chrome.runtime.getURL(`themes/${themeId}/theme.json`);
+    const res = await fetch(url);
     config = await res.json();
-  } catch {
-    config = {
-      name: 'NYC Skyline',
-      background: '#0a0e14',
-      ground_colors: ['#3a3a40', '#35353b', '#404046'],
-      ground_stroke: '#2a2a30',
-    };
+  } catch (e) {
+    console.log('[CL] Failed to load theme config, using defaults', e);
   }
 
-  // Discover and load sprites
+  // Load sprites — try variants a through z, stop when not found
   const sprites: Record<number, HTMLImageElement[]> = { 0: [], 1: [], 2: [], 3: [], 4: [] };
 
   for (let level = 0; level <= 4; level++) {
-    const variants = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'];
-    for (const v of variants) {
+    for (let vi = 0; vi < 26; vi++) {
+      const variant = String.fromCharCode(97 + vi);
+      const spriteUrl = chrome.runtime.getURL(`themes/${themeId}/sprites/level-${level}-${variant}.png`);
+
       try {
-        const url = chrome.runtime.getURL(`themes/${themeId}/sprites/level-${level}-${v}.png`);
-        const img = new Image();
-        await new Promise<void>((resolve) => {
-          img.onload = () => { sprites[level].push(img); resolve(); };
-          img.onerror = () => resolve(); // Skip missing variants
+        const img = await new Promise<HTMLImageElement | null>((resolve) => {
+          const image = new Image();
+          image.onload = () => resolve(image);
+          image.onerror = () => resolve(null);
+          image.src = spriteUrl;
         });
-        img.src = url;
+        if (img) {
+          sprites[level].push(img);
+        } else {
+          break; // No more variants for this level
+        }
       } catch {
         break;
       }
     }
   }
 
+  console.log(`[CL] Loaded theme "${config.name}", sprites:`,
+    Object.entries(sprites).map(([l, s]) => `L${l}:${s.length}`).join(' '));
+
   return { themeId, config, sprites };
 }
 
 // ============================================================
-//  MAIN INITIALIZATION
+//  VIEW TOGGLE (CSS class approach from isometric-contributions)
 // ============================================================
 
-let currentRenderer: IsoRenderer | null = null;
-let currentToggle: HTMLElement | null = null;
+function applyViewType(container: HTMLElement, type: string) {
+  container.classList.toggle('cl-squares', type === 'squares');
+  container.classList.toggle('cl-cubes', type === 'cubes');
+  container.classList.toggle('cl-both', type === 'both');
+}
 
-async function initContributionLands() {
-  const graphContainer = document.querySelector(SELECTORS.yearlyContributions);
-  const calendarGraph = document.querySelector(SELECTORS.calendarGraph);
-  if (!graphContainer || !calendarGraph) return;
+function injectCSS() {
+  if (document.getElementById('contribution-lands-css')) return;
+  const style = document.createElement('style');
+  style.id = 'contribution-lands-css';
+  style.textContent = `
+    /* Original graph only */
+    .cl-squares #contribution-lands-canvas,
+    .cl-squares .cl-contributions-wrapper { display: none; }
 
-  // Don't double-initialize
-  if (document.getElementById('contribution-lands-container')) return;
+    /* Isometric only */
+    .cl-cubes .js-calendar-graph { display: none !important; }
+
+    /* Both — everything visible */
+
+    /* Toggle buttons */
+    .cl-toggle-option.selected {
+      background-color: #1f6feb !important;
+      color: #fff !important;
+      border-color: #1f6feb !important;
+    }
+  `;
+  document.head.appendChild(style);
+}
+
+// ============================================================
+//  MAIN: generateIsometricChart (mirrors isometric-contributions)
+// ============================================================
+
+async function generateIsometricChart() {
+  const calendarGraph = document.querySelector('.js-calendar-graph');
+  const contributionsBox = document.querySelector('.js-yearly-contributions');
+
+  if (!calendarGraph || !contributionsBox) {
+    console.log('[CL] Calendar graph or contributions box not found');
+    return;
+  }
+
+  console.log('[CL] Generating isometric chart...');
 
   // Parse contribution data
-  const contributions = parseContributionGraph();
-  if (!contributions || contributions.length === 0) return;
+  const data = parseCalendarGraph();
+  if (!data || data.length === 0) {
+    console.log('[CL] No contribution data parsed');
+    return;
+  }
 
-  // Load theme and sprites
-  const { config, sprites } = await loadSelectedTheme();
+  // Load theme
+  const { config, sprites } = await loadThemeAndSprites();
 
-  // Create canvas container
-  const canvasContainer = createCanvasContainer();
-  calendarGraph.parentElement?.insertBefore(canvasContainer, calendarGraph.nextSibling);
+  // Create wrapper (same pattern as isometric-contributions)
+  contributionsWrapper = document.createElement('div');
+  contributionsWrapper.className = 'cl-contributions-wrapper position-relative';
+  calendarGraph.before(contributionsWrapper);
 
-  // Create renderer
+  // Create canvas
   const canvas = document.createElement('canvas');
-  canvas.style.cssText = 'width: 100%; display: block;';
-  canvasContainer.appendChild(canvas);
+  canvas.id = 'contribution-lands-canvas';
+  canvas.style.width = '100%';
+  contributionsWrapper.appendChild(canvas);
 
-  currentRenderer = new IsoRenderer(canvas, contributions, config, sprites);
-  currentRenderer.render();
+  // Render
+  const renderer = new IsoRenderer(canvas, data, config, sprites);
+  renderer.render();
 
-  // Add toggle buttons
-  let viewMode: ViewMode = 'isometric';
-  const originalGraph = calendarGraph as HTMLElement;
+  // Inject toggle buttons (same position as isometric-contributions: before the H2)
+  let insertLocation: Element | null = contributionsBox.querySelector('h2');
+  if (
+    insertLocation?.previousElementSibling &&
+    insertLocation.previousElementSibling.nodeName === 'DETAILS'
+  ) {
+    insertLocation = insertLocation.previousElementSibling;
+  }
 
-  // Load saved view mode
-  try {
-    const stored = await chrome.storage.sync.get('viewMode');
-    if (stored.viewMode) viewMode = stored.viewMode;
-  } catch {}
+  const buttonGroup = document.createElement('div');
+  buttonGroup.className = 'BtnGroup mt-1 ml-3 position-relative top-0 float-right';
 
-  currentToggle = createToggleButtons(graphContainer as HTMLElement, (mode) => {
-    viewMode = mode;
-    try { chrome.storage.sync.set({ viewMode: mode }); } catch {}
+  const modes: { label: string; value: string }[] = [
+    { label: '2D', value: 'squares' },
+    { label: 'Lands', value: 'cubes' },
+    { label: 'Both', value: 'both' },
+  ];
 
-    if (mode === 'original') {
-      originalGraph.style.display = '';
-      canvasContainer.style.display = 'none';
-    } else if (mode === 'isometric') {
-      originalGraph.style.display = 'none';
-      canvasContainer.style.display = '';
-    } else {
-      originalGraph.style.display = '';
-      canvasContainer.style.display = '';
-    }
+  modes.forEach(({ label, value }) => {
+    const btn = document.createElement('button');
+    btn.textContent = label;
+    btn.className = `cl-toggle-option ${value} btn BtnGroup-item btn-sm py-0 px-1`;
+    btn.dataset.clOption = value;
+    if (viewSetting === value) btn.classList.add('selected');
+
+    btn.addEventListener('click', () => {
+      for (const toggle of document.querySelectorAll('.cl-toggle-option')) {
+        toggle.classList.remove('selected');
+      }
+      btn.classList.add('selected');
+      viewSetting = value as typeof viewSetting;
+      saveSetting('viewSetting', value);
+      applyViewType(contributionsBox as HTMLElement, value);
+    });
+
+    buttonGroup.appendChild(btn);
   });
 
-  // Apply initial view mode
-  if (viewMode === 'isometric') {
-    originalGraph.style.display = 'none';
-  } else if (viewMode === 'original') {
-    canvasContainer.style.display = 'none';
+  if (insertLocation) {
+    insertLocation.before(buttonGroup);
   }
 
-  // Activate the right button
-  const activeBtn = currentToggle.querySelector(`[data-cl-mode="${viewMode}"]`) as HTMLElement;
-  if (activeBtn) {
-    activeBtn.style.background = '#1f6feb';
-    activeBtn.style.color = '#fff';
-    activeBtn.style.borderColor = '#1f6feb';
-  }
+  // Apply current view
+  applyViewType(contributionsBox as HTMLElement, viewSetting);
 
-  console.log(`[Contribution Lands] Initialized with ${contributions.length} cells, theme: ${config.name}`);
+  console.log(`[CL] Initialized! ${data.length} cells, theme: ${config.name}, view: ${viewSetting}`);
 }
 
 // ============================================================
-//  CLEANUP (for SPA re-navigation)
-// ============================================================
-
-function cleanup() {
-  const existing = document.getElementById('contribution-lands-container');
-  if (existing) existing.remove();
-  if (currentToggle) currentToggle.remove();
-  currentRenderer = null;
-  currentToggle = null;
-}
-
-// ============================================================
-//  OBSERVER — detect GitHub SPA navigation
+//  SETUP OBSERVER (exact pattern from isometric-contributions)
 // ============================================================
 
 function setupObserver() {
-  // Initial attempt
-  if (document.querySelector(SELECTORS.calendarGraph)) {
-    initContributionLands();
+  // Must be on a profile page
+  if (!document.querySelector('.vcard-names-container')) {
+    console.log('[CL] Not a profile page (no .vcard-names-container)');
+    return;
   }
 
-  // Watch for DOM changes (GitHub is an SPA — the page mutates)
-  const observer = new MutationObserver(() => {
-    // Check if we're on a profile page with a contribution graph
-    if (document.querySelector(SELECTORS.calendarGraph)) {
-      if (!document.getElementById('contribution-lands-container')) {
-        initContributionLands();
-      }
-    } else {
-      // Navigated away from profile — clean up
-      cleanup();
+  // Cleanup previous
+  document.querySelector('.cl-contributions-wrapper')?.remove();
+  document.querySelector('.cl-toggle-option')?.parentElement?.remove();
+
+  // Try immediately
+  const initIfReady = () => {
+    if (
+      document.querySelector('.js-calendar-graph') &&
+      !document.querySelector('.cl-contributions-wrapper')
+    ) {
+      generateIsometricChart();
+    }
+  };
+
+  initIfReady();
+
+  // Observe for lazy-loaded graph
+  observer?.disconnect();
+  const target = document.querySelector('main') || document.body;
+  observer = new MutationObserver(() => initIfReady());
+  observer.observe(target, { childList: true, subtree: true });
+}
+
+// ============================================================
+//  ENTRY POINT (exact pattern from isometric-contributions)
+// ============================================================
+
+(async () => {
+  console.log('[CL] Content script loaded on', window.location.href);
+
+  injectCSS();
+  viewSetting = await loadSetting('viewSetting', 'cubes');
+
+  // Listen for theme changes (dark/light mode)
+  globalThis.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
+    if (document.querySelector('.cl-contributions-wrapper')) {
+      document.querySelector('.cl-contributions-wrapper')?.remove();
+      document.querySelector('.cl-toggle-option')?.parentElement?.remove();
+      generateIsometricChart();
     }
   });
 
-  observer.observe(document.body, { childList: true, subtree: true });
-
-  // Also listen to GitHub's turbo navigation events
-  document.addEventListener('turbo:load', () => {
-    cleanup();
-    setTimeout(initContributionLands, 500);
+  setupObserver();
+  document.addEventListener('turbo:load', setupObserver);
+  document.addEventListener('visibilitychange', () => {
+    if (
+      document.visibilityState === 'visible' &&
+      document.querySelector('.cl-contributions-wrapper')
+    ) {
+      // Re-render when tab becomes visible (performance optimization)
+    }
   });
 
   // Re-render on theme change from popup
   try {
     chrome.storage.onChanged.addListener((changes) => {
       if (changes.selectedThemeId) {
-        cleanup();
-        initContributionLands();
+        document.querySelector('.cl-contributions-wrapper')?.remove();
+        document.querySelector('.cl-toggle-option')?.parentElement?.remove();
+        generateIsometricChart();
       }
     });
   } catch {}
-}
-
-// ============================================================
-//  ENTRY POINT
-// ============================================================
-
-setupObserver();
+})();
