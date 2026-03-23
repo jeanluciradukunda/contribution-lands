@@ -173,7 +173,33 @@ def remove_green_background(input_path, output_path):
             fg[:, :, 1][fringe_hard] = avg_rb + (fg_g[fringe_hard] - avg_rb) * 0.2
 
         # ============================================================
-        #  STEP 8: Assemble and save
+        #  STEP 8: White outline removal
+        # ============================================================
+        #
+        # Our prompt used to request a white outline. Even without it,
+        # AI generators sometimes add a light border. Strip near-white
+        # semi-transparent edge pixels by fading them out.
+
+        fg_r, fg_g, fg_b = fg[:, :, 0], fg[:, :, 1], fg[:, :, 2]
+        brightness = (fg_r + fg_g + fg_b) / 3.0
+        low_saturation = (np.max(fg[:, :, :3], axis=2) - np.min(fg[:, :, :3], axis=2)) < 40
+        white_edge = (alpha_final > 0.01) & (alpha_final < 0.95) & (brightness > 180) & low_saturation
+
+        if np.any(white_edge):
+            alpha_final[white_edge] *= 0.15
+
+        # Also catch fully opaque white-ish pixels right at the object boundary
+        from scipy import ndimage as _ndi
+        opaque_mask = alpha_final > 0.95
+        eroded = _ndi.binary_erosion(opaque_mask, iterations=1)
+        boundary = opaque_mask & ~eroded
+        white_boundary = boundary & (brightness > 200) & low_saturation
+
+        if np.any(white_boundary):
+            alpha_final[white_boundary] *= 0.3
+
+        # ============================================================
+        #  STEP 9: Assemble and save
         # ============================================================
 
         result = np.zeros((h, w, 4), dtype=np.uint8)
