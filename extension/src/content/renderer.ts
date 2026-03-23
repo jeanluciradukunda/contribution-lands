@@ -204,8 +204,8 @@ export class IsoRenderer {
     this.gridOffsetY = padding + topPadding;
 
     // Background
-    ctx.fillStyle = this.theme.background;
-    ctx.fillRect(0, 0, canvasW, canvasH);
+    // Transparent background — adapts to GitHub's light/dark mode
+    ctx.clearRect(0, 0, canvasW, canvasH);
 
     // Layer 1: Ground diamonds
     for (let w = 0; w < weeks; w++) {

@@ -212,12 +212,19 @@ function injectCSS() {
 //  MAIN: generateIsometricChart (mirrors isometric-contributions)
 // ============================================================
 
+let isGenerating = false;
+
 async function generateIsometricChart() {
+  // Prevent double-init from rapid MutationObserver callbacks
+  if (isGenerating || document.querySelector('.cl-contributions-wrapper')) return;
+  isGenerating = true;
+
   const calendarGraph = document.querySelector('.js-calendar-graph');
   const contributionsBox = document.querySelector('.js-yearly-contributions');
 
   if (!calendarGraph || !contributionsBox) {
     console.log('[CL] Calendar graph or contributions box not found');
+    isGenerating = false;
     return;
   }
 
@@ -293,6 +300,7 @@ async function generateIsometricChart() {
   // Apply current view
   applyViewType(contributionsBox as HTMLElement, viewSetting);
 
+  isGenerating = false;
   console.log(`[CL] Initialized! ${data.length} cells, theme: ${config.name}, view: ${viewSetting}`);
 }
 
