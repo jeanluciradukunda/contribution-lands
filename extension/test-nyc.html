@@ -227,86 +227,153 @@
       return sprites;
     }
 
-    // ========== L0 PLACEMENT RULES MATRIX ==========
+    // ========== ROAD NETWORK (continuous parallelograms) ==========
     //
-    // The grid is treated as city blocks:
-    //   - Roads: avenues (every ROAD_INTERVAL cols) + cross streets (specific rows)
-    //   - Intersections: where avenues meet cross streets → crosswalk
-    //   - Sidewalk: cells directly adjacent to roads OR buildings
-    //   - Parks/grass: clusters in open areas away from roads
-    //   - Parking: occasional, near buildings
-    //   - Empty lots: filler
-    //
-    // This creates a layout where future entities make sense:
-    //   - Taxis/cyclists move along road cells
-    //   - Pedestrians walk on sidewalk cells
-    //   - Dog walkers roam park/grass cells
+    // Adjacent isometric diamonds share edges. A strip of N diamonds
+    // in a row or column forms a single parallelogram — ONE polygon,
+    // ZERO seams. Roads always look connected.
 
     function isRoadCell(w, d) {
       return (w % ROAD_INTERVAL === 0) || CROSS_STREETS.includes(d);
     }
 
-    function isIntersection(w, d) {
-      return (w % ROAD_INTERVAL === 0) && CROSS_STREETS.includes(d);
-    }
+    function drawRoadNetwork(ctx) {
+      // Avenues: each is a continuous hexagonal strip along a column
+      for (let w = 0; w < WEEKS; w += ROAD_INTERVAL) {
+        const first = gridToScreen(w, 0);
+        const last = gridToScreen(w, DAYS - 1);
 
-    function getNeighborLevels(w, d, contributions) {
-      const dirs = [[w-1,d],[w+1,d],[w,d-1],[w,d+1],[w-1,d-1],[w+1,d+1],[w-1,d+1],[w+1,d-1]];
-      let hasBuilding = false, hasRoad = false, emptyCount = 0;
-      for (const [nw, nd] of dirs) {
-        if (nw >= 0 && nw < WEEKS && nd >= 0 && nd < DAYS) {
-          if (contributions[nw][nd].level > 0) hasBuilding = true;
-          if (isRoadCell(nw, nd) && contributions[nw][nd].level === 0) hasRoad = true;
-          if (contributions[nw][nd].level === 0 && !isRoadCell(nw, nd)) emptyCount++;
+        ctx.beginPath();
+        ctx.moveTo(first.x, first.y - TILE_H / 2);      // top
+        ctx.lineTo(first.x + TILE_W / 2, first.y);       // top-right
+        ctx.lineTo(last.x + TILE_W / 2, last.y);         // bottom-right
+        ctx.lineTo(last.x, last.y + TILE_H / 2);         // bottom
+        ctx.lineTo(last.x - TILE_W / 2, last.y);         // bottom-left
+        ctx.lineTo(first.x - TILE_W / 2, first.y);       // top-left
+        ctx.closePath();
+        ctx.fillStyle = '#2a2a32';
+        ctx.fill();
+
+        // Center dashes
+        ctx.strokeStyle = '#99882a';
+        ctx.lineWidth = 0.5;
+        ctx.setLineDash([3, 4]);
+        ctx.beginPath();
+        ctx.moveTo(first.x, first.y);
+        ctx.lineTo(last.x, last.y);
+        ctx.stroke();
+        ctx.setLineDash([]);
+      }
+
+      // Cross streets: each is a continuous parallelogram along a row
+      for (const d of CROSS_STREETS) {
+        const first = gridToScreen(0, d);
+        const last = gridToScreen(WEEKS - 1, d);
+
+        ctx.beginPath();
+        ctx.moveTo(first.x, first.y - TILE_H / 2);       // top of first
+        ctx.lineTo(last.x + TILE_W / 2, last.y);          // right of last
+        ctx.lineTo(last.x, last.y + TILE_H / 2);          // bottom of last
+        ctx.lineTo(first.x - TILE_W / 2, first.y);        // left of first
+        ctx.closePath();
+        ctx.fillStyle = '#2a2a32';
+        ctx.fill();
+
+        // Center dashes
+        ctx.strokeStyle = '#99882a';
+        ctx.lineWidth = 0.5;
+        ctx.setLineDash([3, 4]);
+        ctx.beginPath();
+        ctx.moveTo(first.x, first.y);
+        ctx.lineTo(last.x, last.y);
+        ctx.stroke();
+        ctx.setLineDash([]);
+      }
+
+      // Crosswalk stripes at intersections
+      for (let w = 0; w < WEEKS; w += ROAD_INTERVAL) {
+        for (const d of CROSS_STREETS) {
+          const scr = gridToScreen(w, d);
+          ctx.fillStyle = '#cccccc';
+          for (let i = -2; i <= 2; i++) {
+            ctx.fillRect(scr.x - TILE_W * 0.3, scr.y + i * 1.8 - 0.5, TILE_W * 0.6, 1);
+          }
         }
       }
-      return { hasBuilding, hasRoad, emptyCount };
+
+      // Sidewalk edges along roads (thin lighter strip)
+      ctx.strokeStyle = '#4a4a50';
+      ctx.lineWidth = 1;
+      for (let w = 0; w < WEEKS; w += ROAD_INTERVAL) {
+        const first = gridToScreen(w, 0);
+        const last = gridToScreen(w, DAYS - 1);
+        // Right edge
+        ctx.beginPath();
+        ctx.moveTo(first.x + TILE_W / 2, first.y);
+        ctx.lineTo(last.x + TILE_W / 2, last.y);
+        ctx.stroke();
+        // Left edge
+        ctx.beginPath();
+        ctx.moveTo(first.x - TILE_W / 2, first.y);
+        ctx.lineTo(last.x - TILE_W / 2, last.y);
+        ctx.stroke();
+      }
+      for (const d of CROSS_STREETS) {
+        const first = gridToScreen(0, d);
+        const last = gridToScreen(WEEKS - 1, d);
+        // Top edge
+        ctx.beginPath();
+        ctx.moveTo(first.x, first.y - TILE_H / 2);
+        ctx.lineTo(last.x + TILE_W / 2, last.y);
+        ctx.stroke();
+        // Bottom edge
+        ctx.beginPath();
+        ctx.moveTo(first.x - TILE_W / 2, first.y);
+        ctx.lineTo(last.x, last.y + TILE_H / 2);
+        ctx.stroke();
+      }
     }
 
-    // Pre-compute L0 type for every cell
+    // ========== L0 PLACEMENT RULES MATRIX ==========
+    //
+    // After roads are drawn, remaining L0 cells get sprites:
+    //   - Next to road/building → sidewalk (pedestrians, dog walkers)
+    //   - Open clusters → park/grass (fountains, basketball, bridges)
+    //   - Near buildings → urban (food trucks, parking, empty lots)
+
     function buildL0Map(contributions) {
       const map = Array.from({ length: WEEKS }, () => Array(DAYS).fill(null));
 
       for (let w = 0; w < WEEKS; w++) {
         for (let d = 0; d < DAYS; d++) {
-          if (contributions[w][d].level > 0) continue; // has a building
-
-          // Rule 1: Intersections → crosswalk
-          if (isIntersection(w, d)) { map[w][d] = 'crosswalk'; continue; }
-
-          // Rule 2: Road cells → road
+          if (contributions[w][d].level > 0) continue;
           if (isRoadCell(w, d)) { map[w][d] = 'road'; continue; }
 
-          const { hasBuilding, hasRoad, emptyCount } = getNeighborLevels(w, d, contributions);
+          // Check neighbors
+          const dirs = [[w-1,d],[w+1,d],[w,d-1],[w,d+1],[w-1,d-1],[w+1,d+1],[w-1,d+1],[w+1,d-1]];
+          let nearRoad = false, nearBuilding = false, emptyNeighbors = 0;
+          for (const [nw, nd] of dirs) {
+            if (nw >= 0 && nw < WEEKS && nd >= 0 && nd < DAYS) {
+              if (isRoadCell(nw, nd)) nearRoad = true;
+              if (contributions[nw][nd].level > 0) nearBuilding = true;
+              if (contributions[nw][nd].level === 0 && !isRoadCell(nw, nd)) emptyNeighbors++;
+            }
+          }
+
           const rng = mulberry32((w * 7 + d) * 99991 + 54321);
-
-          // Rule 3: Adjacent to road → sidewalk (pedestrians walk here)
-          if (hasRoad) { map[w][d] = rng() < 0.7 ? 'sidewalk' : 'urban'; continue; }
-
-          // Rule 4: Adjacent to building → sidewalk, urban, or parking
-          if (hasBuilding) {
-            const r = rng();
-            if (r < 0.5) map[w][d] = 'sidewalk';
-            else if (r < 0.8) map[w][d] = 'urban';
-            else map[w][d] = 'grass';
-            continue;
-          }
-
-          // Rule 5: Surrounded by empty → park or grass (dog walkers, joggers)
-          if (emptyCount >= 4) {
-            map[w][d] = rng() < 0.5 ? 'park' : 'grass';
-            continue;
-          }
-
-          // Rule 6: Default fill
           const r = rng();
-          if (r < 0.35) map[w][d] = 'grass';
-          else if (r < 0.55) map[w][d] = 'park';
-          else if (r < 0.8) map[w][d] = 'urban';
-          else map[w][d] = 'sidewalk';
+
+          if (nearRoad) {
+            map[w][d] = r < 0.6 ? 'sidewalk' : 'urban';
+          } else if (nearBuilding) {
+            map[w][d] = r < 0.4 ? 'sidewalk' : r < 0.7 ? 'urban' : 'grass';
+          } else if (emptyNeighbors >= 5) {
+            map[w][d] = r < 0.5 ? 'park' : 'grass';
+          } else {
+            map[w][d] = r < 0.3 ? 'grass' : r < 0.5 ? 'park' : r < 0.75 ? 'urban' : 'sidewalk';
+          }
         }
       }
-
       return map;
     }
 
@@ -335,58 +402,22 @@
       ctx.fillStyle = THEME.bg;
       ctx.fillRect(0, 0, canvasW, canvasH);
 
-      // Pre-compute the L0 placement map
+      // Pre-compute placement
       const l0Map = buildL0Map(contributions);
 
-      // Draw base: ground tiles + road network
+      // Layer 1: Ground diamonds (base)
       for (let w = 0; w < WEEKS; w++) {
         for (let d = 0; d < DAYS; d++) {
-          const scr = gridToScreen(w, d);
-
-          if (contributions[w][d].level === 0 && isRoadCell(w, d)) {
-            // Road cells: filled dark asphalt diamond
-            const isInt = isIntersection(w, d);
-            drawIsoDiamond(ctx, scr.x, scr.y, TILE_W, TILE_H,
-              isInt ? ROAD_COLORS.asphaltLight : ROAD_COLORS.asphalt,
-              '#222228');
-
-            // Lane markings (yellow dashed center line)
-            if (!isInt) {
-              ctx.strokeStyle = ROAD_COLORS.lane;
-              ctx.lineWidth = 0.6;
-              ctx.setLineDash([2, 2]);
-              if (CROSS_STREETS.includes(d)) {
-                // Horizontal road — line goes left-right in iso
-                ctx.beginPath();
-                ctx.moveTo(scr.x - TILE_W * 0.3, scr.y);
-                ctx.lineTo(scr.x + TILE_W * 0.3, scr.y);
-                ctx.stroke();
-              } else {
-                // Vertical avenue — line goes top-bottom in iso
-                ctx.beginPath();
-                ctx.moveTo(scr.x, scr.y - TILE_H * 0.3);
-                ctx.lineTo(scr.x, scr.y + TILE_H * 0.3);
-                ctx.stroke();
-              }
-              ctx.setLineDash([]);
-            } else {
-              // Crosswalk stripes at intersections
-              ctx.strokeStyle = ROAD_COLORS.crosswalk;
-              ctx.lineWidth = 0.6;
-              for (let i = -2; i <= 2; i++) {
-                ctx.beginPath();
-                ctx.moveTo(scr.x - TILE_W * 0.25, scr.y + i * 1.2);
-                ctx.lineTo(scr.x + TILE_W * 0.25, scr.y + i * 1.2);
-                ctx.stroke();
-              }
-            }
-          } else {
-            // Non-road: regular ground tile
+          if (!isRoadCell(w, d)) {
+            const scr = gridToScreen(w, d);
             const groundColor = THEME.groundColors[((w + d) * 7 + w) % THEME.groundColors.length];
             drawIsoDiamond(ctx, scr.x, scr.y, TILE_W, TILE_H, groundColor, THEME.groundStroke);
           }
         }
       }
+
+      // Layer 2: Connected road network (continuous parallelograms — no seams)
+      drawRoadNetwork(ctx);
 
       // Build draw list for depth-sorted sprites
       const drawList = [];
