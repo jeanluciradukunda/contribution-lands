@@ -1,6 +1,7 @@
 # Contribution Lands
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Chrome Extension](https://img.shields.io/badge/Chrome-Extension-4285F4?logo=googlechrome&logoColor=white)](https://github.com/jeanluciradukunda/contribution-lands)
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 
 > Transform your GitHub contribution graph into a living isometric world — forests, cities, and beyond.
@@ -50,7 +51,22 @@ contribution-lands/
     └── creating-themes.md       # Complete prompt writing guide
 ```
 
-## Quick Start
+## Install (Developer Preview)
+
+1. Clone and build:
+```bash
+git clone https://github.com/jeanluciradukunda/contribution-lands.git
+cd contribution-lands/extension
+pnpm install && pnpm build
+cp -r ../themes dist/themes
+```
+
+2. Load in Chrome:
+   - Go to `chrome://extensions/`
+   - Enable **Developer mode**
+   - Click **Load unpacked** → select `extension/dist`
+
+3. Visit any GitHub profile — your contribution graph becomes a living isometric city!
 
 ### Preview the Prototype
 
