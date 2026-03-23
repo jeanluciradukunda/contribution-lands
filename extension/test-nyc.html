@@ -87,14 +87,16 @@
       4: ['../themes/city-nyc/sprites/level-4-a.png', '../themes/city-nyc/sprites/level-4-b.png', '../themes/city-nyc/sprites/level-4-c.png'],
     };
 
-    // Level 0 has structured types with placement rules
-    const L0_TYPES = {
-      road:      '../themes/city-nyc/sprites/level-0-b.png',
-      sidewalk:  '../themes/city-nyc/sprites/level-0-c.png',
+    // Level 0 decorative sprites (placed on non-road cells)
+    const L0_DECOR = {
       park:      '../themes/city-nyc/sprites/level-0-d.png',
-      crosswalk: '../themes/city-nyc/sprites/level-0-e.png',
+      sidewalk:  '../themes/city-nyc/sprites/level-0-c.png',
       empty_lot: '../themes/city-nyc/sprites/level-0-a.png',
     };
+
+    // Road grid config
+    const ROAD_INTERVAL = 8;  // Avenue every N columns
+    const CROSS_STREETS = [0, 6]; // Rows that are cross streets
 
     // ========== SEEDED RNG ==========
     function mulberry32(seed) {
@@ -174,9 +176,9 @@
         }
       }
 
-      // Load L0 typed sprites
+      // Load L0 decorative sprites
       sprites.l0 = {};
-      for (const [type, path] of Object.entries(L0_TYPES)) {
+      for (const [type, path] of Object.entries(L0_DECOR)) {
         const img = new Image();
         const p = new Promise((resolve) => {
           img.onload = () => { sprites.l0[type] = img; resolve(); };
@@ -190,48 +192,104 @@
       return sprites;
     }
 
-    // ========== L0 PLACEMENT RULES ==========
-    function pickL0Type(w, d, contributions) {
-      // Rules for realistic urban infrastructure:
-      //
-      // 1. Every 6th column = road (creates avenue grid)
-      // 2. Row 0 and row 6 = road (creates cross streets)
-      // 3. Road intersections at grid crossings = crosswalk
-      // 4. Cells adjacent to buildings = sidewalk
-      // 5. Clusters of empty cells = park
-      // 6. Everything else = empty lot
+    // ========== ROAD GRID ==========
+    function isRoad(w, d) {
+      return (w % ROAD_INTERVAL === 0) || CROSS_STREETS.includes(d);
+    }
 
-      const isRoadCol = (w % 6 === 0);
-      const isRoadRow = (d === 0 || d === 6);
+    function drawRoads(ctx, contributions) {
+      // Draw connected road lines along the isometric grid.
+      // Avenues run vertically (along columns), cross streets run horizontally (along rows).
 
-      // Intersection
-      if (isRoadCol && isRoadRow) return 'crosswalk';
+      ctx.lineCap = 'round';
 
-      // Roads
-      if (isRoadCol || isRoadRow) return 'road';
+      // --- Draw avenues (every ROAD_INTERVAL columns) ---
+      for (let w = 0; w < WEEKS; w += ROAD_INTERVAL) {
+        for (let d = 0; d < DAYS - 1; d++) {
+          const from = gridToScreen(w, d);
+          const to = gridToScreen(w, d + 1);
 
-      // Check if adjacent to any building (level > 0)
-      const neighbors = [
-        [w-1, d], [w+1, d], [w, d-1], [w, d+1],
-      ];
-      let adjacentToBuilding = false;
-      for (const [nw, nd] of neighbors) {
-        if (nw >= 0 && nw < WEEKS && nd >= 0 && nd < DAYS) {
-          if (contributions[nw][nd].level > 0) {
-            adjacentToBuilding = true;
-            break;
-          }
+          // Road surface (dark gray)
+          ctx.strokeStyle = '#2a2a30';
+          ctx.lineWidth = TILE_W * 0.6;
+          ctx.beginPath(); ctx.moveTo(from.x, from.y); ctx.lineTo(to.x, to.y); ctx.stroke();
+
+          // Center line (yellow dashes)
+          ctx.strokeStyle = '#aa9933';
+          ctx.lineWidth = 0.5;
+          ctx.setLineDash([3, 4]);
+          ctx.beginPath(); ctx.moveTo(from.x, from.y); ctx.lineTo(to.x, to.y); ctx.stroke();
+          ctx.setLineDash([]);
         }
       }
 
-      if (adjacentToBuilding) return 'sidewalk';
+      // --- Draw cross streets (specific rows) ---
+      for (const d of CROSS_STREETS) {
+        for (let w = 0; w < WEEKS - 1; w++) {
+          const from = gridToScreen(w, d);
+          const to = gridToScreen(w + 1, d);
 
-      // Clusters of empty = park (use seeded random for determinism)
+          // Road surface
+          ctx.strokeStyle = '#2a2a30';
+          ctx.lineWidth = TILE_H * 1.2;
+          ctx.beginPath(); ctx.moveTo(from.x, from.y); ctx.lineTo(to.x, to.y); ctx.stroke();
+
+          // Center line
+          ctx.strokeStyle = '#aa9933';
+          ctx.lineWidth = 0.5;
+          ctx.setLineDash([3, 4]);
+          ctx.beginPath(); ctx.moveTo(from.x, from.y); ctx.lineTo(to.x, to.y); ctx.stroke();
+          ctx.setLineDash([]);
+        }
+      }
+
+      // --- Intersections: small filled diamonds ---
+      for (let w = 0; w < WEEKS; w += ROAD_INTERVAL) {
+        for (const d of CROSS_STREETS) {
+          const scr = gridToScreen(w, d);
+          drawIsoDiamond(ctx, scr.x, scr.y, TILE_W * 0.8, TILE_H * 0.8, '#333338', null);
+
+          // Crosswalk stripes
+          ctx.strokeStyle = '#eeeeee';
+          ctx.lineWidth = 0.8;
+          ctx.setLineDash([1.5, 2]);
+          // Stripes across the intersection
+          for (let i = -2; i <= 2; i++) {
+            const offset = i * 1.5;
+            ctx.beginPath();
+            ctx.moveTo(scr.x - TILE_W * 0.3 + offset, scr.y - 1);
+            ctx.lineTo(scr.x + TILE_W * 0.3 + offset, scr.y + 1);
+            ctx.stroke();
+          }
+          ctx.setLineDash([]);
+        }
+      }
+    }
+
+    // ========== L0 PLACEMENT RULES (non-road cells) ==========
+    function pickL0Decor(w, d, contributions) {
+      // Skip road cells — they're drawn by drawRoads()
+      if (isRoad(w, d)) return null;
+
+      // Adjacent to a building → sidewalk
+      const neighbors = [[w-1,d],[w+1,d],[w,d-1],[w,d+1]];
+      for (const [nw, nd] of neighbors) {
+        if (nw >= 0 && nw < WEEKS && nd >= 0 && nd < DAYS) {
+          if (contributions[nw][nd].level > 0) return 'sidewalk';
+        }
+      }
+
+      // Adjacent to a road → sidewalk (sidewalks line roads)
+      for (const [nw, nd] of neighbors) {
+        if (nw >= 0 && nw < WEEKS && nd >= 0 && nd < DAYS) {
+          if (isRoad(nw, nd)) return 'sidewalk';
+        }
+      }
+
+      // Otherwise: park or empty lot
       const seed = (w * 7 + d) * 99991 + 54321;
       const rng = mulberry32(seed);
-      if (rng() < 0.4) return 'park';
-
-      return 'empty_lot';
+      return rng() < 0.45 ? 'park' : 'empty_lot';
     }
 
     // ========== MAIN ==========
@@ -259,7 +317,19 @@
       ctx.fillStyle = THEME.bg;
       ctx.fillRect(0, 0, canvasW, canvasH);
 
-      // Build draw list for depth sorting
+      // Draw ground tiles first (base layer)
+      for (let w = 0; w < WEEKS; w++) {
+        for (let d = 0; d < DAYS; d++) {
+          const scr = gridToScreen(w, d);
+          const groundColor = THEME.groundColors[((w + d) * 7 + w) % THEME.groundColors.length];
+          drawIsoDiamond(ctx, scr.x, scr.y, TILE_W, TILE_H, groundColor, THEME.groundStroke);
+        }
+      }
+
+      // Draw connected road network on top of ground
+      drawRoads(ctx, contributions);
+
+      // Build draw list for depth-sorted sprites
       const drawList = [];
       const hitMap = [];
 
@@ -289,9 +359,12 @@
         const cellRng = mulberry32(seed);
 
         if (cell.level === 0) {
-          // L0: use placement rules for roads, parks, sidewalks
-          const l0Type = pickL0Type(w, d, contributions);
-          spriteImg = sprites.l0[l0Type];
+          // L0: roads are drawn as connected lines already.
+          // Place decorative sprites on non-road L0 cells.
+          const decorType = pickL0Decor(w, d, contributions);
+          if (decorType && sprites.l0[decorType]) {
+            spriteImg = sprites.l0[decorType];
+          }
         } else if (sprites[cell.level] && sprites[cell.level].length > 0) {
           // L1-4: random variant
           const variants = sprites[cell.level];
