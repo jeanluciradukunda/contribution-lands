@@ -277,7 +277,10 @@ export class IsoRenderer {
       const rng = mulberry32((w * 7 + d) * 31337 + 12345);
       const sprite = levelSprites[Math.floor(rng() * levelSprites.length)];
 
-      const scale = this.isCity ? SPRITE_SCALE_CITY : SPRITE_SCALE_FOREST;
+      // Per-level scale: L0 smallest, L4 largest for dramatic height contrast
+      const baseScale = this.isCity ? SPRITE_SCALE_CITY : SPRITE_SCALE_FOREST;
+      const levelMultiplier = [0.7, 0.85, 1.0, 1.15, 1.4][cell.level] ?? 1.0;
+      const scale = baseScale * levelMultiplier;
       const sw = sprite.width * scale;
       const sh = sprite.height * scale;
       const sx = scr.x - sw / 2;
