@@ -56,7 +56,7 @@ html, body, #root {
 
 html, body {
   margin: 0;
-  background: var(--bg-secondary);
+  background: var(--bg-primary);
 }
 
 body {
@@ -78,7 +78,7 @@ button { border: 0; background: none; color: inherit; cursor: pointer; }
   display: flex;
   flex-direction: column;
   gap: 12px;
-  background: var(--bg-secondary);
+  background: var(--bg-primary);
   overflow-y: auto;
 }
 
@@ -93,11 +93,11 @@ button { border: 0; background: none; color: inherit; cursor: pointer; }
   display: flex;
   flex-direction: column;
   gap: 12px;
-  background: var(--bg-primary);
-  border: 1px solid var(--border-default);
-  border-radius: var(--radius-xl);
-  padding: 16px;
-  box-shadow: var(--shadow-md);
+  background: none;
+  border: none;
+  border-radius: 0;
+  padding: 0;
+  box-shadow: none;
   backdrop-filter: none;
   -webkit-backdrop-filter: none;
 }
