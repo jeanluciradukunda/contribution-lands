@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Contribution Lands — NYC Theme Test</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      background: #0d1117; color: #e6edf3;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+      display: flex; flex-direction: column; align-items: center;
+      min-height: 100vh; padding: 40px 20px;
+    }
+    .header { display: flex; align-items: center; gap: 12px; margin-bottom: 8px; }
+    .header img { width: 36px; height: 36px; }
+    h1 { font-size: 22px; font-weight: 600; }
+    .subtitle { color: #8b949e; font-size: 14px; margin-bottom: 24px; }
+    .canvas-wrapper {
+      background: #161b22; border: 1px solid #30363d;
+      border-radius: 10px; padding: 24px; overflow-x: auto; max-width: 100%;
+    }
+    canvas { display: block; }
+    #tooltip {
+      position: fixed; background: #1c2128; border: 1px solid #30363d;
+      border-radius: 6px; padding: 6px 10px; font-size: 12px;
+      color: #e6edf3; pointer-events: none; display: none;
+      z-index: 100; white-space: nowrap;
+    }
+    .legend {
+      display: flex; gap: 8px; margin-top: 16px; font-size: 12px;
+      color: #8b949e; align-items: center;
+    }
+    .legend img { width: 20px; image-rendering: pixelated; }
+    .sprite-preview {
+      display: flex; gap: 16px; margin-top: 24px; align-items: flex-end;
+      background: #161b22; border: 1px solid #30363d; border-radius: 10px;
+      padding: 20px 24px;
+    }
+    .sprite-preview .level {
+      display: flex; flex-direction: column; align-items: center; gap: 4px;
+    }
+    .sprite-preview .level img { image-rendering: pixelated; max-height: 120px; }
+    .sprite-preview .level span { font-size: 11px; color: #8b949e; }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <img src="icon.svg" alt="Contribution Lands">
+    <h1>Contribution Lands</h1>
+  </div>
+  <p class="subtitle">NYC Skyline theme — real sprite rendering test</p>
+
+  <div class="sprite-preview">
+    <div class="level"><img src="../themes/city-nyc/sprites/level-0-a.png"><span>L0</span></div>
+    <div class="level"><img src="../themes/city-nyc/sprites/level-1-a.png"><span>L1</span></div>
+    <div class="level"><img src="../themes/city-nyc/sprites/level-2-a.png"><span>L2</span></div>
+    <div class="level"><img src="../themes/city-nyc/sprites/level-3-b.png"><span>L3</span></div>
+    <div class="level"><img src="../themes/city-nyc/sprites/level-4-b.png"><span>L4</span></div>
+  </div>
+
+  <p style="color:#8b949e; font-size:12px; margin: 12px 0 20px;">Sprite scale progression — Level 0 (no contributions) → Level 4 (max contributions)</p>
+
+  <div class="canvas-wrapper">
+    <canvas id="canvas"></canvas>
+  </div>
+
+  <div id="tooltip"></div>
+
+  <script>
+    // ========== CONFIG ==========
+    const WEEKS = 52, DAYS = 7;
+    const TILE_W = 20, TILE_H = 10;
+    const SPRITE_SCALE = 0.35; // Scale sprites down to fit grid
+
+    const THEME = {
+      bg: '#0a0e14',
+      groundColors: ['#3a3a40', '#35353b', '#404046'],
+      groundStroke: '#2a2a30',
+    };
+
+    // Sprite paths per level (multiple variants)
+    const SPRITE_PATHS = {
+      0: ['../themes/city-nyc/sprites/level-0-a.png'],
+      1: ['../themes/city-nyc/sprites/level-1-a.png', '../themes/city-nyc/sprites/level-1-b.png', '../themes/city-nyc/sprites/level-1-c.png'],
+      2: ['../themes/city-nyc/sprites/level-2-a.png', '../themes/city-nyc/sprites/level-2-b.png', '../themes/city-nyc/sprites/level-2-c.png'],
+      3: ['../themes/city-nyc/sprites/level-3-a.png', '../themes/city-nyc/sprites/level-3-b.png', '../themes/city-nyc/sprites/level-3-c.png'],
+      4: ['../themes/city-nyc/sprites/level-4-a.png', '../themes/city-nyc/sprites/level-4-b.png', '../themes/city-nyc/sprites/level-4-c.png'],
+    };
+
+    // ========== SEEDED RNG ==========
+    function mulberry32(seed) {
+      return function() {
+        seed |= 0; seed = seed + 0x6D2B79F5 | 0;
+        let t = Math.imul(seed ^ seed >>> 15, 1 | seed);
+        t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+        return ((t ^ t >>> 14) >>> 0) / 4294967296;
+      };
+    }
+
+    // ========== FAKE CONTRIBUTIONS ==========
+    function generateContributions() {
+      const rng = mulberry32(42);
+      const data = [];
+      for (let w = 0; w < WEEKS; w++) {
+        const week = [];
+        const weekActivity = rng() < 0.15 ? 0 : rng();
+        for (let d = 0; d < DAYS; d++) {
+          let prob = weekActivity * (d === 0 || d === 6 ? 0.3 : 0.8);
+          if (w > 10 && w < 25) prob *= 1.5;
+          if (w > 35 && w < 45) prob *= 1.8;
+          const val = rng();
+          let level, count;
+          if (val > prob * 0.9) { level = 0; count = 0; }
+          else if (val > prob * 0.6) { level = 1; count = Math.floor(rng() * 3) + 1; }
+          else if (val > prob * 0.35) { level = 2; count = Math.floor(rng() * 5) + 4; }
+          else if (val > prob * 0.1) { level = 3; count = Math.floor(rng() * 8) + 9; }
+          else { level = 4; count = Math.floor(rng() * 12) + 17; }
+          week.push({ level, count, date: new Date(2025, 0, 1 + w * 7 + d) });
+        }
+        data.push(week);
+      }
+      return data;
+    }
+
+    // ========== ISO MATH ==========
+    let gridOffsetX = 0, gridOffsetY = 0;
+
+    function isoProject(col, row) {
+      return {
+        x: (col - row) * (TILE_W / 2),
+        y: (col + row) * (TILE_H / 2),
+      };
+    }
+
+    function gridToScreen(col, row) {
+      const iso = isoProject(col, row);
+      return { x: iso.x + gridOffsetX, y: iso.y + gridOffsetY };
+    }
+
+    // ========== DRAWING ==========
+    function drawIsoDiamond(ctx, cx, cy, w, h, fill, stroke) {
+      ctx.beginPath();
+      ctx.moveTo(cx, cy - h / 2); ctx.lineTo(cx + w / 2, cy);
+      ctx.lineTo(cx, cy + h / 2); ctx.lineTo(cx - w / 2, cy);
+      ctx.closePath(); ctx.fillStyle = fill; ctx.fill();
+      if (stroke) { ctx.strokeStyle = stroke; ctx.lineWidth = 0.5; ctx.stroke(); }
+    }
+
+    // ========== LOAD SPRITES ==========
+    async function loadSprites() {
+      const sprites = {};
+      const promises = [];
+
+      for (const [level, paths] of Object.entries(SPRITE_PATHS)) {
+        sprites[level] = [];
+        for (const path of paths) {
+          const img = new Image();
+          const p = new Promise((resolve) => {
+            img.onload = () => { sprites[level].push(img); resolve(); };
+            img.onerror = () => { console.warn(`Failed to load: ${path}`); resolve(); };
+          });
+          img.src = path;
+          promises.push(p);
+        }
+      }
+
+      await Promise.all(promises);
+      return sprites;
+    }
+
+    // ========== MAIN ==========
+    async function main() {
+      const canvas = document.getElementById('canvas');
+      const ctx = canvas.getContext('2d');
+      const tooltip = document.getElementById('tooltip');
+      const contributions = generateContributions();
+      const sprites = await loadSprites();
+
+      // Calculate canvas size
+      const maxIso = isoProject(WEEKS - 1, 0);
+      const minIso = isoProject(0, DAYS - 1);
+      const padding = 100;
+      const topPadding = 150; // Extra room for tall sprites
+      const canvasW = (maxIso.x - minIso.x) + TILE_W + padding * 2;
+      const canvasH = (isoProject(WEEKS - 1, DAYS - 1).y - isoProject(0, 0).y) + TILE_H + padding * 2 + topPadding;
+
+      canvas.width = canvasW;
+      canvas.height = canvasH;
+      gridOffsetX = -minIso.x + TILE_W / 2 + padding;
+      gridOffsetY = padding + topPadding;
+
+      // Background
+      ctx.fillStyle = THEME.bg;
+      ctx.fillRect(0, 0, canvasW, canvasH);
+
+      // Build draw list for depth sorting
+      const drawList = [];
+      const hitMap = [];
+
+      for (let w = 0; w < WEEKS; w++) {
+        for (let d = 0; d < DAYS; d++) {
+          const cell = contributions[w][d];
+          drawList.push({ depth: w + d, type: 'cell', w, d, cell });
+        }
+      }
+
+      // Sort back to front
+      drawList.sort((a, b) => a.depth - b.depth);
+
+      // Render
+      const rng = mulberry32(12345);
+
+      for (const item of drawList) {
+        const { w, d, cell } = item;
+        const scr = gridToScreen(w, d);
+
+        // Ground tile
+        const groundColor = THEME.groundColors[((w + d) * 7 + w) % THEME.groundColors.length];
+        drawIsoDiamond(ctx, scr.x, scr.y, TILE_W, TILE_H, groundColor, THEME.groundStroke);
+
+        // Hit map for tooltips
+        hitMap.push({ cx: scr.x, cy: scr.y, w: TILE_W, h: TILE_H, data: cell });
+
+        // Draw sprite if level > 0
+        if (cell.level > 0 && sprites[cell.level] && sprites[cell.level].length > 0) {
+          const variants = sprites[cell.level];
+          // Seeded variant selection (deterministic per cell)
+          const seed = (w * 7 + d) * 31337 + 12345;
+          const cellRng = mulberry32(seed);
+          const variant = variants[Math.floor(cellRng() * variants.length)];
+
+          const sw = variant.width * SPRITE_SCALE;
+          const sh = variant.height * SPRITE_SCALE;
+
+          // Anchor at bottom-center of sprite, on the tile center
+          const sx = scr.x - sw / 2;
+          const sy = scr.y - sh + TILE_H / 4;
+
+          ctx.drawImage(variant, sx, sy, sw, sh);
+        }
+      }
+
+      // ========== TOOLTIP ==========
+      canvas.addEventListener('mousemove', (e) => {
+        const rect = canvas.getBoundingClientRect();
+        const mx = (e.clientX - rect.left) * (canvas.width / rect.width);
+        const my = (e.clientY - rect.top) * (canvas.height / rect.height);
+        let found = null;
+        for (let i = hitMap.length - 1; i >= 0; i--) {
+          const h = hitMap[i];
+          if (Math.abs(mx - h.cx) / (h.w / 2) + Math.abs(my - h.cy) / (h.h / 2) <= 1) {
+            found = h.data; break;
+          }
+        }
+        if (found) {
+          const dateStr = found.date.toLocaleDateString('en-US', {
+            weekday: 'short', month: 'short', day: 'numeric', year: 'numeric'
+          });
+          tooltip.innerHTML = `<strong>${found.count} contributions</strong> on ${dateStr}`;
+          tooltip.style.display = 'block';
+          tooltip.style.left = e.clientX + 12 + 'px';
+          tooltip.style.top = e.clientY - 30 + 'px';
+        } else {
+          tooltip.style.display = 'none';
+        }
+      });
+      canvas.addEventListener('mouseleave', () => { tooltip.style.display = 'none'; });
+    }
+
+    main();
+  </script>
+</body>
+</html>
