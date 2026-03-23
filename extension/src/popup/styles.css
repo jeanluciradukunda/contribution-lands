@@ -195,8 +195,9 @@ button { border: 0; background: none; color: inherit; cursor: pointer; }
 .panel-section {
   padding: 12px;
   border-radius: var(--radius-lg);
-  background: var(--bg-secondary);
-  border: 1px solid var(--border-subtle);
+  background: var(--bg-primary);
+  border: none;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.08), 0 0 0 1px var(--border-subtle);
   position: relative;
   z-index: 1;
 }
@@ -345,8 +346,9 @@ button { border: 0; background: none; color: inherit; cursor: pointer; }
   min-height: 0;
   padding: 12px;
   border-radius: var(--radius-lg);
-  border: 1px solid var(--border-subtle);
-  background: var(--bg-secondary);
+  border: none;
+  background: var(--bg-primary);
+  box-shadow: 0 1px 3px rgba(0,0,0,0.08), 0 0 0 1px var(--border-subtle);
   display: flex;
   flex-direction: column;
   gap: 10px;
