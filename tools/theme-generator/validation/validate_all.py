@@ -16,8 +16,8 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 from validation import config as cfg
 from validation.sprite_analyzer import analyze_raw_sprite, analyze_clean_sprite
 from validation.theme_analyzer import check_scale_progression, check_color_consistency, check_completeness
-from validation.report_generator import generate_report
-from validation.redo_tracker import collect_failures, write_redo_list
+from validation.report import generate_report
+from validation.redo import collect_failures, write_redo_list
 
 
 def main():
@@ -33,7 +33,7 @@ def main():
 
     if not sprites_dir.exists():
         print(f"ERROR: Sprites directory not found: {sprites_dir}")
-        print("Run generate_sprites.py first.")
+        print("Run generate.py first.")
         sys.exit(1)
 
     print(f"\n{'='*60}")

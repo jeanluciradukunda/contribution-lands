@@ -8,14 +8,15 @@ dist/
 build/
 *.egg
 
-# Generated sprites (large binary assets)
-sprites/*/raw/
-sprites/*/clean/
-sprites/manifest.json
-sprites/redo_list.json
+# Theme generator intermediates (raw/cache files)
+tools/theme-generator/.cache/
+tools/theme-generator/.venv/
 
-# Reports
+# Validation reports
 reports/
+
+# Redo lists
+**/redo_list.json
 
 # IDE
 .vscode/

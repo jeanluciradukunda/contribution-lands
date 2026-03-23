@@ -10,7 +10,7 @@ from . import config as cfg
 from .sprite_analyzer import analyze_clean_sprite
 
 
-def check_scale_progression(theme_dir, sprites_subdir="clean"):
+def check_scale_progression(theme_dir, sprites_subdir="sprites"):
     """Check that sprite heights increase with level (levels 1-4).
 
     Returns dict with 'heights' (level -> avg height) and 'violations' list.
@@ -67,7 +67,7 @@ def check_scale_progression(theme_dir, sprites_subdir="clean"):
     return {"heights": avg_heights, "violations": violations}
 
 
-def check_color_consistency(theme_dir, sprites_subdir="clean"):
+def check_color_consistency(theme_dir, sprites_subdir="sprites"):
     """Check color palette consistency across sprites in a theme.
 
     Uses HSV hue histogram comparison. Returns outlier sprites.
@@ -168,7 +168,7 @@ def check_completeness(sprites_dir):
 
     for theme_name in cfg.THEME_NAMES:
         theme_result = {"present": [], "missing": [], "complete": False}
-        clean_dir = sprites_dir / theme_name / "clean"
+        clean_dir = sprites_dir / theme_name / "sprites"
 
         if not clean_dir.exists():
             theme_result["missing"] = [

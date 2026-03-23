@@ -1,0 +1,15 @@
+{
+  "name": "Spring Forest",
+  "category": "forest",
+  "author": "Jean Luc Iradukunda",
+  "background": "#0e1f0a",
+  "ground_colors": ["#4aaa30", "#42a028", "#52b438"],
+  "ground_stroke": "#2e8818",
+  "entities": [
+    { "type": "deer", "count": 2, "speed": 0.012 },
+    { "type": "rabbit", "count": 5, "speed": 0.018 },
+    { "type": "bird", "count": 5, "speed": 0.022, "flyer": true },
+    { "type": "butterfly", "count": 10, "speed": 0.007, "flyer": true }
+  ],
+  "particles": { "type": "petals", "count": 30, "colors": ["#ffbbdd", "#ffccee", "#ff99bb", "#ffffff"] }
+}

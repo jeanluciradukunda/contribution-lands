@@ -1,0 +1,14 @@
+{
+  "name": "Autumn Forest",
+  "category": "forest",
+  "author": "Jean Luc Iradukunda",
+  "background": "#2a1a0a",
+  "ground_colors": ["#5c4020", "#634425", "#55391c"],
+  "ground_stroke": "#3d2a12",
+  "entities": [
+    { "type": "deer", "count": 2, "speed": 0.01 },
+    { "type": "rabbit", "count": 3, "speed": 0.015 },
+    { "type": "bird", "count": 3, "speed": 0.02, "flyer": true }
+  ],
+  "particles": { "type": "leaves", "count": 35, "colors": ["#cc6622", "#dd8833", "#aa4411", "#eebb44", "#bb5500"] }
+}

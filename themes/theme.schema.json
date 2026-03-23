@@ -1,0 +1,39 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Contribution Lands Theme",
+  "type": "object",
+  "required": ["name", "category", "background", "ground_colors"],
+  "properties": {
+    "name": { "type": "string", "description": "Display name of the theme" },
+    "category": { "type": "string", "enum": ["forest", "city"], "description": "Theme category" },
+    "author": { "type": "string" },
+    "background": { "type": "string", "description": "Canvas background color (hex)" },
+    "ground_colors": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Isometric ground tile colors (hex)"
+    },
+    "ground_stroke": { "type": "string", "description": "Ground tile outline color (hex)" },
+    "entities": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["type", "count", "speed"],
+        "properties": {
+          "type": { "type": "string" },
+          "count": { "type": "integer" },
+          "speed": { "type": "number" },
+          "flyer": { "type": "boolean" }
+        }
+      }
+    },
+    "particles": {
+      "type": ["object", "null"],
+      "properties": {
+        "type": { "type": "string", "enum": ["snow", "leaves", "petals"] },
+        "count": { "type": "integer" },
+        "colors": { "type": "array", "items": { "type": "string" } }
+      }
+    }
+  }
+}

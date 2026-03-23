@@ -22,7 +22,7 @@ def test_client_creation(gemini_client):
 def test_single_image_generation(gemini_client):
     """Generate a minimal test image and verify response structure."""
     from google.genai import types
-    from scripts.generate_sprites import MODEL
+    from generate import MODEL
 
     response = gemini_client.models.generate_content(
         model=MODEL,
@@ -50,7 +50,7 @@ def test_image_save_roundtrip(gemini_client, tmp_path):
     """Generate, save, and re-open an image to verify integrity."""
     from google.genai import types
     from PIL import Image
-    from scripts.generate_sprites import MODEL
+    from generate import MODEL
 
     response = gemini_client.models.generate_content(
         model=MODEL,

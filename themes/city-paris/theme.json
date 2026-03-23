@@ -1,0 +1,14 @@
+{
+  "name": "Paris",
+  "category": "city",
+  "author": "Jean Luc Iradukunda",
+  "background": "#12100e",
+  "ground_colors": ["#5a5550", "#524e48", "#625d58"],
+  "ground_stroke": "#3a3530",
+  "entities": [
+    { "type": "cyclist", "count": 3, "speed": 0.022 },
+    { "type": "person", "count": 7, "speed": 0.01 },
+    { "type": "pigeon", "count": 4, "speed": 0.013 }
+  ],
+  "particles": null
+}

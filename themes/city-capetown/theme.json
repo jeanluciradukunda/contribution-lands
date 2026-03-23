@@ -1,0 +1,13 @@
+{
+  "name": "Cape Town",
+  "category": "city",
+  "author": "Jean Luc Iradukunda",
+  "background": "#1a1510",
+  "ground_colors": ["#c4a878", "#b89868", "#d4b888"],
+  "ground_stroke": "#8a7050",
+  "entities": [
+    { "type": "person", "count": 6, "speed": 0.012 },
+    { "type": "pigeon", "count": 3, "speed": 0.015 }
+  ],
+  "particles": null
+}

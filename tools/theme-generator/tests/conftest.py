@@ -6,10 +6,9 @@ from pathlib import Path
 
 import pytest
 
-# Add project root to path
-PROJECT_ROOT = Path(__file__).parent.parent
-sys.path.insert(0, str(PROJECT_ROOT))
-sys.path.insert(0, str(PROJECT_ROOT / "scripts"))
+# Add theme-generator root to path
+TOOL_ROOT = Path(__file__).parent.parent
+sys.path.insert(0, str(TOOL_ROOT))
 
 from validation import config as cfg
 

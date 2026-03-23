@@ -8,9 +8,9 @@ pytestmark = pytest.mark.api
 
 def test_generate_and_validate_single_sprite(gemini_client, tmp_path, thresholds):
     """End-to-end: generate a forest-summer level-1-a sprite, clean it, validate both."""
-    from scripts.generate_sprites import (
-        get_prompt_for, generate_sprite, remove_green_background
-    )
+    from generate import generate_sprite
+    from prompts import get_prompt_for
+    from processing.background import remove_green_background
     from validation.sprite_analyzer import analyze_raw_sprite, analyze_clean_sprite
 
     # Generate

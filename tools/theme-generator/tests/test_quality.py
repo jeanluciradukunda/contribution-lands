@@ -10,7 +10,7 @@ from validation.sprite_analyzer import analyze_raw_sprite, analyze_clean_sprite
 def _get_raw_sprites():
     sprites = discover_raw_sprites()
     if not sprites:
-        pytest.skip("No raw sprites found — run generate_sprites.py first")
+        pytest.skip("No raw sprites found — run generate.py first")
     return sprites
 
 

@@ -11,7 +11,7 @@
 
 ## What is Contribution Lands?
 
-A browser extension that replaces GitHub's flat contribution graph with themed isometric visualizations. Each contribution level maps to increasingly impressive elements — from saplings to ancient redwoods, from brownstones to skyscrapers.
+A browser extension that replaces GitHub's flat contribution graph with themed isometric visualizations. Each contribution level maps to increasingly impressive elements — from saplings to ancient redwoods, from brownstones to skyscrapers. Themes come alive with ambient animations: deer wandering through forests, taxis cruising through NYC, cherry blossoms drifting in spring.
 
 ### Themes
 
@@ -25,93 +25,55 @@ A browser extension that replaces GitHub's flat contribution graph with themed i
 | **Paris** | Cobblestone | Cafe | Haussmann | Grand boulevard | Eiffel Tower |
 | **Cape Town** | Sandy earth | Bo-Kaap house | Victorian | Office tower | Table Mountain |
 
-### Ambient Life
-
-Themes come alive with animated entities:
-- **Forests**: Deer, rabbits, birds, butterflies; falling leaves, snow, cherry blossoms
-- **Cities**: Taxis, pedestrians, cyclists, pigeons
-
 ## Project Structure
 
 ```
 contribution-lands/
-├── prototype.html              # Interactive preview (open in browser)
-├── scripts/
-│   ├── generate_sprites.py     # Gemini API sprite generator
-│   └── regenerate.py           # Re-generate failed sprites
-├── validation/
-│   ├── sprite_analyzer.py      # Image quality analysis
-│   ├── theme_analyzer.py       # Cross-sprite consistency
-│   ├── report_generator.py     # HTML visual review report
-│   ├── redo_tracker.py         # Failed sprite tracking
-│   └── validate_all.py         # Full validation CLI
-├── tests/                      # pytest test suite
-├── sprites/                    # Generated assets (gitignored)
-└── SPRITE_GENERATION_GUIDE.md  # Prompts for AI sprite generation
+├── extension/                  # Chrome extension (prototype + future code)
+│   └── prototype.html          # Interactive animated preview
+├── themes/                     # Ready-to-use sprite assets (committed)
+│   ├── theme.schema.json       # What a valid theme looks like
+│   ├── forest-summer/
+│   │   ├── theme.json          # Theme metadata, entity config, colors
+│   │   └── sprites/            # Clean, transparent, correctly-sized PNGs
+│   ├── city-nyc/
+│   └── ...
+├── tools/
+│   └── theme-generator/        # Standalone sprite generation pipeline
+│       ├── README.md            # How to create a new theme
+│       ├── generate.py          # AI sprite generation via Gemini API
+│       ├── prompts/             # Per-theme prompt templates
+│       ├── processing/          # Background removal + resizing
+│       ├── validation/          # Quality checks + HTML report
+│       └── tests/               # pytest suite
+└── docs/
+    └── creating-themes.md       # Complete prompt writing guide
 ```
 
-## Getting Started
-
-### Prerequisites
-
-- Python 3.10+
-- A free [Google AI Studio API key](https://aistudio.google.com/apikey)
-
-### Setup
-
-```bash
-git clone https://github.com/jeanluciradukunda/contribution-lands.git
-cd contribution-lands
-python3 -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt
-```
+## Quick Start
 
 ### Preview the Prototype
 
-Open `prototype.html` in your browser to see the animated canvas-based prototype with all themes.
-
-### Generate Sprites
-
 ```bash
-export GOOGLE_API_KEY="your-key"
-
-# Generate all themes (~91 sprites, runs overnight on free tier)
-python scripts/generate_sprites.py
-
-# Generate a single theme
-python scripts/generate_sprites.py forest-summer
-
-# Generate a specific level
-python scripts/generate_sprites.py city-nyc 4
+open extension/prototype.html
 ```
 
-### Validate Sprites
+Click through all 7 themes — each has animated entities and weather particles.
+
+### Generate Sprites (for contributors)
+
+See [tools/theme-generator/README.md](tools/theme-generator/README.md) for the full guide.
 
 ```bash
-# Run the full test suite
-pytest
+cd tools/theme-generator
+python3 -m venv .venv && source .venv/bin/activate
+pip install -r requirements.txt
+export GOOGLE_API_KEY="your-key"  # Free at aistudio.google.com/apikey
 
-# Run only offline validation (no API calls)
-pytest -m "not api"
-
-# Run the full validation pipeline with HTML report
-python -m validation.validate_all
-
-# Also generate a redo list for failed sprites
-python -m validation.validate_all --redo
-
-# Regenerate failed sprites
-python scripts/regenerate.py
+python generate.py --list               # See available themes
+python generate.py forest-summer        # Generate one theme
+python -m validation.validate_all       # Validate + HTML report
 ```
-
-## How It Works
-
-1. **Sprite Generation**: The Gemini API (Nano Banana) generates isometric game assets from text prompts, using a chroma green background for transparency
-2. **Post-Processing**: Green backgrounds are removed via HSV-based detection, producing clean transparent PNGs
-3. **Validation**: Automated quality checks verify perspective, centering, scale progression, color consistency, and transparency
-4. **Rendering**: A canvas-based renderer places sprites on an isometric grid matching GitHub's 52x7 contribution layout
-5. **Animation**: Ambient entities (animals, vehicles, pedestrians) and weather particles bring the scene to life
 
 ## Inspiration
 
@@ -120,7 +82,7 @@ python scripts/regenerate.py
 
 ## Contributing
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) for development guidelines.
+See [CONTRIBUTING.md](CONTRIBUTING.md). To create a new theme, follow [tools/theme-generator/README.md](tools/theme-generator/README.md).
 
 ## License
 

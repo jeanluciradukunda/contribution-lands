@@ -1,0 +1,15 @@
+{
+  "name": "Summer Forest",
+  "category": "forest",
+  "author": "Jean Luc Iradukunda",
+  "background": "#1a2e0a",
+  "ground_colors": ["#2d5016", "#345a1a", "#2a4c14"],
+  "ground_stroke": "#1e3a0c",
+  "entities": [
+    { "type": "deer", "count": 3, "speed": 0.012 },
+    { "type": "rabbit", "count": 5, "speed": 0.02 },
+    { "type": "bird", "count": 4, "speed": 0.025, "flyer": true },
+    { "type": "butterfly", "count": 6, "speed": 0.008, "flyer": true }
+  ],
+  "particles": null
+}

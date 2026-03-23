@@ -1,0 +1,13 @@
+{
+  "name": "Winter Forest",
+  "category": "forest",
+  "author": "Jean Luc Iradukunda",
+  "background": "#1a2030",
+  "ground_colors": ["#c8d8e8", "#bcd0e0", "#d0dfe8"],
+  "ground_stroke": "#9ab0c0",
+  "entities": [
+    { "type": "rabbit", "count": 2, "speed": 0.012 },
+    { "type": "bird", "count": 2, "speed": 0.018, "flyer": true }
+  ],
+  "particles": { "type": "snow", "count": 50, "colors": ["#ffffff", "#e8f0ff", "#d8e8f8"] }
+}

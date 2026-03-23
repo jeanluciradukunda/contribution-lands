@@ -3,17 +3,15 @@
 from pathlib import Path
 import sys
 
-# Add project root to path so we can import from scripts
-PROJECT_ROOT = Path(__file__).parent.parent
-sys.path.insert(0, str(PROJECT_ROOT / "scripts"))
+# Add theme-generator root to path for prompt imports
+TOOL_ROOT = Path(__file__).parent.parent
+sys.path.insert(0, str(TOOL_ROOT))
 
-from generate_sprites import THEMES, OUTPUT_DIR  # noqa: E402
+from prompts.registry import THEMES, THEME_NAMES  # noqa: E402
 
-# ============================================================
-#  THEME REGISTRY
-# ============================================================
-
-THEME_NAMES = list(THEMES.keys())
+# Where final sprites live (repo root / themes/)
+REPO_ROOT = TOOL_ROOT.parent.parent
+SPRITES_DIR = REPO_ROOT / "themes"
 LEVELS = [0, 1, 2, 3, 4]
 VARIANTS = ["a", "b", "c"]
 SPRITE_FILENAME_PATTERN = "level-{level}-{variant}.png"
@@ -70,34 +68,30 @@ MIN_STYLE_CORRELATION = 0.2
 #  PATH HELPERS
 # ============================================================
 
-SPRITES_DIR = OUTPUT_DIR
+def sprite_path(sprites_dir, theme, level, variant):
+    """Get path to a final sprite: themes/{theme}/sprites/level-{n}-{v}.png"""
+    return Path(sprites_dir) / theme / "sprites" / f"level-{level}-{variant}.png"
 
 
-def raw_path(sprites_dir, theme, level, variant):
-    """Get path to a raw sprite."""
-    return Path(sprites_dir) / theme / "raw" / f"level-{level}-{variant}.png"
+# Alias for backward compat with validation code
+raw_path = sprite_path
+clean_path = sprite_path
 
 
-def clean_path(sprites_dir, theme, level, variant):
-    """Get path to a cleaned sprite."""
-    return Path(sprites_dir) / theme / "clean" / f"level-{level}-{variant}.png"
-
-
-def discover_raw_sprites(sprites_dir=None):
-    """Find all raw sprite PNGs."""
+def discover_sprites(sprites_dir=None):
+    """Find all final sprite PNGs in themes/*/sprites/."""
     d = Path(sprites_dir) if sprites_dir else SPRITES_DIR
-    return sorted(d.glob("*/raw/level-*.png"))
+    return sorted(d.glob("*/sprites/level-*.png"))
 
 
-def discover_clean_sprites(sprites_dir=None):
-    """Find all cleaned sprite PNGs."""
-    d = Path(sprites_dir) if sprites_dir else SPRITES_DIR
-    return sorted(d.glob("*/clean/level-*.png"))
+# Aliases for validation code that references old names
+discover_raw_sprites = discover_sprites
+discover_clean_sprites = discover_sprites
 
 
 def parse_sprite_filename(path):
     """Parse 'level-2-b.png' into (level=2, variant='b')."""
-    stem = Path(path).stem  # 'level-2-b'
+    stem = Path(path).stem
     parts = stem.split("-")
     if len(parts) == 3 and parts[0] == "level":
         return int(parts[1]), parts[2]
@@ -105,7 +99,7 @@ def parse_sprite_filename(path):
 
 
 def get_theme_from_path(path):
-    """Extract theme name from sprite path like .../forest-summer/raw/level-1-a.png"""
+    """Extract theme name from sprite path like .../forest-summer/sprites/level-1-a.png"""
     path = Path(path)
-    # Parent is 'raw' or 'clean', parent.parent is the theme dir
+    # Parent is 'sprites', parent.parent is the theme dir
     return path.parent.parent.name
