@@ -231,12 +231,13 @@ export class IsoRenderer {
     drawList.sort((a, b) => a.depth - b.depth);
 
     for (const { w, d } of drawList) {
-      // Skip road cells
+      // Skip road cells — they're drawn as parallelograms
       if (this.isRoadCell(w, d)) continue;
 
       const cell = this.grid[w]?.[d];
-      if (!cell || cell.level === 0) continue;
+      if (!cell) continue;
 
+      // Pick sprite: L0 cells get parks/trees/sidewalks, L1-4 get buildings
       const levelSprites = this.sprites[cell.level];
       if (!levelSprites || levelSprites.length === 0) continue;
 
