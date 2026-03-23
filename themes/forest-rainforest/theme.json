@@ -1,0 +1,15 @@
+{
+  "name": "Tropical Rainforest",
+  "category": "forest",
+  "author": "Jean Luc Iradukunda",
+  "background": "#0a1a0a",
+  "ui_accent": "#4adf6b",
+  "ground_colors": ["#1a3a1a", "#1e3e1e", "#163616"],
+  "ground_stroke": "#0e2a0e",
+  "entities": [
+    { "type": "bird", "count": 5, "speed": 0.02, "flyer": true },
+    { "type": "butterfly", "count": 8, "speed": 0.008, "flyer": true },
+    { "type": "rabbit", "count": 3, "speed": 0.015 }
+  ],
+  "particles": null
+}

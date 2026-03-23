@@ -3,12 +3,14 @@
 from .base import build_full_prompt
 from . import forest_summer, forest_autumn, forest_winter, forest_spring
 from . import city_nyc, city_paris, city_capetown
+from . import forest_rainforest
 
 THEMES = {
     "forest-summer": forest_summer.THEME,
     "forest-autumn": forest_autumn.THEME,
     "forest-winter": forest_winter.THEME,
     "forest-spring": forest_spring.THEME,
+    "forest-rainforest": forest_rainforest.THEME,
     "city-nyc": city_nyc.THEME,
     "city-paris": city_paris.THEME,
     "city-capetown": city_capetown.THEME,
