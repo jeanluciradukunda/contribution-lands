@@ -1,19 +1,47 @@
-"""Standardize sprite dimensions for the extension grid."""
+"""Standardize sprite dimensions and remove AI watermarks."""
 
 from pathlib import Path
+import numpy as np
 from PIL import Image
 
 
 # Target base width for sprites in the contribution grid.
 # Height varies per level (taller = more contributions).
-TARGET_BASE_WIDTH = 64
+TARGET_BASE_WIDTH = 128
+
+
+def _remove_watermark(img):
+    """Remove isolated small blobs (AI watermarks) by keeping only the largest component.
+
+    Gemini adds a sparkle watermark in the corner. Since the main sprite is always
+    the largest connected region of non-transparent pixels, we keep only that.
+    """
+    arr = np.array(img)
+    alpha = arr[:, :, 3]
+
+    try:
+        from scipy import ndimage
+        labeled, num_features = ndimage.label(alpha > 10)
+
+        if num_features <= 1:
+            return img  # Nothing to remove
+
+        # Find the largest component
+        sizes = ndimage.sum(alpha > 10, labeled, range(1, num_features + 1))
+        largest_idx = np.argmax(sizes) + 1
+
+        # Zero out everything except the largest component
+        mask = labeled != largest_idx
+        arr[mask] = [0, 0, 0, 0]
+
+        return Image.fromarray(arr)
+    except ImportError:
+        # scipy not available — fall back to simple bbox trim
+        return img
 
 
 def standardize_sprite(input_path, output_path=None, base_width=TARGET_BASE_WIDTH):
-    """Trim whitespace and resize sprite to a standard base width.
-
-    Maintains aspect ratio. Trims transparent padding first, then scales
-    so the object fits within the target width.
+    """Remove watermark, trim transparent padding, and resize to standard width.
 
     Args:
         input_path: Path to clean (transparent bg) sprite PNG.
@@ -28,6 +56,9 @@ def standardize_sprite(input_path, output_path=None, base_width=TARGET_BASE_WIDT
 
     try:
         img = Image.open(input_path).convert("RGBA")
+
+        # Remove watermark (keeps largest connected component only)
+        img = _remove_watermark(img)
 
         # Trim transparent padding
         bbox = img.getbbox()
