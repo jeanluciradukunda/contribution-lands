@@ -1,6 +1,6 @@
 import { type CSSProperties, useEffect, useMemo, useRef, useState } from 'react';
 import iconUrl from '../../icon.svg';
-import { hexToRgb, mixHex, rgba } from '@/lib/color';
+// color utils no longer used by popup
 import {
   firstReadyTheme,
   getThemeById,
@@ -14,22 +14,7 @@ import {
   savePopupSettings,
 } from '@/popup/storage';
 
-interface CssVariableMap extends CSSProperties {
-  '--theme-bg': string;
-  '--theme-accent': string;
-  '--theme-ground': string;
-  '--theme-ground-alt': string;
-  '--theme-ink': string;
-  '--glass-fill': string;
-  '--glass-fill-strong': string;
-  '--glass-border': string;
-  '--glass-highlight': string;
-  '--glass-shadow': string;
-  '--glass-blur': string;
-  '--glass-glow': string;
-  '--glass-tint': string;
-  '--glass-noise-opacity': string;
-}
+/* Glass CSS variable interface removed */
 
 const LEVELS: ContributionLevel[] = [0, 1, 2, 3, 4];
 
@@ -60,46 +45,7 @@ function resolveThemeId(themeId: string | null | undefined): string | null {
   return firstReadyTheme?.id ?? candidate?.id ?? themeRegistry[0]?.id ?? null;
 }
 
-function createGlassVariables(theme: ThemeRegistryItem | null, glassOpacity: number): CssVariableMap {
-  const activeTheme = theme ?? firstReadyTheme ?? themeRegistry[0] ?? null;
-  const background = activeTheme?.background ?? '#0a0e14';
-  const accent = activeTheme?.uiAccent ?? '#8ec5ff';
-  const ground = activeTheme?.groundColors[0] ?? mixHex(background, '#ffffff', 0.12);
-  const groundAlt = activeTheme?.groundColors[1] ?? mixHex(ground, '#ffffff', 0.08);
-  const opacityRatio = glassOpacity / 100;
-  const surfaceBase = mixHex(background, '#f7fbff', 0.1 + opacityRatio * 0.22);
-  const surfaceStrong = mixHex(surfaceBase, '#ffffff', 0.08 + opacityRatio * 0.12);
-  const tint = mixHex(accent, '#ffffff', 0.08);
-  const ink = mixHex('#edf6ff', accent, 0.08);
-  const shadowColor = rgba('#020617', 0.18 + opacityRatio * 0.22);
-  const accentGlow = rgba(accent, 0.18 + opacityRatio * 0.12);
-  const tintGlow = rgba(tint, 0.08 + opacityRatio * 0.1);
-  const blur = `${24 - opacityRatio * 14}px`;
-  const accentRgb = hexToRgb(accent);
-
-  return {
-    '--theme-bg': background,
-    '--theme-accent': accent,
-    '--theme-ground': ground,
-    '--theme-ground-alt': groundAlt,
-    '--theme-ink': ink,
-    '--glass-fill': rgba(surfaceBase, 0.18 + opacityRatio * 0.46),
-    '--glass-fill-strong': rgba(surfaceStrong, 0.24 + opacityRatio * 0.48),
-    '--glass-border': `rgba(255, 255, 255, ${(0.22 + opacityRatio * 0.24).toFixed(3)})`,
-    '--glass-highlight': `rgba(255, 255, 255, ${(0.42 - opacityRatio * 0.12).toFixed(3)})`,
-    '--glass-shadow': shadowColor,
-    '--glass-blur': blur,
-    '--glass-glow': accentGlow,
-    '--glass-tint': `rgba(${accentRgb.r}, ${accentRgb.g}, ${accentRgb.b}, ${(0.1 + opacityRatio * 0.14).toFixed(3)})`,
-    '--glass-noise-opacity': (0.05 - opacityRatio * 0.015).toFixed(3),
-    boxShadow: `0 24px 48px ${shadowColor}, inset 0 1px 0 rgba(255, 255, 255, 0.18), 0 0 0 1px rgba(255, 255, 255, 0.02)`,
-    backgroundImage: `
-      radial-gradient(circle at 14% 12%, ${rgba(accent, 0.36)}, transparent 34%),
-      radial-gradient(circle at 82% 18%, ${tintGlow}, transparent 38%),
-      linear-gradient(160deg, ${rgba(background, 0.86)}, ${rgba(mixHex(background, '#081220', 0.16), 0.96)})
-    `,
-  };
-}
+/* Glass variable generator removed — clean design uses CSS custom properties only */
 
 function getOpacityLabel(value: number): string {
   if (value < 34) {
@@ -167,10 +113,8 @@ export default function PopupApp() {
     [selectedThemeId],
   );
 
-  const cssVariables = useMemo(
-    () => createGlassVariables(selectedTheme, glassOpacity),
-    [selectedTheme, glassOpacity],
-  );
+  // Glass variables removed — clean design uses CSS custom properties only
+  void glassOpacity; // keep for settings persistence
 
   useEffect(() => {
     let isActive = true;
@@ -242,7 +186,7 @@ export default function PopupApp() {
   const opacityLabel = getOpacityLabel(glassOpacity);
 
   return (
-    <div className="popup-root" style={cssVariables}>
+    <div className="popup-root">
       <div className="ambient-stage" aria-hidden="true">
         <HeroPreview theme={selectedTheme} />
       </div>
