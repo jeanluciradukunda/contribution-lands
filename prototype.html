@@ -1,0 +1,761 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Contribution Lands — Living Contributions Prototype</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      background: #0d1117; color: #e6edf3;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+      display: flex; flex-direction: column; align-items: center;
+      min-height: 100vh; padding: 40px 20px;
+    }
+    h1 { font-size: 24px; font-weight: 600; margin-bottom: 8px; }
+    .subtitle { color: #8b949e; font-size: 14px; margin-bottom: 30px; }
+    .controls {
+      display: flex; gap: 12px; margin-bottom: 24px;
+      flex-wrap: wrap; justify-content: center;
+    }
+    button {
+      background: #21262d; color: #e6edf3; border: 1px solid #30363d;
+      border-radius: 6px; padding: 8px 16px; font-size: 13px;
+      cursor: pointer; transition: all 0.15s;
+    }
+    button:hover { background: #30363d; border-color: #8b949e; }
+    button.active { background: #1f6feb; border-color: #1f6feb; color: #fff; }
+    .canvas-wrapper {
+      background: #161b22; border: 1px solid #30363d;
+      border-radius: 10px; padding: 30px; overflow-x: auto; max-width: 100%;
+    }
+    canvas { display: block; }
+    .legend {
+      display: flex; gap: 16px; margin-top: 20px;
+      font-size: 12px; color: #8b949e; align-items: center;
+    }
+    .legend-item { display: flex; align-items: center; gap: 4px; }
+    .legend-swatch { width: 12px; height: 12px; border-radius: 2px; }
+    #tooltip {
+      position: fixed; background: #1c2128; border: 1px solid #30363d;
+      border-radius: 6px; padding: 6px 10px; font-size: 12px;
+      color: #e6edf3; pointer-events: none; display: none;
+      z-index: 100; white-space: nowrap;
+    }
+  </style>
+</head>
+<body>
+  <h1>Contribution Lands Prototype</h1>
+  <p class="subtitle">Your GitHub contributions, reimagined as a living world</p>
+  <div class="controls">
+    <button class="active" data-theme="forest-summer">Summer Forest</button>
+    <button data-theme="forest-autumn">Autumn Forest</button>
+    <button data-theme="forest-winter">Winter Forest</button>
+    <button data-theme="forest-spring">Spring Forest</button>
+    <button data-theme="city-nyc">NYC Skyline</button>
+    <button data-theme="city-paris">Paris</button>
+  </div>
+  <div class="canvas-wrapper">
+    <canvas id="canvas"></canvas>
+  </div>
+  <div class="legend">
+    <span>Less</span>
+    <div class="legend-item"><div class="legend-swatch" id="lsw0"></div></div>
+    <div class="legend-item"><div class="legend-swatch" id="lsw1"></div></div>
+    <div class="legend-item"><div class="legend-swatch" id="lsw2"></div></div>
+    <div class="legend-item"><div class="legend-swatch" id="lsw3"></div></div>
+    <div class="legend-item"><div class="legend-swatch" id="lsw4"></div></div>
+    <span>More</span>
+  </div>
+  <div id="tooltip"></div>
+
+  <script>
+    // ========== SEEDED RANDOM ==========
+    function mulberry32(seed) {
+      return function() {
+        seed |= 0; seed = seed + 0x6D2B79F5 | 0;
+        let t = Math.imul(seed ^ seed >>> 15, 1 | seed);
+        t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+        return ((t ^ t >>> 14) >>> 0) / 4294967296;
+      };
+    }
+
+    // ========== CONFIG ==========
+    const WEEKS = 52, DAYS = 7;
+    const TILE_W = 16, TILE_H = 8;
+
+    function isoProject(col, row) {
+      return { x: (col - row) * (TILE_W / 2), y: (col + row) * (TILE_H / 2) };
+    }
+
+    // Grid offset — set during render, used by everything
+    let gridOffsetX = 0, gridOffsetY = 0;
+
+    function gridToScreen(col, row) {
+      const iso = isoProject(col, row);
+      return { x: iso.x + gridOffsetX, y: iso.y + gridOffsetY };
+    }
+
+    // ========== FAKE CONTRIBUTION DATA ==========
+    function generateContributions() {
+      const rng = mulberry32(42);
+      const data = [];
+      for (let w = 0; w < WEEKS; w++) {
+        const week = [];
+        const weekActivity = rng() < 0.15 ? 0 : rng();
+        for (let d = 0; d < DAYS; d++) {
+          let prob = weekActivity * (d === 0 || d === 6 ? 0.3 : 0.8);
+          if (w > 10 && w < 25) prob *= 1.5;
+          if (w > 35 && w < 45) prob *= 1.8;
+          const val = rng();
+          let level, count;
+          if (val > prob * 0.9) { level = 0; count = 0; }
+          else if (val > prob * 0.6) { level = 1; count = Math.floor(rng() * 3) + 1; }
+          else if (val > prob * 0.35) { level = 2; count = Math.floor(rng() * 5) + 4; }
+          else if (val > prob * 0.1) { level = 3; count = Math.floor(rng() * 8) + 9; }
+          else { level = 4; count = Math.floor(rng() * 12) + 17; }
+          week.push({ level, count, date: new Date(2025, 0, 1 + w * 7 + d) });
+        }
+        data.push(week);
+      }
+      return data;
+    }
+
+    const contributions = generateContributions();
+
+    // ========== THEME DEFINITIONS ==========
+    const themes = {
+      'forest-summer': {
+        name: 'Summer Forest', bg: '#1a2e0a',
+        groundColors: ['#2d5016', '#345a1a', '#2a4c14'], groundStroke: '#1e3a0c',
+        palettes: [null, ['#4a8c2a','#3d7a22','#55a030'], ['#2d7a1a','#258015','#35851f'],
+                   ['#1a6b10','#15600d','#1f7514'], ['#0d5a08','#0a5006','#12650b']],
+        trunkColors: ['#5c3d1a','#6b4820','#4e3315'],
+        drawElement: drawTree,
+        entities: [
+          { type: 'deer', count: 3, speed: 0.012 },
+          { type: 'rabbit', count: 5, speed: 0.02 },
+          { type: 'bird', count: 4, speed: 0.025, flyer: true },
+          { type: 'butterfly', count: 6, speed: 0.008, flyer: true },
+        ],
+        particles: null,
+      },
+      'forest-autumn': {
+        name: 'Autumn Forest', bg: '#2a1a0a',
+        groundColors: ['#5c4020','#634425','#55391c'], groundStroke: '#3d2a12',
+        palettes: [null, ['#c4862a','#d4963a','#b87620'], ['#cc5522','#dd6633','#bb4411'],
+                   ['#aa3311','#bb4422','#992200'], ['#882211','#993322','#771100']],
+        trunkColors: ['#4e3315','#5c3d1a','#3d2810'],
+        drawElement: drawTree,
+        entities: [
+          { type: 'deer', count: 2, speed: 0.01 },
+          { type: 'rabbit', count: 3, speed: 0.015 },
+          { type: 'bird', count: 3, speed: 0.02, flyer: true },
+        ],
+        particles: { type: 'leaves', count: 35, colors: ['#cc6622','#dd8833','#aa4411','#eebb44','#bb5500'] },
+      },
+      'forest-winter': {
+        name: 'Winter Forest', bg: '#1a2030',
+        groundColors: ['#c8d8e8','#bcd0e0','#d0dfe8'], groundStroke: '#9ab0c0',
+        palettes: [null, ['#6a8a70','#5e7e65','#758f78'], ['#4a6e52','#3e6248','#56785c'],
+                   ['#3a5e44','#30523a','#446a4e'], ['#2a4e36','#20422e','#345a40']],
+        trunkColors: ['#4e3d28','#5a4530','#3d3020'],
+        snowColors: ['#e8f0f8','#dce8f0','#f0f4f8'],
+        drawElement: drawWinterTree,
+        entities: [
+          { type: 'rabbit', count: 2, speed: 0.012 },
+          { type: 'bird', count: 2, speed: 0.018, flyer: true },
+        ],
+        particles: { type: 'snow', count: 50, colors: ['#ffffff','#e8f0ff','#d8e8f8'] },
+      },
+      'forest-spring': {
+        name: 'Spring Forest', bg: '#0e1f0a',
+        groundColors: ['#4aaa30','#42a028','#52b438'], groundStroke: '#2e8818',
+        palettes: [null, ['#88cc55','#7dc04a','#93d660'], ['#66bb44','#5ab038','#72c650'],
+                   ['#ffaacc','#ff99bb','#ffbbdd'], ['#ff88aa','#ff7799','#ff99bb']],
+        trunkColors: ['#5c3d1a','#6b4820','#4e3315'],
+        drawElement: drawSpringTree,
+        entities: [
+          { type: 'deer', count: 2, speed: 0.012 },
+          { type: 'rabbit', count: 5, speed: 0.018 },
+          { type: 'bird', count: 5, speed: 0.022, flyer: true },
+          { type: 'butterfly', count: 10, speed: 0.007, flyer: true },
+        ],
+        particles: { type: 'petals', count: 30, colors: ['#ffbbdd','#ffccee','#ff99bb','#ffffff'] },
+      },
+      'city-nyc': {
+        name: 'NYC Skyline', bg: '#0a0e14',
+        groundColors: ['#3a3a40','#35353b','#404046'], groundStroke: '#2a2a30',
+        palettes: [null, ['#6a7080','#606878','#747c8a'], ['#8090a0','#768898','#8a98a8'],
+                   ['#a0b0c0','#96a8b8','#aab8c8'], ['#c0d0e0','#b8c8d8','#c8d8e8']],
+        windowColor: '#ffd866', windowColorDim: '#aa8833',
+        drawElement: drawBuilding,
+        entities: [
+          { type: 'taxi', count: 4, speed: 0.025 },
+          { type: 'person', count: 8, speed: 0.012 },
+          { type: 'pigeon', count: 5, speed: 0.015 },
+        ],
+        particles: null,
+      },
+      'city-paris': {
+        name: 'Paris', bg: '#12100e',
+        groundColors: ['#5a5550','#524e48','#625d58'], groundStroke: '#3a3530',
+        palettes: [null, ['#d4c8b0','#ccbfa8','#dcd0b8'], ['#c8b898','#c0b090','#d0c0a0'],
+                   ['#b8a888','#b0a080','#c0b090'], ['#a89878','#a09070','#b0a080']],
+        roofColor: '#4a5a6a', windowColor: '#ffe880',
+        drawElement: drawParisBuilding,
+        entities: [
+          { type: 'cyclist', count: 3, speed: 0.022 },
+          { type: 'person', count: 7, speed: 0.01 },
+          { type: 'pigeon', count: 4, speed: 0.013 },
+        ],
+        particles: null,
+      },
+    };
+
+    // ========== DRAWING PRIMITIVES ==========
+    function shadeColor(hex, factor) {
+      const r = parseInt(hex.slice(1,3),16), g = parseInt(hex.slice(3,5),16), b = parseInt(hex.slice(5,7),16);
+      return `rgb(${Math.min(255,Math.floor(r*factor))},${Math.min(255,Math.floor(g*factor))},${Math.min(255,Math.floor(b*factor))})`;
+    }
+
+    function drawIsoDiamond(ctx, cx, cy, w, h, fill, stroke) {
+      ctx.beginPath();
+      ctx.moveTo(cx, cy - h/2); ctx.lineTo(cx + w/2, cy);
+      ctx.lineTo(cx, cy + h/2); ctx.lineTo(cx - w/2, cy);
+      ctx.closePath(); ctx.fillStyle = fill; ctx.fill();
+      if (stroke) { ctx.strokeStyle = stroke; ctx.lineWidth = 0.5; ctx.stroke(); }
+    }
+
+    function drawIsoBlock(ctx, cx, cy, w, h, bh, top, left, right) {
+      ctx.beginPath();
+      ctx.moveTo(cx, cy-bh-h/2); ctx.lineTo(cx+w/2, cy-bh);
+      ctx.lineTo(cx, cy-bh+h/2); ctx.lineTo(cx-w/2, cy-bh);
+      ctx.closePath(); ctx.fillStyle = top; ctx.fill();
+      ctx.beginPath();
+      ctx.moveTo(cx-w/2, cy-bh); ctx.lineTo(cx, cy-bh+h/2);
+      ctx.lineTo(cx, cy+h/2); ctx.lineTo(cx-w/2, cy);
+      ctx.closePath(); ctx.fillStyle = left; ctx.fill();
+      ctx.beginPath();
+      ctx.moveTo(cx+w/2, cy-bh); ctx.lineTo(cx, cy-bh+h/2);
+      ctx.lineTo(cx, cy+h/2); ctx.lineTo(cx+w/2, cy);
+      ctx.closePath(); ctx.fillStyle = right; ctx.fill();
+    }
+
+    // ========== TREE DRAWING ==========
+    function drawTree(ctx, cx, cy, level, theme, rng) {
+      if (!level) return;
+      const h = [0,8,16,28,42][level]+(rng()-.5)*4;
+      const cw = [0,6,10,13,16][level]+(rng()-.5)*2;
+      const ch = [0,6,10,15,22][level]+(rng()-.5)*2;
+      const trunk = theme.trunkColors[Math.floor(rng()*theme.trunkColors.length)];
+      const leaf = theme.palettes[level][Math.floor(rng()*theme.palettes[level].length)];
+      const t = rng();
+      if (t < .4) drawPine(ctx,cx,cy,h,cw,ch,trunk,leaf,level,rng);
+      else if (t < .75) drawOak(ctx,cx,cy,h,cw,ch,trunk,leaf,level,rng);
+      else drawBirch(ctx,cx,cy,h,cw,ch,trunk,leaf,level,rng);
+    }
+    function drawPine(ctx,cx,cy,h,cw,ch,tc,lc,lv,rng) {
+      ctx.fillStyle=tc; ctx.fillRect(cx-1,cy-h*.3,2,h*.3);
+      const layers = lv<=2?2:3, baseY=cy-h*.3+2;
+      for(let i=0;i<layers;i++){
+        const lH=ch/layers+2, lW=cw*(1-i*.15), lY=baseY-i*(lH*.65);
+        ctx.beginPath(); ctx.moveTo(cx,lY-lH); ctx.lineTo(cx+lW/2,lY); ctx.lineTo(cx-lW/2,lY); ctx.closePath();
+        ctx.fillStyle=shadeColor(lc,1-i*.08); ctx.fill();
+      }
+    }
+    function drawOak(ctx,cx,cy,h,cw,ch,tc,lc,lv,rng) {
+      const tw=lv>=3?3:2, tH=h*.35;
+      ctx.fillStyle=tc; ctx.fillRect(cx-tw/2,cy-tH,tw,tH);
+      for(let i=0;i<(lv<=2?3:5);i++){
+        ctx.beginPath();
+        ctx.ellipse(cx+(rng()-.5)*cw*.5,cy-tH-ch*.2-rng()*ch*.4,cw*(.2+rng()*.15),ch*(.15+rng()*.1),0,0,Math.PI*2);
+        ctx.fillStyle=shadeColor(lc,.9+rng()*.2); ctx.fill();
+      }
+    }
+    function drawBirch(ctx,cx,cy,h,cw,ch,tc,lc,lv,rng) {
+      const tH=h*.5;
+      ctx.fillStyle='#c8b8a0'; ctx.fillRect(cx-.75,cy-tH,1.5,tH);
+      ctx.fillStyle='#8a7a60'; for(let i=0;i<3;i++) ctx.fillRect(cx-1,cy-rng()*tH,2,1);
+      for(let i=0;i<lv+2;i++){
+        ctx.beginPath();
+        const br=cw*(.15+rng()*.15);
+        ctx.ellipse(cx+(rng()-.5)*cw*.7,cy-tH-rng()*ch*.6,br,br*.8,0,0,Math.PI*2);
+        ctx.fillStyle=shadeColor(lc,.85+rng()*.3); ctx.fill();
+      }
+    }
+    function drawWinterTree(ctx,cx,cy,level,theme,rng) {
+      if(!level)return;
+      const h=[0,8,16,28,42][level]+(rng()-.5)*4, cw=[0,6,10,13,16][level]+(rng()-.5)*2, ch=[0,6,10,15,22][level]+(rng()-.5)*2;
+      const trunk=theme.trunkColors[Math.floor(rng()*theme.trunkColors.length)];
+      const lc=theme.palettes[level][Math.floor(rng()*theme.palettes[level].length)];
+      const snow=theme.snowColors[Math.floor(rng()*theme.snowColors.length)];
+      if(rng()<.5){
+        drawPine(ctx,cx,cy,h,cw,ch,trunk,lc,level,rng);
+        for(let i=0;i<level;i++){ctx.beginPath();ctx.ellipse(cx+(rng()-.5)*cw*.4,cy-h*.5-rng()*ch*.3,cw*.2,2,0,0,Math.PI*2);ctx.fillStyle=snow;ctx.fill();}
+      } else {
+        ctx.fillStyle=trunk; ctx.fillRect(cx-.75,cy-h*.5,1.5,h*.5);
+        for(let i=0;i<level+1;i++){
+          const by=cy-h*.25-(i/(level+1))*h*.35, dir=i%2===0?1:-1, bl=cw*.3*(.5+rng()*.5);
+          ctx.strokeStyle=trunk;ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(cx,by);ctx.lineTo(cx+dir*bl,by-3-rng()*3);ctx.stroke();
+          ctx.beginPath();ctx.ellipse(cx+dir*bl*.7,by-4,2,1,0,0,Math.PI*2);ctx.fillStyle=snow;ctx.fill();
+        }
+      }
+    }
+    function drawSpringTree(ctx,cx,cy,level,theme,rng) {
+      if(!level)return;
+      const h=[0,8,16,28,42][level]+(rng()-.5)*4, cw=[0,6,10,13,16][level]+(rng()-.5)*2, ch=[0,6,10,15,22][level]+(rng()-.5)*2;
+      const trunk=theme.trunkColors[Math.floor(rng()*theme.trunkColors.length)];
+      const lc=theme.palettes[level][Math.floor(rng()*theme.palettes[level].length)];
+      if(level>=3){
+        ctx.fillStyle='#6b4820'; ctx.fillRect(cx-(level>=4?1.5:1),cy-h*.35,level>=4?3:2,h*.35);
+        for(let i=0;i<level+3;i++){ctx.beginPath();ctx.ellipse(cx+(rng()-.5)*cw*.7,cy-h*.35-rng()*ch*.5,cw*(.15+rng()*.2),cw*(.12+rng()*.16),0,0,Math.PI*2);ctx.fillStyle=lc;ctx.fill();}
+      } else {
+        drawOak(ctx,cx,cy,h,cw,ch,trunk,lc,level,rng);
+        for(let i=0;i<level*2;i++){ctx.beginPath();ctx.arc(cx+(rng()-.5)*cw*.6,cy-h*.3-rng()*ch*.4,1,0,Math.PI*2);ctx.fillStyle=rng()>.5?'#ffee55':'#ff99bb';ctx.fill();}
+      }
+    }
+
+    // ========== BUILDING DRAWING ==========
+    function drawBuilding(ctx,cx,cy,level,theme,rng) {
+      if(!level)return;
+      const h=[0,10,22,38,55][level]+(rng()-.5)*6, w=[0,8,10,11,12][level]+(rng()-.5)*2, d=TILE_H;
+      const color=theme.palettes[level][Math.floor(rng()*theme.palettes[level].length)];
+      drawIsoBlock(ctx,cx,cy,w,d,h,shadeColor(color,1.1),shadeColor(color,.8),shadeColor(color,.9));
+      for(let r=0;r<Math.floor(h/4);r++) for(let c=0;c<Math.floor(w/4);c++){
+        if(rng()<.35)continue;
+        const wx=cx+1+c*3,wy=cy-2-r*4;
+        if(wx<cx+w/2-1){ctx.fillStyle=rng()>.3?theme.windowColor:theme.windowColorDim;ctx.fillRect(wx,wy,1.5,2);}
+        const lx=cx-2-c*3;
+        if(lx>cx-w/2+1){ctx.fillStyle=rng()>.3?theme.windowColor:theme.windowColorDim;ctx.fillRect(lx,wy,1.5,2);}
+      }
+      if(level>=3){ctx.strokeStyle='#8899aa';ctx.lineWidth=.5;const ah=6+rng()*4;ctx.beginPath();ctx.moveTo(cx,cy-h-d/2);ctx.lineTo(cx,cy-h-d/2-ah);ctx.stroke();ctx.beginPath();ctx.arc(cx,cy-h-d/2-ah,1,0,Math.PI*2);ctx.fillStyle='#ff3333';ctx.fill();}
+      if(level>=4&&rng()>.4){const wtx=cx+(rng()-.5)*4,wty=cy-h-d/2;ctx.fillStyle='#6a5a4a';ctx.fillRect(wtx-1.5,wty-5,3,4);}
+    }
+    function drawParisBuilding(ctx,cx,cy,level,theme,rng) {
+      if(!level)return;
+      const h=[0,12,20,30,45][level]+(rng()-.5)*4, w=[0,9,11,12,13][level]+(rng()-.5)*2, d=TILE_H;
+      const color=theme.palettes[level][Math.floor(rng()*theme.palettes[level].length)];
+      drawIsoBlock(ctx,cx,cy,w,d,h-4,shadeColor(color,1.05),shadeColor(color,.8),shadeColor(color,.9));
+      drawIsoBlock(ctx,cx,cy-(h-4)+2,w+1,d+1,5,theme.roofColor,shadeColor(theme.roofColor,.7),shadeColor(theme.roofColor,.85));
+      for(let r=0;r<Math.floor((h-6)/5);r++) for(let c=0;c<Math.floor(w/4);c++){
+        const wx=cx+1+c*3.5,wy=cy-3-r*5;
+        if(wx<cx+w/2-1){ctx.fillStyle=rng()>.4?theme.windowColor:'#445566';ctx.fillRect(wx,wy,1.5,2.5);
+          if(r===0&&level>=2){ctx.strokeStyle='#333';ctx.lineWidth=.3;ctx.beginPath();ctx.moveTo(wx-.5,wy+2.5);ctx.lineTo(wx+2,wy+2.5);ctx.stroke();}
+        }
+      }
+      if(level>=2&&rng()>.4){ctx.fillStyle='#8a7a6a';ctx.fillRect(cx+(rng()-.5)*3-1,cy-h-4,2,4);}
+      if(level===4&&rng()>.7){const ey=cy-h-2;ctx.strokeStyle='#5a5550';ctx.lineWidth=.8;ctx.beginPath();ctx.moveTo(cx,ey-12);ctx.lineTo(cx-3,ey);ctx.moveTo(cx,ey-12);ctx.lineTo(cx+3,ey);ctx.moveTo(cx-2,ey-4);ctx.lineTo(cx+2,ey-4);ctx.stroke();}
+    }
+
+    // ================================================================
+    //  ENTITY SYSTEM — Lives on the isometric grid
+    // ================================================================
+
+    let entities = [];
+    let particles = [];
+    let animId = null;
+
+    // Entities store position as grid coords (col, row) as floats
+    // and get projected to screen space each frame
+
+    function spawnEntities(theme) {
+      entities = [];
+      if (!theme.entities) return;
+      const rng = mulberry32(999);
+      for (const cfg of theme.entities) {
+        for (let i = 0; i < cfg.count; i++) {
+          // Start at a random grid position
+          const col = rng() * (WEEKS - 1);
+          const row = rng() * (DAYS - 1);
+          // Pick a random direction to walk in grid space
+          const angle = rng() * Math.PI * 2;
+          entities.push({
+            type: cfg.type,
+            col, row,
+            // Movement direction in grid coords
+            dcol: Math.cos(angle) * cfg.speed,
+            drow: Math.sin(angle) * cfg.speed,
+            speed: cfg.speed,
+            flyer: !!cfg.flyer,
+            flyHeight: cfg.flyer ? 15 + rng() * 25 : 0,
+            facing: 1,
+            frame: rng() * 200,
+            // Wander AI
+            nextTurn: 80 + rng() * 200,
+            turnTimer: 0,
+            // Pause behavior
+            paused: false,
+            pauseTimer: 0,
+          });
+        }
+      }
+    }
+
+    function spawnParticles(theme, canvasW, canvasH) {
+      particles = [];
+      if (!theme.particles) return;
+      const cfg = theme.particles;
+      const rng = mulberry32(777);
+      for (let i = 0; i < cfg.count; i++) {
+        // Particles also live in grid space
+        particles.push({
+          col: rng() * (WEEKS - 1),
+          row: rng() * (DAYS - 1),
+          height: rng() * 60, // height above ground
+          dcol: cfg.type === 'snow' ? (rng()-.5)*.01 : (rng()-.3)*.03,
+          drow: cfg.type === 'snow' ? (rng()-.5)*.01 : (rng()-.3)*.02,
+          fallSpeed: cfg.type === 'snow' ? .1+rng()*.15 : cfg.type === 'leaves' ? .15+rng()*.2 : .08+rng()*.12,
+          size: cfg.type === 'snow' ? 1+rng()*1.5 : 2+rng()*2,
+          rotation: rng() * Math.PI * 2,
+          rotSpeed: (rng()-.5)*.06,
+          color: cfg.colors[Math.floor(rng()*cfg.colors.length)],
+          type: cfg.type,
+          startHeight: 50 + rng() * 20,
+        });
+      }
+    }
+
+    function updateEntities() {
+      for (const e of entities) {
+        e.frame++;
+        e.turnTimer++;
+
+        if (e.paused) {
+          e.pauseTimer--;
+          if (e.pauseTimer <= 0) e.paused = false;
+          continue;
+        }
+
+        // Random direction change
+        if (e.turnTimer > e.nextTurn) {
+          e.turnTimer = 0;
+          e.nextTurn = 80 + Math.random() * 200;
+          const angle = Math.random() * Math.PI * 2;
+          e.dcol = Math.cos(angle) * e.speed;
+          e.drow = Math.sin(angle) * e.speed;
+          e.facing = e.dcol >= 0 ? 1 : -1;
+          // Chance to pause (graze, peck, rest)
+          if (Math.random() < 0.25 && !e.flyer) {
+            e.paused = true;
+            e.pauseTimer = 30 + Math.random() * 80;
+          }
+        }
+
+        e.col += e.dcol;
+        e.row += e.drow;
+
+        // Bounce off grid edges
+        if (e.col < 0) { e.col = 0; e.dcol = Math.abs(e.dcol); e.facing = 1; }
+        if (e.col > WEEKS - 1) { e.col = WEEKS - 1; e.dcol = -Math.abs(e.dcol); e.facing = -1; }
+        if (e.row < 0) { e.row = 0; e.drow = Math.abs(e.drow); }
+        if (e.row > DAYS - 1) { e.row = DAYS - 1; e.drow = -Math.abs(e.drow); }
+
+        // Flyers bob up and down
+        if (e.flyer) {
+          e.flyHeight = 15 + Math.sin(e.frame * 0.03) * 10;
+        }
+      }
+    }
+
+    function updateParticles() {
+      for (const p of particles) {
+        p.col += p.dcol + Math.sin(p.rotation) * 0.005;
+        p.row += p.drow;
+        p.height -= p.fallSpeed;
+        p.rotation += p.rotSpeed;
+
+        // Sway for leaves
+        if (p.type === 'leaves') p.dcol += (Math.random()-.5) * 0.002;
+
+        // Reset when hitting ground or going off grid
+        if (p.height <= 0 || p.col < -2 || p.col > WEEKS + 1 || p.row < -2 || p.row > DAYS + 1) {
+          p.height = p.startHeight + Math.random() * 15;
+          p.col = Math.random() * (WEEKS - 1);
+          p.row = Math.random() * (DAYS - 1);
+          if (p.type === 'leaves') p.dcol = (Math.random()-.3) * 0.03;
+        }
+      }
+    }
+
+    // ========== ENTITY PIXEL DRAWING ==========
+    // These are tiny — they live at the scale of the grid tiles
+
+    function drawDeer(ctx, x, y, frame, facing) {
+      const f = facing;
+      ctx.fillStyle = '#b8865a';
+      ctx.fillRect(x-3, y-5, 6, 3); // body
+      ctx.fillRect(x+f*3, y-7, 2*f||1, 2); // head
+      ctx.fillStyle = '#96704a';
+      const lo = Math.sin(frame*.3)*1.2;
+      ctx.fillRect(x-2, y-2, 1, 2+lo); ctx.fillRect(x+1, y-2, 1, 2-lo); // legs
+      ctx.strokeStyle='#705030'; ctx.lineWidth=.5;
+      ctx.beginPath(); ctx.moveTo(x+f*4,y-7); ctx.lineTo(x+f*5,y-9); ctx.lineTo(x+f*6,y-8); ctx.stroke();
+      ctx.fillStyle='#fff'; ctx.fillRect(x-f*3, y-5, 1, 1); // tail
+    }
+
+    function drawRabbit(ctx, x, y, frame, facing) {
+      const f = facing;
+      const hop = Math.abs(Math.sin(frame*.4))*2;
+      ctx.fillStyle='#c8b098';
+      ctx.beginPath(); ctx.ellipse(x, y-2-hop, 2.5, 2, 0, 0, Math.PI*2); ctx.fill();
+      ctx.beginPath(); ctx.ellipse(x+f*2, y-4-hop, 1.5, 1.5, 0, 0, Math.PI*2); ctx.fill();
+      ctx.fillRect(x+f*1.5, y-7-hop, 1, 3); ctx.fillRect(x+f*2.5, y-7.5-hop, 1, 3);
+      ctx.fillStyle='#fff'; ctx.beginPath(); ctx.arc(x-f*2.5, y-2-hop, 1, 0, Math.PI*2); ctx.fill();
+    }
+
+    function drawBird(ctx, x, y, frame) {
+      const w = Math.sin(frame*.5)*.6;
+      ctx.strokeStyle='#2a2a2a'; ctx.lineWidth=1;
+      ctx.beginPath(); ctx.moveTo(x-3,y+w*3); ctx.lineTo(x,y); ctx.lineTo(x+3,y+w*3); ctx.stroke();
+      ctx.fillStyle='#333'; ctx.beginPath(); ctx.arc(x,y,.8,0,Math.PI*2); ctx.fill();
+    }
+
+    function drawButterfly(ctx, x, y, frame) {
+      const wf = Math.sin(frame*.6)*.5+.5;
+      const colors=['#ff88aa','#ffaa44','#88bbff','#ffdd44'];
+      ctx.fillStyle = colors[Math.floor((x*7+y*13)%colors.length)];
+      ctx.beginPath(); ctx.ellipse(x-1.5,y,2*wf,1.5,-.3,0,Math.PI*2); ctx.fill();
+      ctx.beginPath(); ctx.ellipse(x+1.5,y,2*wf,1.5,.3,0,Math.PI*2); ctx.fill();
+      ctx.fillStyle='#333'; ctx.fillRect(x-.3,y-1.5,.6,3);
+    }
+
+    function drawTaxi(ctx, x, y, frame, facing) {
+      const f = facing;
+      ctx.fillStyle='#ffd700'; ctx.fillRect(x-4,y-3,8,3);
+      ctx.fillStyle='#eec800'; ctx.fillRect(x-2,y-5,4,2);
+      ctx.fillStyle='#222'; ctx.beginPath(); ctx.arc(x-2.5,y,1,0,Math.PI*2); ctx.arc(x+2.5,y,1,0,Math.PI*2); ctx.fill();
+      ctx.fillStyle=f>0?'#ffffaa':'#ff4444'; ctx.fillRect(x+f*3.5,y-2,1,1);
+      ctx.fillStyle='#fff'; ctx.fillRect(x-.5,y-5.5,1,.5);
+    }
+
+    function drawPerson(ctx, x, y, frame, facing) {
+      const clothes=['#4488cc','#cc4444','#44aa44','#aa44aa','#ddaa33','#666'];
+      ctx.fillStyle='#ddbba0'; ctx.beginPath(); ctx.arc(x,y-6,1.2,0,Math.PI*2); ctx.fill();
+      ctx.fillStyle=clothes[Math.floor((x*3+y*7)%clothes.length)];
+      ctx.fillRect(x-1,y-4.5,2,3);
+      const ls = Math.sin(frame*.35)*1.2;
+      ctx.fillStyle='#335'; ctx.fillRect(x-.7,y-1.5,.7,2+ls*.2); ctx.fillRect(x+.2,y-1.5,.7,2-ls*.2);
+    }
+
+    function drawPigeon(ctx, x, y, frame, facing) {
+      const f = facing;
+      ctx.fillStyle='#778899'; ctx.beginPath(); ctx.ellipse(x,y-1,2,1.3,0,0,Math.PI*2); ctx.fill();
+      ctx.fillStyle='#556677'; ctx.beginPath(); ctx.arc(x+f*2,y-2,1,0,Math.PI*2); ctx.fill();
+      ctx.fillStyle='#66aa88'; ctx.beginPath(); ctx.arc(x+f*2,y-2.2,.5,0,Math.PI*2); ctx.fill();
+      const s=Math.sin(frame*.4)*.5;
+      ctx.strokeStyle='#cc6644'; ctx.lineWidth=.5; ctx.beginPath();
+      ctx.moveTo(x-.5,y); ctx.lineTo(x-.5-s,y+1.5);
+      ctx.moveTo(x+.5,y); ctx.lineTo(x+.5+s,y+1.5); ctx.stroke();
+      ctx.fillStyle='#dd9955'; ctx.fillRect(x+f*2.8,y-2.2,f||.5,.5);
+    }
+
+    function drawCyclist(ctx, x, y, frame, facing) {
+      const f = facing, rot=frame*.3;
+      ctx.strokeStyle='#555'; ctx.lineWidth=.8;
+      ctx.beginPath(); ctx.arc(x-f*3,y,2,0,Math.PI*2); ctx.arc(x+f*3,y,2,0,Math.PI*2); ctx.stroke();
+      ctx.strokeStyle='#336699'; ctx.lineWidth=.7; ctx.beginPath();
+      ctx.moveTo(x-f*3,y); ctx.lineTo(x,y-3); ctx.lineTo(x+f*3,y); ctx.moveTo(x,y-3); ctx.lineTo(x-f*1,y); ctx.stroke();
+      ctx.fillStyle='#ddbba0'; ctx.beginPath(); ctx.arc(x,y-7,1,0,Math.PI*2); ctx.fill();
+      ctx.fillStyle='#3366aa'; ctx.fillRect(x-.8,y-5.5,1.6,2.5);
+      const p=Math.sin(frame*.4);
+      ctx.strokeStyle='#335'; ctx.lineWidth=.8; ctx.beginPath();
+      ctx.moveTo(x,y-3); ctx.lineTo(x+p*1.5,y-1); ctx.moveTo(x,y-3); ctx.lineTo(x-p*1.5,y-1); ctx.stroke();
+    }
+
+    const entityDrawers = { deer:drawDeer, rabbit:drawRabbit, bird:drawBird, butterfly:drawButterfly,
+      taxi:drawTaxi, person:drawPerson, pigeon:drawPigeon, cyclist:drawCyclist };
+
+    // ========== PARTICLE DRAWING ==========
+    function drawParticle(ctx, p, sx, sy) {
+      ctx.fillStyle = p.color;
+      if (p.type === 'snow') {
+        ctx.globalAlpha = .7;
+        ctx.beginPath(); ctx.arc(sx, sy, p.size, 0, Math.PI*2); ctx.fill();
+        ctx.globalAlpha = 1;
+      } else if (p.type === 'leaves') {
+        ctx.save(); ctx.translate(sx,sy); ctx.rotate(p.rotation);
+        ctx.beginPath(); ctx.ellipse(0,0,p.size,p.size*.5,0,0,Math.PI*2); ctx.fill();
+        ctx.strokeStyle=shadeColor(p.color,.7); ctx.lineWidth=.3;
+        ctx.beginPath(); ctx.moveTo(-p.size*.8,0); ctx.lineTo(p.size*.8,0); ctx.stroke();
+        ctx.restore();
+      } else if (p.type === 'petals') {
+        ctx.globalAlpha = .8;
+        ctx.save(); ctx.translate(sx,sy); ctx.rotate(p.rotation);
+        ctx.beginPath(); ctx.ellipse(0,0,p.size,p.size*.6,0,0,Math.PI*2); ctx.fill();
+        ctx.restore(); ctx.globalAlpha = 1;
+      }
+    }
+
+    // ================================================================
+    //  UNIFIED RENDERER — redraws everything each frame for proper depth
+    // ================================================================
+
+    const canvas_ = document.getElementById('canvas');
+    const ctx_ = canvas_.getContext('2d');
+    const tooltip = document.getElementById('tooltip');
+    let currentTheme = 'forest-summer';
+    let hitMap = [];
+    let canvasW = 0, canvasH = 0;
+
+    function buildScene() {
+      const theme = themes[currentTheme];
+      const maxIso = isoProject(WEEKS-1, 0), minIso = isoProject(0, DAYS-1);
+      const padding = 80;
+      canvasW = (maxIso.x - minIso.x) + TILE_W + padding*2;
+      canvasH = (isoProject(WEEKS-1,DAYS-1).y - isoProject(0,0).y) + TILE_H + padding*2 + 60;
+      canvas_.width = canvasW;
+      canvas_.height = canvasH;
+      gridOffsetX = -minIso.x + TILE_W/2 + padding;
+      gridOffsetY = padding + 60;
+
+      // Spawn entities & particles
+      spawnEntities(theme);
+      spawnParticles(theme, canvasW, canvasH);
+
+      // Update legend
+      for (let i=0;i<=4;i++){
+        document.getElementById(`lsw${i}`).style.background = i===0 ? theme.groundColors[0] : theme.palettes[i][0];
+      }
+    }
+
+    // Pre-render the static grid to an offscreen canvas (optimization)
+    let staticCanvas = null;
+    function renderStaticLayer() {
+      const theme = themes[currentTheme];
+      staticCanvas = document.createElement('canvas');
+      staticCanvas.width = canvasW;
+      staticCanvas.height = canvasH;
+      const sctx = staticCanvas.getContext('2d');
+
+      sctx.fillStyle = theme.bg;
+      sctx.fillRect(0, 0, canvasW, canvasH);
+      hitMap = [];
+
+      for (let w = 0; w < WEEKS; w++) {
+        for (let d = 0; d < DAYS; d++) {
+          const cell = contributions[w][d];
+          const scr = gridToScreen(w, d);
+          const groundColor = theme.groundColors[((w+d)*7+w) % theme.groundColors.length];
+          drawIsoDiamond(sctx, scr.x, scr.y, TILE_W, TILE_H, groundColor, theme.groundStroke);
+          hitMap.push({ cx: scr.x, cy: scr.y, w: TILE_W, h: TILE_H, data: cell });
+        }
+      }
+      return sctx;
+    }
+
+    // Build a depth-sorted draw list for each frame
+    function renderFrame() {
+      const theme = themes[currentTheme];
+
+      updateEntities();
+      updateParticles();
+
+      // Clear and draw cached static ground
+      ctx_.clearRect(0,0,canvasW,canvasH);
+      ctx_.drawImage(staticCanvas, 0, 0);
+
+      // Build a combined list of everything that needs depth sorting:
+      // tiles with elements (level>0), entities, and particles
+      const drawList = [];
+
+      // Tile elements (trees/buildings)
+      for (let w = 0; w < WEEKS; w++) {
+        for (let d = 0; d < DAYS; d++) {
+          const cell = contributions[w][d];
+          if (cell.level > 0) {
+            drawList.push({
+              depth: w + d, // isometric depth sort key
+              type: 'tile',
+              col: w, row: d, level: cell.level, theme
+            });
+          }
+        }
+      }
+
+      // Entities
+      for (const e of entities) {
+        drawList.push({
+          depth: e.col + e.row + (e.flyer ? -0.5 : 0), // flyers sort slightly behind
+          type: 'entity',
+          entity: e
+        });
+      }
+
+      // Particles
+      for (const p of particles) {
+        drawList.push({
+          depth: p.col + p.row - 1, // particles sort behind nearby tiles
+          type: 'particle',
+          particle: p
+        });
+      }
+
+      // Sort by depth (back to front)
+      drawList.sort((a, b) => a.depth - b.depth);
+
+      // Draw everything in order
+      for (const item of drawList) {
+        if (item.type === 'tile') {
+          const scr = gridToScreen(item.col, item.row);
+          const seed = (item.col * 7 + item.row) * 31337 + 12345;
+          item.theme.drawElement(ctx_, scr.x, scr.y, item.level, item.theme, mulberry32(seed));
+        }
+        else if (item.type === 'entity') {
+          const e = item.entity;
+          const scr = gridToScreen(e.col, e.row);
+          const drawer = entityDrawers[e.type];
+          if (drawer) {
+            ctx_.save();
+            drawer(ctx_, scr.x, scr.y - e.flyHeight, e.frame, e.facing);
+            ctx_.restore();
+          }
+        }
+        else if (item.type === 'particle') {
+          const p = item.particle;
+          const scr = gridToScreen(p.col, p.row);
+          drawParticle(ctx_, p, scr.x, scr.y - p.height);
+        }
+      }
+
+      animId = requestAnimationFrame(renderFrame);
+    }
+
+    function startScene() {
+      if (animId) cancelAnimationFrame(animId);
+      buildScene();
+      renderStaticLayer();
+      renderFrame();
+    }
+
+    // ========== TOOLTIP ==========
+    canvas_.addEventListener('mousemove', (e) => {
+      const rect = canvas_.getBoundingClientRect();
+      const mx = e.clientX - rect.left, my = e.clientY - rect.top;
+      let found = null;
+      for (let i = hitMap.length-1; i >= 0; i--) {
+        const h = hitMap[i];
+        if (Math.abs(mx-h.cx)/(h.w/2) + Math.abs(my-h.cy)/(h.h/2) <= 1) { found = h.data; break; }
+      }
+      if (found) {
+        tooltip.innerHTML = `<strong>${found.count} contributions</strong> on ${found.date.toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric',year:'numeric'})}`;
+        tooltip.style.display='block'; tooltip.style.left=e.clientX+12+'px'; tooltip.style.top=e.clientY-30+'px';
+      } else tooltip.style.display='none';
+    });
+    canvas_.addEventListener('mouseleave', () => { tooltip.style.display='none'; });
+
+    // ========== THEME SWITCHER ==========
+    document.querySelectorAll('.controls button').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.controls button').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        currentTheme = btn.dataset.theme;
+        startScene();
+      });
+    });
+
+    // ========== INIT ==========
+    startScene();
+  </script>
+</body>
+</html>
