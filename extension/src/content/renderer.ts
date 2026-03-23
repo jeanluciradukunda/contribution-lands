@@ -19,9 +19,11 @@ export interface ContributionData {
 
 interface ThemeConfig {
   name: string;
+  category?: 'city' | 'forest';
   background: string;
   ground_colors: string[];
   ground_stroke: string;
+  entities?: Array<{ type: string; count: number; speed: number; flyer?: boolean }>;
 }
 
 // ============================================================
@@ -30,19 +32,16 @@ interface ThemeConfig {
 
 const TILE_W = 20;
 const TILE_H = 10;
-const SPRITE_SCALE = 0.16;
+const SPRITE_SCALE_CITY = 0.16;
+const SPRITE_SCALE_FOREST = 0.22;  // Trees need more presence than buildings
 
 // Road grid
 const ROAD_INTERVAL = 6;
 const CROSS_STREETS = [0, 3, 6];
 
-// Entity config
-const MAX_TAXIS = 4;
-const MAX_PEOPLE = 8;
-const MAX_BIRDS = 3;
+// Entity speeds (used as fallbacks)
 const TAXI_SPEED = 0.04;
 const PERSON_SPEED = 0.015;
-const BIRD_SPEED = 0.03;
 
 // ============================================================
 //  ENTITY TYPES
@@ -131,7 +130,13 @@ export class IsoRenderer {
     };
   }
 
+  private get isCity(): boolean {
+    return this.theme.category === 'city';
+  }
+
   private isRoadCell(w: number, d: number): boolean {
+    // Only city themes have roads
+    if (!this.isCity) return false;
     return (w % ROAD_INTERVAL === 0) || CROSS_STREETS.includes(d);
   }
 
@@ -243,8 +248,10 @@ export class IsoRenderer {
       }
     }
 
-    // Layer 2: Road network
-    this.drawRoadNetwork();
+    // Layer 2: Road network (city themes only)
+    if (this.isCity) {
+      this.drawRoadNetwork();
+    }
 
     // Layer 3: Depth-sorted sprites
     const drawList: { depth: number; w: number; d: number }[] = [];
@@ -270,8 +277,9 @@ export class IsoRenderer {
       const rng = mulberry32((w * 7 + d) * 31337 + 12345);
       const sprite = levelSprites[Math.floor(rng() * levelSprites.length)];
 
-      const sw = sprite.width * SPRITE_SCALE;
-      const sh = sprite.height * SPRITE_SCALE;
+      const scale = this.isCity ? SPRITE_SCALE_CITY : SPRITE_SCALE_FOREST;
+      const sw = sprite.width * scale;
+      const sh = sprite.height * scale;
       const sx = scr.x - sw / 2;
       const sy = scr.y - sh + TILE_H / 4;
 
@@ -319,48 +327,65 @@ export class IsoRenderer {
   private spawnEntities() {
     this.entities = [];
     const rng = mulberry32(88888);
+    const entityConfigs = this.theme.entities ?? [];
 
-    // Taxis on roads
-    for (let i = 0; i < MAX_TAXIS; i++) {
-      const roadCells = this.getRoadCells();
-      if (roadCells.length === 0) break;
-      const cell = roadCells[Math.floor(rng() * roadCells.length)];
-      // Pick direction along the road
-      const isAvenue = cell.w % ROAD_INTERVAL === 0;
-      this.entities.push({
-        col: cell.w, row: cell.d,
-        dcol: isAvenue ? 0 : TAXI_SPEED * (rng() > 0.5 ? 1 : -1),
-        drow: isAvenue ? TAXI_SPEED * (rng() > 0.5 ? 1 : -1) : 0,
-        type: 'taxi', color: '#ffd700', frame: 0, flyHeight: 0,
-      });
-    }
+    for (const cfg of entityConfigs) {
+      for (let i = 0; i < cfg.count; i++) {
+        const isFlyer = cfg.flyer ?? (cfg.type === 'bird' || cfg.type === 'butterfly');
+        const isVehicle = cfg.type === 'taxi' || cfg.type === 'cyclist';
 
-    // People on sidewalks
-    for (let i = 0; i < MAX_PEOPLE; i++) {
-      const sidewalkCells = this.getSidewalkCells();
-      if (sidewalkCells.length === 0) break;
-      const cell = sidewalkCells[Math.floor(rng() * sidewalkCells.length)];
-      const angle = rng() * Math.PI * 2;
-      const colors = ['#4488cc', '#cc4444', '#44aa44', '#ddaa33', '#aa44aa', '#666'];
-      this.entities.push({
-        col: cell.w, row: cell.d,
-        dcol: Math.cos(angle) * PERSON_SPEED,
-        drow: Math.sin(angle) * PERSON_SPEED,
-        type: 'person', color: colors[Math.floor(rng() * colors.length)],
-        frame: 0, flyHeight: 0,
-      });
+        if (isFlyer) {
+          // Birds/butterflies fly above everything
+          this.entities.push({
+            col: rng() * this.weeks, row: rng() * this.days,
+            dcol: cfg.speed * (rng() > 0.5 ? 1 : -1),
+            drow: cfg.speed * (rng() - 0.5) * 0.5,
+            type: 'bird', color: cfg.type === 'butterfly' ? '#ff88aa' : '#333',
+            frame: rng() * 200, flyHeight: 15 + rng() * 20,
+          });
+        } else if (isVehicle && this.isCity) {
+          // Vehicles on roads (city only)
+          const roadCells = this.getRoadCells();
+          if (roadCells.length === 0) continue;
+          const cell = roadCells[Math.floor(rng() * roadCells.length)];
+          const isAvenue = cell.w % ROAD_INTERVAL === 0;
+          this.entities.push({
+            col: cell.w, row: cell.d,
+            dcol: isAvenue ? 0 : cfg.speed * (rng() > 0.5 ? 1 : -1),
+            drow: isAvenue ? cfg.speed * (rng() > 0.5 ? 1 : -1) : 0,
+            type: 'taxi', color: '#ffd700', frame: rng() * 200, flyHeight: 0,
+          });
+        } else {
+          // Ground creatures (people, rabbits, deer) on walkable cells
+          const walkable = this.isCity ? this.getSidewalkCells() : this.getGroundCells();
+          if (walkable.length === 0) continue;
+          const cell = walkable[Math.floor(rng() * walkable.length)];
+          const angle = rng() * Math.PI * 2;
+          const colors: Record<string, string> = {
+            person: ['#4488cc','#cc4444','#44aa44','#ddaa33'][Math.floor(rng() * 4)],
+            rabbit: '#c8b098',
+            deer: '#b8865a',
+            pigeon: '#778899',
+          };
+          this.entities.push({
+            col: cell.w, row: cell.d,
+            dcol: Math.cos(angle) * cfg.speed,
+            drow: Math.sin(angle) * cfg.speed,
+            type: 'person', color: colors[cfg.type] ?? '#888',
+            frame: rng() * 200, flyHeight: 0,
+          });
+        }
+      }
     }
+  }
 
-    // Birds overhead
-    for (let i = 0; i < MAX_BIRDS; i++) {
-      this.entities.push({
-        col: rng() * this.weeks, row: rng() * this.days,
-        dcol: BIRD_SPEED * (rng() > 0.5 ? 1 : -1),
-        drow: BIRD_SPEED * (rng() - 0.5) * 0.5,
-        type: 'bird', color: '#333', frame: 0,
-        flyHeight: 15 + rng() * 20,
-      });
-    }
+  private getGroundCells(): { w: number; d: number }[] {
+    // All non-building cells (for forests — no roads concept)
+    const cells: { w: number; d: number }[] = [];
+    for (let w = 0; w < this.weeks; w++)
+      for (let d = 0; d < this.days; d++)
+        if (this.cellMap[w]?.[d] !== 'building') cells.push({ w, d });
+    return cells;
   }
 
   private getRoadCells(): { w: number; d: number }[] {
@@ -415,11 +440,13 @@ export class IsoRenderer {
         if (e.row >= this.days) e.row = 0;
 
       } else if (e.type === 'person') {
-        // People stay on sidewalks. Wander, avoid buildings and roads
+        // Ground creatures: stay on walkable cells, avoid buildings
         const nw = Math.round(nextCol);
         const nd = Math.round(nextRow);
-        if (nw >= 0 && nw < this.weeks && nd >= 0 && nd < this.days &&
-            this.cellMap[nw]?.[nd] === 'sidewalk') {
+        const validCell = this.isCity
+          ? this.cellMap[nw]?.[nd] === 'sidewalk'
+          : this.cellMap[nw]?.[nd] !== 'building';
+        if (nw >= 0 && nw < this.weeks && nd >= 0 && nd < this.days && validCell) {
           e.col = nextCol;
           e.row = nextRow;
         } else {
