@@ -1,19 +1,19 @@
 # Theme Generator
 
-A self-contained tool for creating new Contribution Lands themes using AI-generated isometric sprites.
+A self-contained tool for creating Contribution Lands themes using AI-generated isometric sprites.
 
-## How It Works
+## Pipeline
 
 ```
-Prompt → Gemini API → Raw PNG → Remove Green BG → Trim & Resize → Final Sprite
+Prompt → Gemini → Raw PNG → Remove Green BG → Trim & Resize → Final Sprite
 ```
 
 1. **Prompt**: Each theme has text prompts describing isometric sprites at 5 contribution levels
-2. **Generate**: Gemini API (Nano Banana) renders the prompt as an image with green chroma key background
-3. **Clean**: HSV-based detection removes the green background, producing transparent PNGs
+2. **Generate**: Gemini renders the prompt with a green chroma key background
+3. **Clean**: HSV-based detection removes the green, producing transparent PNGs
 4. **Resize**: Sprites are trimmed and standardized to a consistent base width
 5. **Validate**: Automated checks verify quality, centering, scale progression, and transparency
-6. **Output**: Final sprites land in `themes/{name}/sprites/` ready for the extension
+6. **Output**: Final sprites go to `themes/{name}/sprites/`
 
 ## Setup
 
@@ -22,36 +22,86 @@ cd tools/theme-generator
 python3 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
-export GOOGLE_API_KEY="your-key"  # Free at https://aistudio.google.com/apikey
 ```
 
-## Usage
+## Generation Methods
+
+There are two ways to generate sprites:
+
+### Method 1: Gemini Web App (Free — Recommended)
+
+Uses the Gemini web app's free image generation quota via [`gemini_webapi`](https://github.com/HanaokaYuzu/Gemini-API). No billing required.
+
+**Prerequisites:**
+1. Log into [gemini.google.com](https://gemini.google.com) in Chrome or Firefox
+2. That's it — cookies are auto-detected from your browser
 
 ```bash
-# List available themes
-python generate.py --list
+# Generate a theme (auto-detects browser cookies)
+python generate_web.py city-nyc
 
-# Generate all themes (~91 sprites, ~4.5 min on free tier)
-python generate.py
+# Generate a specific level only
+python generate_web.py city-nyc --level 4
 
-# Generate a single theme
-python generate.py forest-summer
+# If auto-detect fails, enter cookies manually
+python generate_web.py city-nyc --cookies
 
-# Generate a specific level
-python generate.py city-nyc --level 4
+# List all available themes
+python generate_web.py --list
 
-# Validate all generated sprites
-python -m validation.validate_all
-
-# Regenerate failed sprites
-python regenerate.py
+# Adjust delay between requests (default: 5s)
+python generate_web.py city-nyc --delay 8
 ```
+
+**Manual cookie entry** (if `--cookies` is needed):
+1. Go to [gemini.google.com](https://gemini.google.com) in Chrome
+2. Open DevTools (F12) → Application tab → Cookies → gemini.google.com
+3. Copy the values for `__Secure-1PSID` and `__Secure-1PSIDTS`
+4. Paste when prompted
+
+**Rate limits:** The web app has its own daily quota separate from the API. Exact limits vary but are generous for personal use. The script adds a 5-second delay between requests to be respectful.
+
+### Method 2: Gemini API (Paid — Higher Quality)
+
+Uses the official Gemini API. Requires billing enabled on your Google Cloud project.
+
+```bash
+export GOOGLE_API_KEY="your-key"  # From aistudio.google.com/apikey
+python generate.py city-nyc
+python generate.py --list
+```
+
+**Cost:** ~$0.04/image → ~$0.52 per theme (13 sprites) → ~$3.64 for all 7 themes.
+
+### Method 3: Programmatic Sprites (Free — Instant)
+
+Generate sprites from code using Pillow. Lower fidelity but zero cost and instant results.
+
+```bash
+python create_nyc_sprites.py
+```
+
+## Sprite Versioning
+
+Sprites are versioned by generation method. The `themes/{name}/sprites/` directory contains the **active** sprites used by the extension. Previous versions are preserved:
+
+```
+themes/city-nyc/
+├── theme.json
+└── sprites/              # Active sprites (used by extension)
+    ├── level-0-a.png
+    ├── level-1-a.png
+    └── ...
+```
+
+When upgrading sprites (e.g., from programmatic → AI-generated):
+1. The generator overwrites files in `sprites/` with new versions
+2. Previous versions are in git history (`git log -- themes/city-nyc/sprites/`)
+3. To restore old versions: `git checkout <commit> -- themes/city-nyc/sprites/`
 
 ## Creating a New Theme
 
 ### 1. Create a prompt file
-
-Copy an existing prompt file and modify it:
 
 ```bash
 cp prompts/forest_summer.py prompts/my_theme.py
@@ -67,33 +117,34 @@ THEME = {
     "levels": {
         0: ["Ground tile description..."],
         1: [
-            "Small element (level 1 - lowest contributions)...",
-            "Variant B...",
-            "Variant C...",
+            "Small element variant A...",
+            "Small element variant B...",
+            "Small element variant C...",
         ],
         2: ["Medium element..."],
         3: ["Large element..."],
-        4: ["Massive/iconic element (level 4 - highest contributions)..."],
+        4: ["Massive/iconic element..."],
     },
 }
 ```
 
 ### 2. Register the theme
 
-Add your import to `prompts/registry.py`:
+Add to `prompts/registry.py`:
 
 ```python
 from . import my_theme
-
-THEMES = {
-    ...
-    "my-theme": my_theme.THEME,
-}
+THEMES["my-theme"] = my_theme.THEME
 ```
 
 ### 3. Generate sprites
 
 ```bash
+# Free method (recommended for testing)
+python generate_web.py my-theme
+
+# Or paid API
+export GOOGLE_API_KEY="your-key"
 python generate.py my-theme
 ```
 
@@ -101,12 +152,11 @@ python generate.py my-theme
 
 ```bash
 python -m validation.validate_all
-open ../../reports/validation_report.html
 ```
 
 ### 5. Create theme.json
 
-Create `themes/my-theme/theme.json` with entity/particle config:
+Create `themes/my-theme/theme.json`:
 
 ```json
 {
@@ -125,33 +175,29 @@ Create `themes/my-theme/theme.json` with entity/particle config:
 
 See `themes/theme.schema.json` for the full schema.
 
-### 6. Regenerate failures
+### 6. Test locally
 
-If some sprites fail validation:
-
-```bash
-python -m validation.validate_all --redo
-python regenerate.py
-```
+Open `extension/test-nyc.html` as a reference for how to build a test page with your theme.
 
 ## Prompt Writing Tips
 
-- Always include: `"Strict isometric projection, 2:1 ratio"` (handled automatically)
 - Specify size progression clearly: Level 1 = "tiny/small", Level 4 = "massive/towering"
-- Include `"on a small grass/ground patch"` for consistent base area
-- The base suffix adds: SimCity 2000 style, green background, white outline, top-left lighting
-- Generate 3 variants per level for visual variety
+- Include "on a small grass/ground patch" for consistent base area
+- The base suffix auto-adds: SimCity 2000 style, green background, white outline, isometric projection
+- Generate 3 variants per level for visual variety in the grid
 
 ## Project Structure
 
 ```
 tools/theme-generator/
-├── generate.py           # Main CLI
+├── generate_web.py       # Free generation via Gemini web app
+├── generate.py           # Paid generation via Gemini API
+├── create_nyc_sprites.py # Programmatic NYC sprites
 ├── regenerate.py         # Redo failed sprites
 ├── prompts/
 │   ├── base.py           # Shared prompt suffix
 │   ├── registry.py       # Theme registry
-│   ├── forest_summer.py  # Per-theme prompts
+│   ├── forest_summer.py  # Per-theme prompt files
 │   └── ...
 ├── processing/
 │   ├── background.py     # Green chroma key removal
@@ -163,12 +209,4 @@ tools/theme-generator/
 │   ├── redo.py
 │   └── validate_all.py
 └── tests/
-    ├── test_api.py
-    ├── test_smoke.py
-    ├── test_quality.py
-    └── ...
 ```
-
-## Free Tier Limits
-
-The Gemini API free tier allows ~500 images/day — enough to generate all 7 themes (~91 sprites) in a single session. Rate limiting (3s between requests) is built into the generator.
