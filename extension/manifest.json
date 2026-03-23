@@ -1,0 +1,37 @@
+{
+  "manifest_version": 3,
+  "name": "Contribution Lands",
+  "description": "Transform your GitHub contribution graph into living isometric worlds — forests, cities, and beyond.",
+  "version": "0.1.0",
+  "icons": {
+    "16": "public/icons/icon-16.png",
+    "32": "public/icons/icon-32.png",
+    "48": "public/icons/icon-48.png",
+    "128": "public/icons/icon-128.png"
+  },
+  "permissions": ["storage"],
+  "host_permissions": ["https://github.com/*"],
+  "action": {
+    "default_title": "Contribution Lands",
+    "default_popup": "src/popup/popup.html",
+    "default_icon": {
+      "16": "public/icons/icon-16.png",
+      "32": "public/icons/icon-32.png",
+      "48": "public/icons/icon-48.png",
+      "128": "public/icons/icon-128.png"
+    }
+  },
+  "content_scripts": [
+    {
+      "matches": ["https://github.com/*"],
+      "js": ["src/content/content.ts"],
+      "run_at": "document_idle"
+    }
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": ["themes/*/theme.json", "themes/*/sprites/*.png"],
+      "matches": ["https://github.com/*"]
+    }
+  ]
+}
