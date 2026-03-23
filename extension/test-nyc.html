@@ -128,9 +128,9 @@
       ],
     };
 
-    // Road grid config
-    const ROAD_INTERVAL = 8;
-    const CROSS_STREETS = [0, 6];
+    // Road grid config — creates rectangular city blocks
+    const ROAD_INTERVAL = 6;           // Avenue every 6 columns
+    const CROSS_STREETS = [0, 3, 6];   // 3 cross streets → 2 rows of blocks
 
     // ========== SEEDED RNG ==========
     function mulberry32(seed) {
@@ -252,33 +252,50 @@
     function isCrossStreet(d) { return CROSS_STREETS.includes(d); }
     function isRoadCell(w, d) { return isAvenue(w) || isCrossStreet(d); }
 
+    // Auto-tiling: pick road sprite based on which neighbors are also roads.
+    // Check 4 directions → determine connection pattern → pick matching tile.
     function pickRoadType(w, d) {
-      const onAvenue = isAvenue(w);
-      const onCrossStreet = isCrossStreet(d);
+      // Which directions connect to other road cells?
+      const n = d > 0 && isRoadCell(w, d - 1);           // north (up in grid)
+      const s = d < DAYS - 1 && isRoadCell(w, d + 1);    // south (down in grid)
+      const e = w < WEEKS - 1 && isRoadCell(w + 1, d);   // east (right in grid)
+      const ww = w > 0 && isRoadCell(w - 1, d);          // west (left in grid)
 
-      // Intersection: both avenue and cross street
-      if (onAvenue && onCrossStreet) return 'road_cross';
+      const connections = (n ? 1 : 0) + (s ? 1 : 0) + (e ? 1 : 0) + (ww ? 1 : 0);
 
-      // Occasional special road tiles for variety
+      // Variety RNG for special tiles
       const rng = mulberry32((w * 7 + d) * 77777 + 11111);
       const r = rng();
 
-      if (onAvenue) {
-        // Avenue (NS direction)
-        if (r < 0.08) return 'road_bridge';
-        if (r < 0.12) return 'road_tunnel';
-        if (r < 0.20) return 'road_park';   // parking lot
-        return 'road_ns';
+      // 4-way intersection
+      if (connections >= 3) return 'road_cross';
+
+      // Corners (exactly 2 perpendicular connections)
+      if (connections === 2) {
+        if ((n && s) || (e && ww)) {
+          // Straight road (parallel connections)
+          if (n && s) {
+            // NS straight (avenue) — occasional specials
+            if (r < 0.10) return 'road_bridge';
+            if (r < 0.15) return 'road_tunnel';
+            return 'road_ns';
+          } else {
+            // EW straight (cross street) — occasional specials
+            if (r < 0.08) return 'road_bridge';
+            if (r < 0.14) return 'road_park';
+            return 'road_ew';
+          }
+        }
+        // Perpendicular → corner
+        return 'road_corner';
       }
 
-      if (onCrossStreet) {
-        // Cross street (EW direction)
-        if (r < 0.06) return 'road_bridge';
-        if (r < 0.12) return 'road_park';
-        return 'road_ew';
-      }
+      // Dead end or single connection
+      if (n || s) return 'road_ns';
+      if (e || ww) return 'road_ew';
 
-      return 'road_ew'; // fallback
+      // Isolated road cell (shouldn't happen with grid config)
+      return 'road_cross';
     }
 
     function buildL0Map(contributions) {
