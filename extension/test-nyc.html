@@ -367,6 +367,64 @@
       // Pre-compute placement
       const l0Map = buildL0Map(contributions);
 
+      // ---- LAYER 1: All ground diamonds ----
+      for (let w = 0; w < WEEKS; w++) {
+        for (let d = 0; d < DAYS; d++) {
+          const scr = gridToScreen(w, d);
+          const gc = THEME.groundColors[((w + d) * 7 + w) % THEME.groundColors.length];
+          drawIsoDiamond(ctx, scr.x, scr.y, TILE_W, TILE_H, gc, THEME.groundStroke);
+        }
+      }
+
+      // ---- LAYER 2: Programmatic road grid (painted over ground) ----
+      // Avenues: one filled strip per column (hexagonal outline of all diamonds)
+      for (let w = 0; w < WEEKS; w += ROAD_INTERVAL) {
+        const f = gridToScreen(w, 0);
+        const l = gridToScreen(w, DAYS - 1);
+        ctx.beginPath();
+        ctx.moveTo(f.x, f.y - TILE_H / 2);
+        ctx.lineTo(f.x + TILE_W / 2, f.y);
+        ctx.lineTo(l.x + TILE_W / 2, l.y);
+        ctx.lineTo(l.x, l.y + TILE_H / 2);
+        ctx.lineTo(l.x - TILE_W / 2, l.y);
+        ctx.lineTo(f.x - TILE_W / 2, f.y);
+        ctx.closePath();
+        ctx.fillStyle = '#505058';
+        ctx.fill();
+        ctx.strokeStyle = '#666670';
+        ctx.lineWidth = 0.5;
+        ctx.stroke();
+        // Yellow center dash
+        ctx.strokeStyle = '#ccbb44';
+        ctx.lineWidth = 0.8;
+        ctx.setLineDash([3, 4]);
+        ctx.beginPath(); ctx.moveTo(f.x, f.y); ctx.lineTo(l.x, l.y); ctx.stroke();
+        ctx.setLineDash([]);
+      }
+
+      // Cross streets: one filled parallelogram per row
+      for (const d of CROSS_STREETS) {
+        const f = gridToScreen(0, d);
+        const l = gridToScreen(WEEKS - 1, d);
+        ctx.beginPath();
+        ctx.moveTo(f.x, f.y - TILE_H / 2);
+        ctx.lineTo(l.x + TILE_W / 2, l.y);
+        ctx.lineTo(l.x, l.y + TILE_H / 2);
+        ctx.lineTo(f.x - TILE_W / 2, f.y);
+        ctx.closePath();
+        ctx.fillStyle = '#505058';
+        ctx.fill();
+        ctx.strokeStyle = '#666670';
+        ctx.lineWidth = 0.5;
+        ctx.stroke();
+        // Yellow center dash
+        ctx.strokeStyle = '#ccbb44';
+        ctx.lineWidth = 0.8;
+        ctx.setLineDash([3, 4]);
+        ctx.beginPath(); ctx.moveTo(f.x, f.y); ctx.lineTo(l.x, l.y); ctx.stroke();
+        ctx.setLineDash([]);
+      }
+
       // Build draw list for depth-sorted sprites
       const drawList = [];
       const hitMap = [];
@@ -396,8 +454,14 @@
         const seed = (w * 7 + d) * 31337 + 12345;
         const cellRng = mulberry32(seed);
 
+        // Road cells: NEVER draw buildings — roads always show through
+        if (isRoadCell(w, d)) {
+          // Roads are already painted in Layer 2. Skip this cell.
+          continue;
+        }
+
         if (cell.level === 0) {
-          // L0: pick sprite from the placement matrix (roads, parks, sidewalks, etc.)
+          // Non-road L0: decorative sprites (parks, sidewalks, etc.)
           const l0Type = l0Map[w][d];
           if (l0Type && sprites.l0[l0Type] && sprites.l0[l0Type].length > 0) {
             const variants = sprites.l0[l0Type];
