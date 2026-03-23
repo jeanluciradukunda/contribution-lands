@@ -183,20 +183,21 @@ def remove_green_background(input_path, output_path):
         fg_r, fg_g, fg_b = fg[:, :, 0], fg[:, :, 1], fg[:, :, 2]
         brightness = (fg_r + fg_g + fg_b) / 3.0
         low_saturation = (np.max(fg[:, :, :3], axis=2) - np.min(fg[:, :, :3], axis=2)) < 40
-        white_edge = (alpha_final > 0.01) & (alpha_final < 0.95) & (brightness > 180) & low_saturation
 
-        if np.any(white_edge):
-            alpha_final[white_edge] *= 0.15
-
-        # Also catch fully opaque white-ish pixels right at the object boundary
+        # Gemini bakes a white outline INTO the artwork (fully opaque bright
+        # pixels at the object boundary). Erode these away completely.
         from scipy import ndimage as _ndi
-        opaque_mask = alpha_final > 0.95
+        opaque_mask = alpha_final > 0.5
         eroded = _ndi.binary_erosion(opaque_mask, iterations=1)
-        boundary = opaque_mask & ~eroded
-        white_boundary = boundary & (brightness > 200) & low_saturation
+        boundary = opaque_mask & ~eroded  # 1px outer ring of the object
 
-        if np.any(white_boundary):
-            alpha_final[white_boundary] *= 0.3
+        # Kill bright/white boundary pixels (the baked-in outline)
+        white_boundary = boundary & (brightness > 160) & low_saturation
+        alpha_final[white_boundary] = 0.0
+
+        # Also fade any semi-transparent white-ish pixels near edges
+        white_semi = (alpha_final > 0.01) & (alpha_final < 0.9) & (brightness > 160) & low_saturation
+        alpha_final[white_semi] = 0.0
 
         # ============================================================
         #  STEP 9: Assemble and save
