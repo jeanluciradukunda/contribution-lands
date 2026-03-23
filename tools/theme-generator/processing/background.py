@@ -145,13 +145,41 @@ def remove_green_background(input_path, output_path):
         alpha_final[alpha_final < 0.02] = 0.0
 
         # ============================================================
-        #  STEP 7: Assemble and save
+        #  STEP 7: Final green fringe suppression
+        # ============================================================
+        #
+        # After all the above, some edge pixels may still have a green
+        # tint (G dominates R and B). For these, suppress green toward
+        # the average of R and B, and reduce alpha slightly.
+
+        fg_r, fg_g, fg_b = fg[:, :, 0], fg[:, :, 1], fg[:, :, 2]
+        # Two-pass green suppression:
+        # Pass 1: semi-transparent pixels with any green excess → nuke hard
+        semi = (alpha_final > 0.01) & (alpha_final < 0.85)
+        green_excess = fg_g - np.maximum(fg_r, fg_b)
+        fringe_soft = semi & (green_excess > 8)
+
+        if np.any(fringe_soft):
+            avg_rb = (fg_r[fringe_soft] + fg_b[fringe_soft]) / 2.0
+            fg[:, :, 1][fringe_soft] = avg_rb
+            alpha_final[fringe_soft] *= 0.3
+
+        # Pass 2: even opaque-ish edge pixels with green tint → desaturate green
+        near_edge = (alpha_final > 0.85) & (alpha_final < 0.98)
+        fringe_hard = near_edge & (green_excess > 12)
+
+        if np.any(fringe_hard):
+            avg_rb = (fg_r[fringe_hard] + fg_b[fringe_hard]) / 2.0
+            fg[:, :, 1][fringe_hard] = avg_rb + (fg_g[fringe_hard] - avg_rb) * 0.2
+
+        # ============================================================
+        #  STEP 8: Assemble and save
         # ============================================================
 
         result = np.zeros((h, w, 4), dtype=np.uint8)
-        result[:, :, 0] = fg[:, :, 0].astype(np.uint8)
-        result[:, :, 1] = fg[:, :, 1].astype(np.uint8)
-        result[:, :, 2] = fg[:, :, 2].astype(np.uint8)
+        result[:, :, 0] = np.clip(fg[:, :, 0], 0, 255).astype(np.uint8)
+        result[:, :, 1] = np.clip(fg[:, :, 1], 0, 255).astype(np.uint8)
+        result[:, :, 2] = np.clip(fg[:, :, 2], 0, 255).astype(np.uint8)
         result[:, :, 3] = (alpha_final * 255).astype(np.uint8)
 
         out_img = Image.fromarray(result, mode='RGBA')
