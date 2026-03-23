@@ -197,10 +197,14 @@ export default function PopupApp() {
       return;
     }
 
-    void savePopupSettings({
-      selectedThemeId: resolveThemeId(selectedThemeId),
-      glassOpacity,
-    });
+    const timer = setTimeout(() => {
+      void savePopupSettings({
+        selectedThemeId: resolveThemeId(selectedThemeId),
+        glassOpacity,
+      });
+    }, 500);
+
+    return () => clearTimeout(timer);
   }, [glassOpacity, hydrated, selectedThemeId]);
 
   useEffect(() => {
