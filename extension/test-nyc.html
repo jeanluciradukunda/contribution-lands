@@ -81,11 +81,19 @@
 
     // Sprite paths per level (multiple variants)
     const SPRITE_PATHS = {
-      0: ['../themes/city-nyc/sprites/level-0-a.png'],
       1: ['../themes/city-nyc/sprites/level-1-a.png', '../themes/city-nyc/sprites/level-1-b.png', '../themes/city-nyc/sprites/level-1-c.png'],
       2: ['../themes/city-nyc/sprites/level-2-a.png', '../themes/city-nyc/sprites/level-2-b.png', '../themes/city-nyc/sprites/level-2-c.png'],
       3: ['../themes/city-nyc/sprites/level-3-a.png', '../themes/city-nyc/sprites/level-3-b.png', '../themes/city-nyc/sprites/level-3-c.png'],
       4: ['../themes/city-nyc/sprites/level-4-a.png', '../themes/city-nyc/sprites/level-4-b.png', '../themes/city-nyc/sprites/level-4-c.png'],
+    };
+
+    // Level 0 has structured types with placement rules
+    const L0_TYPES = {
+      road:      '../themes/city-nyc/sprites/level-0-b.png',
+      sidewalk:  '../themes/city-nyc/sprites/level-0-c.png',
+      park:      '../themes/city-nyc/sprites/level-0-d.png',
+      crosswalk: '../themes/city-nyc/sprites/level-0-e.png',
+      empty_lot: '../themes/city-nyc/sprites/level-0-a.png',
     };
 
     // ========== SEEDED RNG ==========
@@ -152,6 +160,7 @@
       const sprites = {};
       const promises = [];
 
+      // Load level 1-4 sprites
       for (const [level, paths] of Object.entries(SPRITE_PATHS)) {
         sprites[level] = [];
         for (const path of paths) {
@@ -165,8 +174,64 @@
         }
       }
 
+      // Load L0 typed sprites
+      sprites.l0 = {};
+      for (const [type, path] of Object.entries(L0_TYPES)) {
+        const img = new Image();
+        const p = new Promise((resolve) => {
+          img.onload = () => { sprites.l0[type] = img; resolve(); };
+          img.onerror = () => { console.warn(`Failed to load L0: ${path}`); resolve(); };
+        });
+        img.src = path;
+        promises.push(p);
+      }
+
       await Promise.all(promises);
       return sprites;
+    }
+
+    // ========== L0 PLACEMENT RULES ==========
+    function pickL0Type(w, d, contributions) {
+      // Rules for realistic urban infrastructure:
+      //
+      // 1. Every 6th column = road (creates avenue grid)
+      // 2. Row 0 and row 6 = road (creates cross streets)
+      // 3. Road intersections at grid crossings = crosswalk
+      // 4. Cells adjacent to buildings = sidewalk
+      // 5. Clusters of empty cells = park
+      // 6. Everything else = empty lot
+
+      const isRoadCol = (w % 6 === 0);
+      const isRoadRow = (d === 0 || d === 6);
+
+      // Intersection
+      if (isRoadCol && isRoadRow) return 'crosswalk';
+
+      // Roads
+      if (isRoadCol || isRoadRow) return 'road';
+
+      // Check if adjacent to any building (level > 0)
+      const neighbors = [
+        [w-1, d], [w+1, d], [w, d-1], [w, d+1],
+      ];
+      let adjacentToBuilding = false;
+      for (const [nw, nd] of neighbors) {
+        if (nw >= 0 && nw < WEEKS && nd >= 0 && nd < DAYS) {
+          if (contributions[nw][nd].level > 0) {
+            adjacentToBuilding = true;
+            break;
+          }
+        }
+      }
+
+      if (adjacentToBuilding) return 'sidewalk';
+
+      // Clusters of empty = park (use seeded random for determinism)
+      const seed = (w * 7 + d) * 99991 + 54321;
+      const rng = mulberry32(seed);
+      if (rng() < 0.4) return 'park';
+
+      return 'empty_lot';
     }
 
     // ========== MAIN ==========
@@ -215,29 +280,37 @@
         const { w, d, cell } = item;
         const scr = gridToScreen(w, d);
 
-        // Ground tile
-        const groundColor = THEME.groundColors[((w + d) * 7 + w) % THEME.groundColors.length];
-        drawIsoDiamond(ctx, scr.x, scr.y, TILE_W, TILE_H, groundColor, THEME.groundStroke);
-
         // Hit map for tooltips
         hitMap.push({ cx: scr.x, cy: scr.y, w: TILE_W, h: TILE_H, data: cell });
 
-        // Draw sprite if level > 0
-        if (cell.level > 0 && sprites[cell.level] && sprites[cell.level].length > 0) {
-          const variants = sprites[cell.level];
-          // Seeded variant selection (deterministic per cell)
-          const seed = (w * 7 + d) * 31337 + 12345;
-          const cellRng = mulberry32(seed);
-          const variant = variants[Math.floor(cellRng() * variants.length)];
+        // Pick and draw sprite
+        let spriteImg = null;
+        const seed = (w * 7 + d) * 31337 + 12345;
+        const cellRng = mulberry32(seed);
 
-          const sw = variant.width * SPRITE_SCALE;
-          const sh = variant.height * SPRITE_SCALE;
+        if (cell.level === 0) {
+          // L0: use placement rules for roads, parks, sidewalks
+          const l0Type = pickL0Type(w, d, contributions);
+          spriteImg = sprites.l0[l0Type];
+        } else if (sprites[cell.level] && sprites[cell.level].length > 0) {
+          // L1-4: random variant
+          const variants = sprites[cell.level];
+          spriteImg = variants[Math.floor(cellRng() * variants.length)];
+        }
+
+        if (spriteImg) {
+          const sw = spriteImg.width * SPRITE_SCALE;
+          const sh = spriteImg.height * SPRITE_SCALE;
 
           // Anchor at bottom-center of sprite, on the tile center
           const sx = scr.x - sw / 2;
           const sy = scr.y - sh + TILE_H / 4;
 
-          ctx.drawImage(variant, sx, sy, sw, sh);
+          ctx.drawImage(spriteImg, sx, sy, sw, sh);
+        } else {
+          // Fallback: draw a simple ground diamond
+          const groundColor = THEME.groundColors[((w + d) * 7 + w) % THEME.groundColors.length];
+          drawIsoDiamond(ctx, scr.x, scr.y, TILE_W, TILE_H, groundColor, THEME.groundStroke);
         }
       }
 
