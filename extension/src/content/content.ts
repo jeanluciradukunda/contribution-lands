@@ -123,7 +123,12 @@ function parseCalendarGraph(): ContributionData[] | null {
 async function loadThemeAndSprites() {
   let themeId = 'city-nyc';
   try {
-    themeId = await loadSetting('selectedThemeId', 'city-nyc');
+    // Popup stores settings under 'contributionLandsPopupSettings' key
+    const result = await chrome.storage.sync.get('contributionLandsPopupSettings');
+    const settings = result.contributionLandsPopupSettings as { selectedThemeId?: string } | undefined;
+    if (settings?.selectedThemeId) {
+      themeId = settings.selectedThemeId;
+    }
   } catch {}
 
   // Load theme config
@@ -371,7 +376,7 @@ function setupObserver() {
   // Re-render on theme change from popup
   try {
     chrome.storage.onChanged.addListener((changes) => {
-      if (changes.selectedThemeId) {
+      if (changes.contributionLandsPopupSettings) {
         document.querySelector('.cl-contributions-wrapper')?.remove();
         document.querySelector('.cl-toggle-option')?.parentElement?.remove();
         generateIsometricChart();
