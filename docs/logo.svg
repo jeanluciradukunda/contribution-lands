@@ -1,0 +1,58 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 480 120" fill="none">
+  <defs>
+    <linearGradient id="g1" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#4a90d9"/>
+      <stop offset="100%" stop-color="#2a5a8a"/>
+    </linearGradient>
+    <linearGradient id="g2" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#4ade80"/>
+      <stop offset="100%" stop-color="#22c55e"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Isometric grid base (3 cubes growing) -->
+  <g transform="translate(12, 30)">
+    <!-- Cube 1 (level 1 — small) -->
+    <g transform="translate(0, 50)">
+      <path d="M20 40 L40 30 L60 40 L40 50 Z" fill="#1a2a4a" stroke="#4a90d9" stroke-width="1.2"/>
+      <path d="M20 40 L20 55 L40 65 L40 50 Z" fill="#0f1e3a" stroke="#4a90d9" stroke-width="1.2"/>
+      <path d="M40 50 L40 65 L60 55 L60 40 Z" fill="#142844" stroke="#4a90d9" stroke-width="1.2"/>
+      <!-- Tree on top -->
+      <line x1="40" y1="30" x2="40" y2="15" stroke="#4ade80" stroke-width="1.5"/>
+      <polygon points="32,20 40,6 48,20" fill="none" stroke="#4ade80" stroke-width="1.2"/>
+    </g>
+
+    <!-- Cube 2 (level 2 — medium) -->
+    <g transform="translate(30, 30)">
+      <path d="M20 40 L40 30 L60 40 L40 50 Z" fill="#1a2a4a" stroke="#4a90d9" stroke-width="1.2"/>
+      <path d="M20 40 L20 60 L40 70 L40 50 Z" fill="#0f1e3a" stroke="#4a90d9" stroke-width="1.2"/>
+      <path d="M40 50 L40 70 L60 60 L60 40 Z" fill="#142844" stroke="#4a90d9" stroke-width="1.2"/>
+      <!-- Tree on top -->
+      <line x1="40" y1="30" x2="40" y2="5" stroke="#4ade80" stroke-width="1.8"/>
+      <polygon points="29,18 40,-2 51,18" fill="none" stroke="#4ade80" stroke-width="1.2"/>
+      <polygon points="31,25 40,8 49,25" fill="none" stroke="#4ade80" stroke-width="1"/>
+    </g>
+
+    <!-- Cube 3 (level 4 — tall building) -->
+    <g transform="translate(60, 10)">
+      <path d="M20 40 L40 30 L60 40 L40 50 Z" fill="#1a2a4a" stroke="#4a90d9" stroke-width="1.2"/>
+      <path d="M20 40 L20 70 L40 80 L40 50 Z" fill="#0f1e3a" stroke="#4a90d9" stroke-width="1.2"/>
+      <path d="M40 50 L40 80 L60 70 L60 40 Z" fill="#142844" stroke="#4a90d9" stroke-width="1.2"/>
+      <!-- Building on top -->
+      <rect x="30" y="2" width="20" height="28" rx="1" fill="none" stroke="#ffcc73" stroke-width="1.2"/>
+      <line x1="34" y1="8" x2="38" y2="8" stroke="#ffcc73" stroke-width="0.8" opacity="0.6"/>
+      <line x1="42" y1="8" x2="46" y2="8" stroke="#ffcc73" stroke-width="0.8" opacity="0.6"/>
+      <line x1="34" y1="14" x2="38" y2="14" stroke="#ffcc73" stroke-width="0.8" opacity="0.6"/>
+      <line x1="42" y1="14" x2="46" y2="14" stroke="#ffcc73" stroke-width="0.8" opacity="0.6"/>
+      <line x1="34" y1="20" x2="38" y2="20" stroke="#ffcc73" stroke-width="0.8" opacity="0.6"/>
+      <line x1="42" y1="20" x2="46" y2="20" stroke="#ffcc73" stroke-width="0.8" opacity="0.6"/>
+    </g>
+  </g>
+
+  <!-- Text -->
+  <g transform="translate(155, 0)">
+    <text x="0" y="52" font-family="'IBM Plex Mono', 'SF Mono', monospace" font-weight="700" font-size="36" fill="#c8d8e8" letter-spacing="-0.02em">CONTRIBUTION</text>
+    <text x="0" y="90" font-family="'IBM Plex Mono', 'SF Mono', monospace" font-weight="700" font-size="36" fill="#c8d8e8" letter-spacing="-0.02em">LANDS</text>
+    <text x="0" y="110" font-family="'IBM Plex Mono', 'SF Mono', monospace" font-weight="400" font-size="11" fill="#5a7090" letter-spacing="0.15em">YOUR COMMITS BUILD WORLDS</text>
+  </g>
+</svg>

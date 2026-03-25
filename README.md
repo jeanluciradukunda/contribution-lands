@@ -1,14 +1,19 @@
-# Contribution Lands
-
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Chrome Extension](https://img.shields.io/badge/Chrome-Extension-4285F4?logo=googlechrome&logoColor=white)](https://github.com/jeanluciradukunda/contribution-lands)
-[![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
-
-> Transform your GitHub contribution graph into a living isometric world — forests, cities, and beyond.
+<p align="center">
+  <img src="docs/logo.svg" alt="Contribution Lands" width="520">
+</p>
 
 <p align="center">
-  <em>Your contributions grow into forests. Your commits build cities.</em>
+  <img alt="Public Beta" src="https://img.shields.io/badge/Status-Public%20Beta-ffcc73?style=for-the-badge">
+  <img alt="Chrome Extension" src="https://img.shields.io/badge/Chrome-Extension-4285F4?style=for-the-badge&logo=googlechrome&logoColor=white">
+  <img alt="MIT License" src="https://img.shields.io/badge/License-MIT-4a90d9?style=for-the-badge">
+  <img alt="Python 3.10+" src="https://img.shields.io/badge/Python-3.10+-4ade80?style=for-the-badge&logo=python&logoColor=white">
 </p>
+
+<p align="center">
+  <img src="docs/hero-banner.svg" alt="Forest and city biome blueprint showing level progression from bare earth to ancient redwood and empty lot to supertall skyscraper" width="860">
+</p>
+
+> Transform your GitHub contribution graph into a living isometric world — forests, cities, and beyond.
 
 ## What is Contribution Lands?
 
