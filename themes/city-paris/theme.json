@@ -3,6 +3,7 @@
   "category": "city",
   "author": "Jean Luc Iradukunda",
   "background": "#12100e",
+  "ui_accent": "#dfd0ad",
   "ground_colors": ["#5a5550", "#524e48", "#625d58"],
   "ground_stroke": "#3a3530",
   "entities": [

@@ -4,6 +4,7 @@ __pycache__/
 *.pyc
 *.pyo
 *.egg-info/
+node_modules/
 dist/
 build/
 *.egg
@@ -31,7 +32,7 @@ reports/
 .LSOverride
 
 # Claude
-.claude/settings.local.json
+.claude/
 
 # Environment
 .env

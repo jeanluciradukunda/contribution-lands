@@ -87,14 +87,50 @@
       4: ['../themes/city-nyc/sprites/level-4-a.png', '../themes/city-nyc/sprites/level-4-b.png', '../themes/city-nyc/sprites/level-4-c.png'],
     };
 
-    // Level 0 has structured types with placement rules
-    const L0_TYPES = {
-      road:      '../themes/city-nyc/sprites/level-0-b.png',
-      sidewalk:  '../themes/city-nyc/sprites/level-0-c.png',
-      park:      '../themes/city-nyc/sprites/level-0-d.png',
-      crosswalk: '../themes/city-nyc/sprites/level-0-e.png',
-      empty_lot: '../themes/city-nyc/sprites/level-0-a.png',
+    // L0 sprites grouped by category
+    const L0_SPRITES = {
+      // Road tiles (directional — chosen by matrix rules)
+      road_ns:    ['../themes/city-nyc/sprites/level-0-road-ns.png'],     // avenue direction
+      road_ew:    ['../themes/city-nyc/sprites/level-0-road-ew.png'],     // cross street direction
+      road_cross: ['../themes/city-nyc/sprites/level-0-road-cross.png'],  // 4-way intersection
+      road_t:     ['../themes/city-nyc/sprites/level-0-road-t1.png'],     // T-junction
+      road_corner:['../themes/city-nyc/sprites/level-0-road-corner.png'], // corner turn
+      road_bridge:['../themes/city-nyc/sprites/level-0-road-bridge.png'], // bridge
+      road_tunnel:['../themes/city-nyc/sprites/level-0-road-tunnel.png'], // tunnel
+      road_park:  ['../themes/city-nyc/sprites/level-0-road-parking.png'],// parking lot
+
+      // Non-road L0
+      sidewalk: [
+        '../themes/city-nyc/sprites/level-0-k.png',
+        '../themes/city-nyc/sprites/level-0-l.png',
+        '../themes/city-nyc/sprites/level-0-u.png',
+      ],
+      grass: [
+        '../themes/city-nyc/sprites/level-0-f.png',
+        '../themes/city-nyc/sprites/level-0-g.png',
+        '../themes/city-nyc/sprites/level-0-h.png',
+        '../themes/city-nyc/sprites/level-0-p.png',
+        '../themes/city-nyc/sprites/level-0-t.png',
+      ],
+      park: [
+        '../themes/city-nyc/sprites/level-0-d.png',
+        '../themes/city-nyc/sprites/level-0-n.png',
+        '../themes/city-nyc/sprites/level-0-o.png',
+        '../themes/city-nyc/sprites/level-0-r.png',
+        '../themes/city-nyc/sprites/level-0-s.png',
+        '../themes/city-nyc/sprites/level-0-v.png',
+      ],
+      urban: [
+        '../themes/city-nyc/sprites/level-0-a.png',
+        '../themes/city-nyc/sprites/level-0-c.png',
+        '../themes/city-nyc/sprites/level-0-m.png',
+        '../themes/city-nyc/sprites/level-0-q.png',
+      ],
     };
+
+    // Road grid config — creates rectangular city blocks
+    const ROAD_INTERVAL = 6;           // Avenue every 6 columns
+    const CROSS_STREETS = [0, 3, 6];   // 3 cross streets → 2 rows of blocks
 
     // ========== SEEDED RNG ==========
     function mulberry32(seed) {
@@ -174,64 +210,136 @@
         }
       }
 
-      // Load L0 typed sprites
+      // Load L0 categorized sprites
       sprites.l0 = {};
-      for (const [type, path] of Object.entries(L0_TYPES)) {
-        const img = new Image();
-        const p = new Promise((resolve) => {
-          img.onload = () => { sprites.l0[type] = img; resolve(); };
-          img.onerror = () => { console.warn(`Failed to load L0: ${path}`); resolve(); };
-        });
-        img.src = path;
-        promises.push(p);
+      for (const [category, paths] of Object.entries(L0_SPRITES)) {
+        sprites.l0[category] = [];
+        for (const path of paths) {
+          const img = new Image();
+          const p = new Promise((resolve) => {
+            img.onload = () => { sprites.l0[category].push(img); resolve(); };
+            img.onerror = () => { console.warn(`Failed to load L0: ${path}`); resolve(); };
+          });
+          img.src = path;
+          promises.push(p);
+        }
       }
 
       await Promise.all(promises);
       return sprites;
     }
 
-    // ========== L0 PLACEMENT RULES ==========
-    function pickL0Type(w, d, contributions) {
-      // Rules for realistic urban infrastructure:
-      //
-      // 1. Every 6th column = road (creates avenue grid)
-      // 2. Row 0 and row 6 = road (creates cross streets)
-      // 3. Road intersections at grid crossings = crosswalk
-      // 4. Cells adjacent to buildings = sidewalk
-      // 5. Clusters of empty cells = park
-      // 6. Everything else = empty lot
+    // ========== L0 PLACEMENT MATRIX ==========
+    //
+    // Road tile selection based on which neighbors are also roads:
+    //   - Avenue only (column) → road_ns
+    //   - Cross street only (row) → road_ew
+    //   - Both (intersection) → road_cross
+    //   - Avenue meets edge → road_corner or road_t
+    //   - Special: occasional bridge/tunnel for variety
+    //
+    // Non-road cells:
+    //   - Next to road → sidewalk
+    //   - Next to building → sidewalk or urban
+    //   - Open area → grass or park
+    //
+    // Entity pathing zones:
+    //   - road_* cells → taxis, cyclists
+    //   - sidewalk cells → pedestrians, dog walkers
+    //   - grass/park cells → joggers, dog walkers
 
-      const isRoadCol = (w % 6 === 0);
-      const isRoadRow = (d === 0 || d === 6);
+    function isAvenue(w) { return w % ROAD_INTERVAL === 0; }
+    function isCrossStreet(d) { return CROSS_STREETS.includes(d); }
+    function isRoadCell(w, d) { return isAvenue(w) || isCrossStreet(d); }
 
-      // Intersection
-      if (isRoadCol && isRoadRow) return 'crosswalk';
+    // Auto-tiling: pick road sprite based on which neighbors are also roads.
+    // Check 4 directions → determine connection pattern → pick matching tile.
+    function pickRoadType(w, d) {
+      // Which directions connect to other road cells?
+      const n = d > 0 && isRoadCell(w, d - 1);           // north (up in grid)
+      const s = d < DAYS - 1 && isRoadCell(w, d + 1);    // south (down in grid)
+      const e = w < WEEKS - 1 && isRoadCell(w + 1, d);   // east (right in grid)
+      const ww = w > 0 && isRoadCell(w - 1, d);          // west (left in grid)
 
-      // Roads
-      if (isRoadCol || isRoadRow) return 'road';
+      const connections = (n ? 1 : 0) + (s ? 1 : 0) + (e ? 1 : 0) + (ww ? 1 : 0);
 
-      // Check if adjacent to any building (level > 0)
-      const neighbors = [
-        [w-1, d], [w+1, d], [w, d-1], [w, d+1],
-      ];
-      let adjacentToBuilding = false;
-      for (const [nw, nd] of neighbors) {
-        if (nw >= 0 && nw < WEEKS && nd >= 0 && nd < DAYS) {
-          if (contributions[nw][nd].level > 0) {
-            adjacentToBuilding = true;
-            break;
+      // Variety RNG for special tiles
+      const rng = mulberry32((w * 7 + d) * 77777 + 11111);
+      const r = rng();
+
+      // 4-way intersection
+      if (connections === 4) return 'road_cross';
+
+      // T-junction (exactly 3 connections)
+      if (connections === 3) return 'road_t';
+
+      // Corners (exactly 2 perpendicular connections)
+      if (connections === 2) {
+        if ((n && s) || (e && ww)) {
+          // Straight road (parallel connections)
+          if (n && s) {
+            // NS straight (avenue) — occasional specials
+            if (r < 0.10) return 'road_bridge';
+            if (r < 0.15) return 'road_tunnel';
+            return 'road_ns';
+          } else {
+            // EW straight (cross street) — occasional specials
+            if (r < 0.08) return 'road_bridge';
+            if (r < 0.14) return 'road_park';
+            return 'road_ew';
+          }
+        }
+        // Perpendicular → corner
+        return 'road_corner';
+      }
+
+      // Dead end or single connection
+      if (n || s) return 'road_ns';
+      if (e || ww) return 'road_ew';
+
+      // Isolated road cell (shouldn't happen with grid config)
+      return 'road_cross';
+    }
+
+    function buildL0Map(contributions) {
+      const map = Array.from({ length: WEEKS }, () => Array(DAYS).fill(null));
+
+      for (let w = 0; w < WEEKS; w++) {
+        for (let d = 0; d < DAYS; d++) {
+          if (contributions[w][d].level > 0) continue;
+
+          // Road cells — pick directional tile
+          if (isRoadCell(w, d)) {
+            map[w][d] = pickRoadType(w, d);
+            continue;
+          }
+
+          // Non-road: check neighbors
+          const dirs = [[w-1,d],[w+1,d],[w,d-1],[w,d+1],[w-1,d-1],[w+1,d+1],[w-1,d+1],[w+1,d-1]];
+          let nearRoad = false, nearBuilding = false, emptyNeighbors = 0;
+          for (const [nw, nd] of dirs) {
+            if (nw >= 0 && nw < WEEKS && nd >= 0 && nd < DAYS) {
+              if (isRoadCell(nw, nd)) nearRoad = true;
+              if (contributions[nw][nd].level > 0) nearBuilding = true;
+              if (contributions[nw][nd].level === 0 && !isRoadCell(nw, nd)) emptyNeighbors++;
+            }
+          }
+
+          const rng = mulberry32((w * 7 + d) * 99991 + 54321);
+          const r = rng();
+
+          if (nearRoad) {
+            map[w][d] = r < 0.6 ? 'sidewalk' : 'urban';
+          } else if (nearBuilding) {
+            map[w][d] = r < 0.4 ? 'sidewalk' : r < 0.7 ? 'urban' : 'grass';
+          } else if (emptyNeighbors >= 5) {
+            map[w][d] = r < 0.5 ? 'park' : 'grass';
+          } else {
+            map[w][d] = r < 0.3 ? 'grass' : r < 0.5 ? 'park' : r < 0.75 ? 'urban' : 'sidewalk';
           }
         }
       }
-
-      if (adjacentToBuilding) return 'sidewalk';
-
-      // Clusters of empty = park (use seeded random for determinism)
-      const seed = (w * 7 + d) * 99991 + 54321;
-      const rng = mulberry32(seed);
-      if (rng() < 0.4) return 'park';
-
-      return 'empty_lot';
+      return map;
     }
 
     // ========== MAIN ==========
@@ -259,7 +367,68 @@
       ctx.fillStyle = THEME.bg;
       ctx.fillRect(0, 0, canvasW, canvasH);
 
-      // Build draw list for depth sorting
+      // Pre-compute placement
+      const l0Map = buildL0Map(contributions);
+
+      // ---- LAYER 1: All ground diamonds ----
+      for (let w = 0; w < WEEKS; w++) {
+        for (let d = 0; d < DAYS; d++) {
+          const scr = gridToScreen(w, d);
+          const gc = THEME.groundColors[((w + d) * 7 + w) % THEME.groundColors.length];
+          drawIsoDiamond(ctx, scr.x, scr.y, TILE_W, TILE_H, gc, THEME.groundStroke);
+        }
+      }
+
+      // ---- LAYER 2: Programmatic road grid (painted over ground) ----
+      // Avenues: one filled strip per column (hexagonal outline of all diamonds)
+      for (let w = 0; w < WEEKS; w += ROAD_INTERVAL) {
+        const f = gridToScreen(w, 0);
+        const l = gridToScreen(w, DAYS - 1);
+        ctx.beginPath();
+        ctx.moveTo(f.x, f.y - TILE_H / 2);
+        ctx.lineTo(f.x + TILE_W / 2, f.y);
+        ctx.lineTo(l.x + TILE_W / 2, l.y);
+        ctx.lineTo(l.x, l.y + TILE_H / 2);
+        ctx.lineTo(l.x - TILE_W / 2, l.y);
+        ctx.lineTo(f.x - TILE_W / 2, f.y);
+        ctx.closePath();
+        ctx.fillStyle = '#505058';
+        ctx.fill();
+        ctx.strokeStyle = '#666670';
+        ctx.lineWidth = 0.5;
+        ctx.stroke();
+        // Yellow center dash
+        ctx.strokeStyle = '#ccbb44';
+        ctx.lineWidth = 0.8;
+        ctx.setLineDash([3, 4]);
+        ctx.beginPath(); ctx.moveTo(f.x, f.y); ctx.lineTo(l.x, l.y); ctx.stroke();
+        ctx.setLineDash([]);
+      }
+
+      // Cross streets: one filled parallelogram per row
+      for (const d of CROSS_STREETS) {
+        const f = gridToScreen(0, d);
+        const l = gridToScreen(WEEKS - 1, d);
+        ctx.beginPath();
+        ctx.moveTo(f.x, f.y - TILE_H / 2);
+        ctx.lineTo(l.x + TILE_W / 2, l.y);
+        ctx.lineTo(l.x, l.y + TILE_H / 2);
+        ctx.lineTo(f.x - TILE_W / 2, f.y);
+        ctx.closePath();
+        ctx.fillStyle = '#505058';
+        ctx.fill();
+        ctx.strokeStyle = '#666670';
+        ctx.lineWidth = 0.5;
+        ctx.stroke();
+        // Yellow center dash
+        ctx.strokeStyle = '#ccbb44';
+        ctx.lineWidth = 0.8;
+        ctx.setLineDash([3, 4]);
+        ctx.beginPath(); ctx.moveTo(f.x, f.y); ctx.lineTo(l.x, l.y); ctx.stroke();
+        ctx.setLineDash([]);
+      }
+
+      // Build draw list for depth-sorted sprites
       const drawList = [];
       const hitMap = [];
 
@@ -288,10 +457,18 @@
         const seed = (w * 7 + d) * 31337 + 12345;
         const cellRng = mulberry32(seed);
 
+        // Road cells: clean asphalt only — no sprites on roads
+        if (isRoadCell(w, d)) {
+          continue;
+        }
+
         if (cell.level === 0) {
-          // L0: use placement rules for roads, parks, sidewalks
-          const l0Type = pickL0Type(w, d, contributions);
-          spriteImg = sprites.l0[l0Type];
+          // Non-road L0: decorative sprites (parks, sidewalks, etc.)
+          const l0Type = l0Map[w][d];
+          if (l0Type && sprites.l0[l0Type] && sprites.l0[l0Type].length > 0) {
+            const variants = sprites.l0[l0Type];
+            spriteImg = variants[Math.floor(cellRng() * variants.length)];
+          }
         } else if (sprites[cell.level] && sprites[cell.level].length > 0) {
           // L1-4: random variant
           const variants = sprites[cell.level];

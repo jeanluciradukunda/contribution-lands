@@ -3,6 +3,7 @@
   "category": "forest",
   "author": "Jean Luc Iradukunda",
   "background": "#2a1a0a",
+  "ui_accent": "#ee964b",
   "ground_colors": ["#5c4020", "#634425", "#55391c"],
   "ground_stroke": "#3d2a12",
   "entities": [

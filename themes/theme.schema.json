@@ -14,6 +14,22 @@
       "description": "Isometric ground tile colors (hex)"
     },
     "ground_stroke": { "type": "string", "description": "Ground tile outline color (hex)" },
+    "ui_accent": {
+      "type": "string",
+      "description": "Optional popup accent color used for extension chrome and highlights"
+    },
+    "preview_sprites": {
+      "type": "object",
+      "description": "Optional popup preview sprite filenames keyed by contribution level",
+      "properties": {
+        "0": { "type": "string" },
+        "1": { "type": "string" },
+        "2": { "type": "string" },
+        "3": { "type": "string" },
+        "4": { "type": "string" }
+      },
+      "additionalProperties": false
+    },
     "entities": {
       "type": "array",
       "items": {
