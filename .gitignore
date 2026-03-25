@@ -32,7 +32,7 @@ reports/
 .LSOverride
 
 # Claude
-.claude/settings.local.json
+.claude/
 
 # Environment
 .env

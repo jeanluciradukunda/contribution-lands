@@ -141,11 +141,18 @@ export default function PopupApp() {
       return;
     }
 
+    const resolvedThemeId = resolveThemeId(selectedThemeId);
+
     const timer = setTimeout(() => {
       void savePopupSettings({
-        selectedThemeId: resolveThemeId(selectedThemeId),
+        selectedThemeId: resolvedThemeId,
         glassOpacity,
       });
+
+      // Sync to chrome.storage.local so the content script picks up the change
+      if (typeof chrome !== 'undefined' && chrome.storage?.local) {
+        chrome.storage.local.set({ selectedThemeId: resolvedThemeId });
+      }
     }, 500);
 
     return () => clearTimeout(timer);

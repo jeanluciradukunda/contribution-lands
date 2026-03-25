@@ -218,95 +218,104 @@ function injectCSS() {
 // ============================================================
 
 let isGenerating = false;
+let activeRenderer: IsoRenderer | null = null;
 
 async function generateIsometricChart() {
   // Prevent double-init from rapid MutationObserver callbacks
   if (isGenerating || document.querySelector('.cl-contributions-wrapper')) return;
   isGenerating = true;
 
-  const calendarGraph = document.querySelector('.js-calendar-graph');
-  const contributionsBox = document.querySelector('.js-yearly-contributions');
+  try {
+    const calendarGraph = document.querySelector('.js-calendar-graph');
+    const contributionsBox = document.querySelector('.js-yearly-contributions');
 
-  if (!calendarGraph || !contributionsBox) {
-    console.log('[CL] Calendar graph or contributions box not found');
-    isGenerating = false;
-    return;
-  }
+    if (!calendarGraph || !contributionsBox) {
+      console.log('[CL] Calendar graph or contributions box not found');
+      return;
+    }
 
-  console.log('[CL] Generating isometric chart...');
+    console.log('[CL] Generating isometric chart...');
 
-  // Parse contribution data
-  const data = parseCalendarGraph();
-  if (!data || data.length === 0) {
-    console.log('[CL] No contribution data parsed');
-    return;
-  }
+    // Parse contribution data
+    const data = parseCalendarGraph();
+    if (!data || data.length === 0) {
+      console.log('[CL] No contribution data parsed');
+      return;
+    }
 
-  // Load theme
-  const { config, sprites } = await loadThemeAndSprites();
+    // Load theme
+    const { config, sprites } = await loadThemeAndSprites();
 
-  // Create wrapper (same pattern as isometric-contributions)
-  contributionsWrapper = document.createElement('div');
-  contributionsWrapper.className = 'cl-contributions-wrapper position-relative';
-  calendarGraph.before(contributionsWrapper);
+    // Destroy previous renderer if re-initializing
+    if (activeRenderer) {
+      activeRenderer.destroy();
+      activeRenderer = null;
+    }
 
-  // Create canvas
-  const canvas = document.createElement('canvas');
-  canvas.id = 'contribution-lands-canvas';
-  canvas.style.width = '100%';
-  contributionsWrapper.appendChild(canvas);
+    // Create wrapper (same pattern as isometric-contributions)
+    contributionsWrapper = document.createElement('div');
+    contributionsWrapper.className = 'cl-contributions-wrapper position-relative';
+    calendarGraph.before(contributionsWrapper);
 
-  // Render
-  const renderer = new IsoRenderer(canvas, data, config, sprites);
-  renderer.render();
+    // Create canvas
+    const canvas = document.createElement('canvas');
+    canvas.id = 'contribution-lands-canvas';
+    canvas.style.width = '100%';
+    contributionsWrapper.appendChild(canvas);
 
-  // Inject toggle buttons (same position as isometric-contributions: before the H2)
-  let insertLocation: Element | null = contributionsBox.querySelector('h2');
-  if (
-    insertLocation?.previousElementSibling &&
-    insertLocation.previousElementSibling.nodeName === 'DETAILS'
-  ) {
-    insertLocation = insertLocation.previousElementSibling;
-  }
+    // Render
+    activeRenderer = new IsoRenderer(canvas, data, config, sprites);
+    activeRenderer.render();
 
-  const buttonGroup = document.createElement('div');
-  buttonGroup.className = 'BtnGroup mt-1 ml-3 position-relative top-0 float-right';
+    // Inject toggle buttons (same position as isometric-contributions: before the H2)
+    let insertLocation: Element | null = contributionsBox.querySelector('h2');
+    if (
+      insertLocation?.previousElementSibling &&
+      insertLocation.previousElementSibling.nodeName === 'DETAILS'
+    ) {
+      insertLocation = insertLocation.previousElementSibling;
+    }
 
-  const modes: { label: string; value: string }[] = [
-    { label: '2D', value: 'squares' },
-    { label: 'Lands', value: 'cubes' },
-    { label: 'Both', value: 'both' },
-  ];
+    const buttonGroup = document.createElement('div');
+    buttonGroup.className = 'BtnGroup mt-1 ml-3 position-relative top-0 float-right';
 
-  modes.forEach(({ label, value }) => {
-    const btn = document.createElement('button');
-    btn.textContent = label;
-    btn.className = `cl-toggle-option ${value} btn BtnGroup-item btn-sm py-0 px-1`;
-    btn.dataset.clOption = value;
-    if (viewSetting === value) btn.classList.add('selected');
+    const modes: { label: string; value: string }[] = [
+      { label: '2D', value: 'squares' },
+      { label: 'Lands', value: 'cubes' },
+      { label: 'Both', value: 'both' },
+    ];
 
-    btn.addEventListener('click', () => {
-      for (const toggle of document.querySelectorAll('.cl-toggle-option')) {
-        toggle.classList.remove('selected');
-      }
-      btn.classList.add('selected');
-      viewSetting = value as typeof viewSetting;
-      saveSetting('viewSetting', value);
-      applyViewType(contributionsBox as HTMLElement, value);
+    modes.forEach(({ label, value }) => {
+      const btn = document.createElement('button');
+      btn.textContent = label;
+      btn.className = `cl-toggle-option ${value} btn BtnGroup-item btn-sm py-0 px-1`;
+      btn.dataset.clOption = value;
+      if (viewSetting === value) btn.classList.add('selected');
+
+      btn.addEventListener('click', () => {
+        for (const toggle of document.querySelectorAll('.cl-toggle-option')) {
+          toggle.classList.remove('selected');
+        }
+        btn.classList.add('selected');
+        viewSetting = value as typeof viewSetting;
+        saveSetting('viewSetting', value);
+        applyViewType(contributionsBox as HTMLElement, value);
+      });
+
+      buttonGroup.appendChild(btn);
     });
 
-    buttonGroup.appendChild(btn);
-  });
+    if (insertLocation) {
+      insertLocation.before(buttonGroup);
+    }
 
-  if (insertLocation) {
-    insertLocation.before(buttonGroup);
+    // Apply current view
+    applyViewType(contributionsBox as HTMLElement, viewSetting);
+
+    console.log(`[CL] Initialized! ${data.length} cells, theme: ${config.name}, view: ${viewSetting}`);
+  } finally {
+    isGenerating = false;
   }
-
-  // Apply current view
-  applyViewType(contributionsBox as HTMLElement, viewSetting);
-
-  isGenerating = false;
-  console.log(`[CL] Initialized! ${data.length} cells, theme: ${config.name}, view: ${viewSetting}`);
 }
 
 // ============================================================

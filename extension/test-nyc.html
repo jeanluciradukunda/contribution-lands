@@ -268,7 +268,10 @@
       const r = rng();
 
       // 4-way intersection
-      if (connections >= 3) return 'road_cross';
+      if (connections === 4) return 'road_cross';
+
+      // T-junction (exactly 3 connections)
+      if (connections === 3) return 'road_t';
 
       // Corners (exactly 2 perpendicular connections)
       if (connections === 2) {
