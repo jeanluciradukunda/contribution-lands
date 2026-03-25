@@ -16,6 +16,16 @@ jobs:
         with:
           node-version: 22
       - name: Install dependencies
-        run: cd extension && pnpm install
+        run: |
+          if [ -f extension/package.json ]; then
+            cd extension && pnpm install
+          else
+            echo "No extension/package.json found — skipping (extension not yet on this branch)"
+          fi
       - name: Build extension
-        run: cd extension && pnpm build
+        run: |
+          if [ -f extension/package.json ]; then
+            cd extension && pnpm build
+          else
+            echo "Skipping build — extension source not on this branch yet"
+          fi
