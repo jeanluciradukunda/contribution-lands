@@ -1,0 +1,31 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Install dependencies
+        run: |
+          if [ -f extension/package.json ]; then
+            cd extension && pnpm install
+          else
+            echo "No extension/package.json found — skipping (extension not yet on this branch)"
+          fi
+      - name: Build extension
+        run: |
+          if [ -f extension/package.json ]; then
+            cd extension && pnpm build
+          else
+            echo "Skipping build — extension source not on this branch yet"
+          fi
