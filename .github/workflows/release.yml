@@ -1,0 +1,82 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to release (e.g. 0.2.0)'
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: extension/pnpm-lock.yaml
+
+      - name: Determine version
+        id: version
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "VERSION=${{ inputs.version }}" >> $GITHUB_OUTPUT
+            echo "TAG=v${{ inputs.version }}" >> $GITHUB_OUTPUT
+          else
+            echo "VERSION=${GITHUB_REF_NAME#v}" >> $GITHUB_OUTPUT
+            echo "TAG=${GITHUB_REF_NAME}" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Create tag (if manual dispatch)
+        if: github.event_name == 'workflow_dispatch'
+        run: |
+          git tag "v${{ inputs.version }}" || true
+          git push origin "v${{ inputs.version }}" || true
+
+      - name: Install dependencies
+        run: cd extension && pnpm install --frozen-lockfile
+
+      - name: Build extension
+        run: cd extension && pnpm build
+
+      - name: Package as ZIP
+        run: |
+          cd extension/dist
+          zip -r ${{ runner.temp }}/contribution-lands-${{ steps.version.outputs.VERSION }}.zip .
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.version.outputs.TAG }}
+          name: Contribution Lands v${{ steps.version.outputs.VERSION }}
+          body: |
+            ## Contribution Lands v${{ steps.version.outputs.VERSION }}
+
+            Transform your GitHub contribution graph into a living isometric world.
+
+            ### Install
+            1. Download `contribution-lands-${{ steps.version.outputs.VERSION }}.zip` below
+            2. Unzip the file
+            3. Open `chrome://extensions` → Enable **Developer mode**
+            4. Click **Load unpacked** → Select the unzipped folder
+            5. Visit any GitHub profile — the contribution graph transforms automatically
+
+            **Public Beta.** Requires Chrome/Chromium.
+          files: |
+            ${{ runner.temp }}/contribution-lands-${{ steps.version.outputs.VERSION }}.zip
+          draft: false
+          prerelease: true

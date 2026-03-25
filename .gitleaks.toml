@@ -1,0 +1,11 @@
+title = "contribution-lands gitleaks config"
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Allow prototype HTML files and theme JSON with non-secret values"
+paths = [
+  '''(^|/)extension/prototype\.html$''',
+  '''(^|/)extension/test-.*\.html$''',
+]

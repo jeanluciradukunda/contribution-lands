@@ -1,0 +1,22 @@
+categories:
+  - title: "New Themes"
+    labels: ["theme"]
+  - title: "New Features"
+    labels: ["enhancement"]
+  - title: "Bug Fixes"
+    labels: ["bug"]
+  - title: "Sprites"
+    labels: ["sprites"]
+  - title: "Documentation"
+    labels: ["documentation"]
+  - title: "Infrastructure"
+    labels: ["infrastructure"]
+
+change-template: "- $TITLE (#$NUMBER)"
+no-changes-template: "No changes."
+template: |
+  ## What's Changed
+
+  $CHANGES
+
+  **Full Changelog**: https://github.com/$OWNER/$REPOSITORY/compare/$PREVIOUS_TAG...v$RESOLVED_VERSION
