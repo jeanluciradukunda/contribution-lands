@@ -1,0 +1,92 @@
+.cl-squares .cl-contributions-wrapper { display: none; }
+.cl-cubes .js-calendar-graph { display: none !important; }
+.cl-cubes .contrib-details { display: none; }
+.cl-hide-stats .cl-panel { display: none; }
+
+.cl-controls { gap: 8px; margin-top: 2px; }
+
+.cl-contributions-wrapper {
+  position: relative;
+  container-type: inline-size;
+  margin-bottom: 8px;
+}
+
+#contribution-lands-canvas { display: block; width: 100%; }
+
+.cl-panel {
+  position: absolute;
+  font-family: var(--fontStack-sansSerif, -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans", Helvetica, Arial, sans-serif);
+  color: var(--fgColor-default, #1f2328);
+  pointer-events: none;
+}
+.cl-panel-top { top: 12px; right: 20px; text-align: left; }
+.cl-panel-bottom { bottom: 20px; left: 20px; }
+
+.cl-panel-title {
+  margin: 0 0 4px;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.cl-panel-box {
+  display: flex;
+  gap: 4px;
+  padding: 0 8px;
+  border: 1px solid var(--borderColor-default, #d1d9e0);
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--bgColor-default, #ffffff) 86%, transparent);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+}
+
+.cl-stat { display: flex; flex-direction: column; padding: 8px; }
+.cl-stat-value {
+  font-size: 24px;
+  font-weight: 600;
+  line-height: 1.25;
+  color: var(--fgColor-success, #1a7f37);
+  font-variant-numeric: tabular-nums;
+}
+.cl-stat-unit { font-size: 16px; }
+.cl-stat-label { font-size: 12px; font-weight: 600; }
+.cl-stat-detail { font-size: 12px; color: var(--fgColor-muted, #59636e); white-space: nowrap; }
+.cl-stat-detail:empty { display: none; }
+
+.cl-panel-note {
+  margin: 4px 0 0;
+  font-size: 12px;
+  text-align: right;
+}
+.cl-panel-note strong { color: var(--fgColor-success, #1a7f37); }
+.cl-panel-note span { color: var(--fgColor-muted, #59636e); }
+
+@container (max-width: 680px) {
+  .cl-stat-detail { display: none; }
+  .cl-stat-value { font-size: 20px; }
+}
+
+@container (max-width: 520px) {
+  .cl-panel { position: static; margin: 8px 12px 0; }
+  .cl-panel-note { text-align: left; }
+}
+
+#cl-tooltip {
+  position: fixed;
+  z-index: 10000;
+  padding: 4px 8px;
+  border-radius: 6px;
+  font: 12px/1.5 var(--fontStack-sansSerif, -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans", Helvetica, Arial, sans-serif);
+  color: var(--tooltip-fgColor, #ffffff);
+  background: var(--tooltip-bgColor, #25292e);
+  white-space: nowrap;
+  pointer-events: none;
+  transform: translate(-50%, -100%);
+  opacity: 0;
+  transition: opacity 80ms ease-out;
+}
+#cl-tooltip.is-visible { opacity: 1; }
+
+.cl-toggle-option.selected {
+  background-color: var(--button-default-bgColor-selected, #dcdfe3) !important;
+  font-weight: 600;
+}
