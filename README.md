@@ -73,6 +73,47 @@ cp -r ../themes dist/themes
 
 3. Visit any GitHub profile — your contribution graph becomes a living isometric city!
 
+### Put your land in your profile README
+
+Add this workflow to your profile repository (the one named after your username). It renders your city every night and commits the images.
+
+```yaml
+# .github/workflows/contribution-land.yml
+name: Contribution land
+on:
+  schedule:
+    - cron: "0 3 * * *"
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  render:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: jeanluciradukunda/contribution-lands@main
+        with:
+          theme: city-nyc
+          output-dir: images
+      - run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add images
+          git commit -m "Update contribution land" || exit 0
+          git push
+```
+
+Then show it in your `README.md`, matching the reader's light or dark mode:
+
+```html
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="images/contribution-land-dark.png">
+  <img alt="My contribution land" src="images/contribution-land-light.png">
+</picture>
+```
+
+<img alt="Example contribution land card" src="docs/card-example.png" width="600">
+
 ### Preview the Prototype
 
 ```bash

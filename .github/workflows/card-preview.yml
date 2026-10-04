@@ -1,0 +1,26 @@
+name: Card preview
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - action.yml
+      - tools/card/**
+      - extension/card/**
+      - extension/src/content/**
+      - themes/**
+  workflow_dispatch:
+
+jobs:
+  render:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./
+        with:
+          username: ${{ github.repository_owner }}
+          output-dir: card
+      - uses: actions/upload-artifact@v4
+        with:
+          name: contribution-land-card
+          path: card/*.png

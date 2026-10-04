@@ -1,0 +1,9 @@
+{
+  "name": "contribution-lands-card",
+  "private": true,
+  "type": "module",
+  "bin": { "render-land-card": "render.mjs" },
+  "dependencies": {
+    "puppeteer-core": "^24.0.0"
+  }
+}

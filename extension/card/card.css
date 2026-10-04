@@ -1,0 +1,29 @@
+:root {
+  --fontStack-sansSerif: Inter, -apple-system, "Segoe UI", Helvetica, Arial, sans-serif;
+  --bgColor-default: #ffffff;
+  --fgColor-default: #1f2328;
+  --fgColor-muted: #59636e;
+  --fgColor-success: #1a7f37;
+  --borderColor-default: #d1d9e0;
+}
+[data-color-mode="dark"] {
+  --bgColor-default: #0d1117;
+  --fgColor-default: #f0f6fc;
+  --fgColor-muted: #9198a1;
+  --fgColor-success: #3fb950;
+  --borderColor-default: #3d444d;
+}
+html, body { margin: 0; background: transparent; }
+body { font-family: var(--fontStack-sansSerif); color: var(--fgColor-default); }
+.card {
+  width: 880px;
+  padding: 16px 16px 12px;
+  box-sizing: border-box;
+  border: 1px solid var(--borderColor-default);
+  border-radius: 12px;
+  background: var(--bgColor-default);
+}
+.card h2 { margin: 0 0 4px; font-size: 16px; font-weight: 400; }
+.card #calendar a, .card .js-calendar-graph, .card .cl-controls, .card .contrib-footer, .card details, .card focus-group { display: none !important; }
+.card-footer { margin-top: 4px; font-size: 11px; color: var(--fgColor-muted); text-align: right; }
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
