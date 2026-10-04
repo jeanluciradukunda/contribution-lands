@@ -65,6 +65,8 @@ const STREET_BEFORE_DAY = 4;
 const STREET = 0.5;
 
 const BUILDING_WIDTH = 0.95;
+/** Street furniture and park trees on empty city lots rise no more than this (world px), about a storey and a half. */
+const LOT_MAX_RISE = 7;
 const SHADOW_ALPHA = 0.35;
 const FOREST_WIDTH = 1.25;
 
@@ -283,7 +285,12 @@ export class IsoRenderer {
           : pool.length
             ? pool[Math.floor(rng() * pool.length)]
             : null;
-      const factor = data.level === 0 && !landmark && !underConstruction ? 1 : widthFactor;
+      const emptyLot = data.level === 0 && !landmark && !underConstruction;
+      let factor = emptyLot ? 1 : widthFactor;
+      if (emptyLot && this.isCity && sprite) {
+        const rise = (sprite.height / sprite.width - TH / TW) * TW;
+        if (rise > LOT_MAX_RISE) factor *= LOT_MAX_RISE / rise;
+      }
       const width = TW * factor;
       this.cells.push({
         data,
