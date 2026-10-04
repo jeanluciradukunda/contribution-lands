@@ -107,8 +107,8 @@ Then show it in your `README.md`, matching the reader's light or dark mode:
 
 ```html
 <picture>
-  <source media="(prefers-color-scheme: dark)" srcset="images/contribution-land-dark.png">
-  <img alt="My contribution land" src="images/contribution-land-light.png">
+  <source media="(prefers-color-scheme: dark)" srcset="images/contribution-land-dark.webp">
+  <img alt="My contribution land" src="images/contribution-land-light.webp">
 </picture>
 ```
 

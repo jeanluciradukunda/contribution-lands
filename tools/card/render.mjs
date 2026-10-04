@@ -2,7 +2,7 @@
 /**
  * Renders a profile's contribution land as a PNG for a README.
  *
- *   node render.mjs --user octocat --theme city-nyc --out land.png [--scheme dark]
+ *   node render.mjs --user octocat --theme city-nyc --out land.webp [--scheme dark]
  *
  * Serves the built card page (extension/card-dist) and the repo's themes, then
  * drives a local Chrome to it. Requests the content script makes to github.com
@@ -30,7 +30,7 @@ const { values: args } = parseArgs({
   options: {
     user: { type: 'string' },
     theme: { type: 'string', default: 'city-nyc' },
-    out: { type: 'string', default: 'contribution-land.png' },
+    out: { type: 'string', default: 'contribution-land.webp' },
     scheme: { type: 'string', default: 'light' },
   },
 });
@@ -122,7 +122,8 @@ try {
   if (errors.length) throw new Error(`Card page errors: ${errors.join('; ')}`);
 
   const card = await page.$('.card');
-  await card.screenshot({ path: args.out, omitBackground: true });
+  const type = args.out.endsWith('.png') ? 'png' : 'webp';
+  await card.screenshot({ path: args.out, type, omitBackground: true, ...(type === 'webp' ? { quality: 88 } : {}) });
   console.log(`Wrote ${args.out}`);
 } finally {
   await browser.close();

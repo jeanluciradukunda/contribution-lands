@@ -12,7 +12,7 @@ inputs:
     description: Theme id, for example city-nyc, city-paris, city-capetown or forest-rainforest
     default: city-nyc
   output-dir:
-    description: Directory for contribution-land-light.png and contribution-land-dark.png
+    description: Directory for contribution-land-light.webp and contribution-land-dark.webp
     default: .
 
 outputs:
@@ -49,8 +49,8 @@ runs:
         OUT: ${{ inputs.output-dir }}
       run: |
         mkdir -p "$OUT"
-        light="$OUT/contribution-land-light.png"
-        dark="$OUT/contribution-land-dark.png"
+        light="$OUT/contribution-land-light.webp"
+        dark="$OUT/contribution-land-dark.webp"
         node "$GITHUB_ACTION_PATH/tools/card/render.mjs" --user "$USERNAME" --theme "$THEME" --out "$light"
         node "$GITHUB_ACTION_PATH/tools/card/render.mjs" --user "$USERNAME" --theme "$THEME" --scheme dark --out "$dark"
         echo "light=$light" >> "$GITHUB_OUTPUT"
