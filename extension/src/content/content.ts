@@ -6,7 +6,7 @@
  */
 
 import { IsoRenderer, type ContributionData, type Sprite, type SpriteSet, type ThemeConfig } from './renderer';
-import { computeStats, tooltipCounts, extendWithHistory, formatDate, formatRange, longestStreak, currentStreak, type ContributionStats, type Streak } from './stats';
+import { addDays, averagePerDay, computeStats, fetchDays, reconcileStart, tooltipCounts, extendWithHistory, formatDate, formatRange, longestStreak, currentStreak, type ContributionStats, type Streak } from './stats';
 import contentCss from './content.css?inline';
 
 type ViewSetting = 'squares' | 'cubes' | 'both';
@@ -182,7 +182,7 @@ function renderStats(wrapper: HTMLElement, stats: ContributionStats, viewingYear
       ${viewingYear ? '' : statBlock('cl-week', stats.weekTotal.toLocaleString(), '', 'This week', formatRange(stats.weekStart, stats.lastDate))}
       ${statBlock('cl-best', stats.bestCount.toLocaleString(), '', 'Best day', stats.bestDate ? formatDate(stats.bestDate) : 'No activity')}
     </div>
-    <p class="cl-panel-note">Average: <strong>${stats.average}</strong> <span>/ day</span></p>`;
+    <p class="cl-panel-note">Average: <strong id="cl-average">${stats.average}</strong> <span>/ day</span></p>`;
 
   const bottom = document.createElement('div');
   bottom.className = 'cl-panel cl-panel-bottom';
@@ -205,6 +205,36 @@ function updateStreak(id: string, streak: Streak, empty: string) {
   const detail = document.getElementById(`${id}-detail`);
   if (value) value.innerHTML = `${streak.length} <span class="cl-stat-unit">days</span>`;
   if (detail) detail.textContent = streakDetail(streak, empty);
+}
+
+function headingTotal(box: Element): number | null {
+  const match = box.querySelector('h2')?.textContent?.match(/([\d,]+)\s+contributions?/);
+  return match ? Number.parseInt(match[1].replace(/,/g, ''), 10) : null;
+}
+
+/**
+ * The panel must agree with GitHub's heading. When the heading counts days the
+ * calendar no longer shows, fetch them so the range and average describe the
+ * same window as the number.
+ */
+async function alignWithHeading(stats: ContributionStats, heading: number) {
+  const calendarTotal = stats.total;
+  stats.total = heading;
+  const username = location.pathname.split('/').filter(Boolean)[0];
+  if (heading <= calendarTotal || !username) return;
+  try {
+    const earlier = await fetchDays(username, addDays(stats.firstDate, -7), addDays(stats.firstDate, -1));
+    const start = reconcileStart(calendarTotal, heading, earlier);
+    if (!start || !document.querySelector('.cl-contributions-wrapper')) return;
+    stats.firstDate = start;
+    stats.average = averagePerDay(heading, start, stats.lastDate);
+    const detail = document.getElementById('cl-total-detail');
+    const average = document.getElementById('cl-average');
+    if (detail) detail.textContent = formatRange(start, stats.lastDate);
+    if (average) average.textContent = String(stats.average);
+  } catch {
+    // Keep the heading's total with the calendar's range.
+  }
 }
 
 function pendingHistory(data: ContributionData[], stats: ContributionStats): Pending {
@@ -353,6 +383,8 @@ async function generate() {
     const heading = box.querySelector('h2')?.textContent ?? '';
     const viewingYear = /in \d{4}/.test(heading);
     const stats = computeStats(data);
+    const shownTotal = headingTotal(box);
+    if (shownTotal !== null && shownTotal !== stats.total) void alignWithHeading(stats, shownTotal);
     const pending = pendingHistory(data, stats);
     renderStats(wrapper, stats, viewingYear, pending);
     if (!document.querySelector('.cl-controls')) injectToggle(box);
