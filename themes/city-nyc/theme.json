@@ -21,9 +21,12 @@
   "particles": null,
   "landmarks": [
     { "sprite": "level-4-b.png", "name": "Empire State Building" },
+    { "sprite": "level-4-k.png", "name": "Chrysler Building" },
     { "sprite": "level-4-a.png", "name": "One World Trade Center" },
     { "sprite": "level-4-j.png", "name": "Statue of Liberty" },
     { "sprite": "level-4-i.png", "name": "Flatiron Building" },
+    { "sprite": "level-4-l.png", "name": "30 Rockefeller Plaza" },
+    { "sprite": "level-4-m.png", "name": "One Vanderbilt" },
     { "sprite": "level-4-d.png", "name": "Central Park Tower" },
     { "sprite": "level-3-d.png", "name": "Woolworth Building" },
     { "sprite": "level-3-g.png", "name": "The Vessel" }
