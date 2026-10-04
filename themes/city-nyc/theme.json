@@ -27,6 +27,12 @@
     { "sprite": "level-4-i.png", "name": "Flatiron Building" },
     { "sprite": "level-4-l.png", "name": "30 Rockefeller Plaza" },
     { "sprite": "level-4-m.png", "name": "One Vanderbilt" },
+    { "sprite": "level-4-q.png", "name": "30 Hudson Yards and the Edge" },
+    { "sprite": "level-4-n.png", "name": "56 Leonard Street" },
+    { "sprite": "level-4-p.png", "name": "Hearst Tower" },
+    { "sprite": "level-4-s.png", "name": "40 Wall Street" },
+    { "sprite": "level-4-r.png", "name": "Bank of America Tower" },
+    { "sprite": "level-4-o.png", "name": "8 Spruce Street" },
     { "sprite": "level-4-d.png", "name": "Central Park Tower" },
     { "sprite": "level-3-d.png", "name": "Woolworth Building" },
     { "sprite": "level-3-g.png", "name": "The Vessel" }
