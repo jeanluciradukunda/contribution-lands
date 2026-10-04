@@ -22,14 +22,21 @@ export interface ThemeConfig {
   ground_stroke: string;
   ui_accent?: string;
   entities?: Array<{ type: string; count: number; speed: number; flyer?: boolean }>;
+  landmarks?: Array<{ sprite: string; name: string }>;
 }
 
-export type SpriteSet = Record<number, ImageBitmap[]>;
+export interface Sprite {
+  name: string;
+  image: ImageBitmap;
+}
+
+export type SpriteSet = Record<number, Sprite[]>;
 
 export interface RendererOptions {
   motion: boolean;
   /** Overlays (in canvas CSS px, measured from the top) that tall sprites must not hide behind. */
   obstacles?: () => Array<{ left: number; right: number; bottom: number }>;
+  onSelect?: (date: string) => void;
 }
 
 const TW = 20;
@@ -41,6 +48,7 @@ const STREET_BEFORE_DAY = 4;
 const STREET = 0.8;
 
 const BUILDING_WIDTH = 0.9;
+const SHADOW_ALPHA = 0.35;
 const FOREST_WIDTH = 1.25;
 
 const FRAME_MS = 1000 / 30;
@@ -55,6 +63,7 @@ interface Cell {
   sprite: ImageBitmap | null;
   width: number;
   height: number;
+  landmark: { name: string; rank: number } | null;
 }
 
 interface Rect {
@@ -101,6 +110,11 @@ function shade(hex: string, factor: number): string {
   return `#${((ch(16) << 16) | (ch(8) << 8) | ch(0)).toString(16).padStart(6, '0')}`;
 }
 
+function ordinal(n: number): string {
+  const suffix = n % 100 >= 11 && n % 100 <= 13 ? 'th' : ['th', 'st', 'nd', 'rd'][n % 10] ?? 'th';
+  return `${n}${suffix}`;
+}
+
 const iso = (gx: number, gy: number) => ({ x: (gx - gy) * (TW / 2), y: (gx + gy) * (TH / 2) });
 
 export class IsoRenderer {
@@ -131,6 +145,9 @@ export class IsoRenderer {
   private cars: Car[] = [];
   private flyers: Flyer[] = [];
   private hovered: Cell | null = null;
+  private selected: Cell | null = null;
+  private readonly muted = new Map<ImageBitmap, HTMLCanvasElement>();
+  private readonly onSelect: RendererOptions['onSelect'];
   private visible = true;
   private frameId: number | null = null;
   private lastFrame = 0;
@@ -156,6 +173,7 @@ export class IsoRenderer {
     this.isCity = theme.category === 'city';
     this.motion = options.motion;
     this.obstacles = options.obstacles;
+    this.onSelect = options.onSelect;
 
     this.weeks = Math.max(...contributions.map((c) => c.week)) + 1;
     this.margin = this.isCity ? STREET : 0.35;
@@ -194,12 +212,25 @@ export class IsoRenderer {
   }
 
   private buildCells(contributions: ContributionData[]) {
+    const byName = new Map<string, ImageBitmap>();
+    for (const level of Object.values(this.sprites)) for (const sp of level) byName.set(sp.name, sp.image);
+    const landmarks = (this.theme.landmarks ?? []).filter((l) => byName.has(l.sprite));
+    const reserved = new Set(landmarks.map((l) => byName.get(l.sprite)));
+
+    const ranked = contributions
+      .filter((c) => c.count > 0)
+      .sort((a, b) => b.count - a.count || b.date.localeCompare(a.date));
+    const landmarkFor = new Map(ranked.slice(0, landmarks.length).map((c, i) => [c.date, { ...landmarks[i], rank: i + 1 }]));
+
     const widthFactor = this.isCity ? BUILDING_WIDTH : FOREST_WIDTH;
     for (const data of contributions) {
-      const pool = this.sprites[data.level] ?? [];
+      const all = (this.sprites[data.level] ?? []).map((sp) => sp.image);
+      const unreserved = all.filter((img) => !reserved.has(img));
+      const pool = unreserved.length ? unreserved : all;
+      const landmark = landmarkFor.get(data.date);
       const rng = mulberry32((data.week * 7 + data.day) * 31337 + 12345);
-      const sprite = pool.length ? pool[Math.floor(rng() * pool.length)] : null;
-      const factor = data.level === 0 ? 1 : widthFactor;
+      const sprite = landmark ? byName.get(landmark.sprite)! : pool.length ? pool[Math.floor(rng() * pool.length)] : null;
+      const factor = data.level === 0 && !landmark ? 1 : widthFactor;
       const width = TW * factor;
       this.cells.push({
         data,
@@ -208,6 +239,7 @@ export class IsoRenderer {
         sprite,
         width,
         height: sprite ? width * (sprite.height / sprite.width) : 0,
+        landmark: landmark ? { name: landmark.name, rank: landmark.rank } : null,
       });
     }
     this.cells.sort((a, b) => a.gx + a.gy - (b.gx + b.gy));
@@ -305,6 +337,7 @@ export class IsoRenderer {
     }
 
     if (this.isCity) this.drawRoadMarkings(ctx);
+    this.drawShadows(ctx);
 
     ctx.strokeStyle = this.theme.ground_stroke;
     ctx.globalAlpha = 0.35;
@@ -358,6 +391,55 @@ export class IsoRenderer {
     ctx.lineTo(a.x, a.y);
     ctx.closePath();
     ctx.stroke();
+  }
+
+  /**
+   * Sprites are lit from the top left, so shadows fall towards +gx. They are
+   * drawn opaque on their own layer and composited once, so overlaps do not darken.
+   */
+  private drawShadows(ctx: CanvasRenderingContext2D) {
+    const layer = document.createElement('canvas');
+    layer.width = this.canvas.width;
+    layer.height = this.canvas.height;
+    const sc = layer.getContext('2d')!;
+    sc.scale(this.dpr, this.dpr);
+    sc.fillStyle = '#000';
+
+    for (const c of this.cells) {
+      if (!c.sprite || (c.data.level === 0 && !c.landmark)) continue;
+      const rise = c.height - (c.width / TW) * TH;
+      if (rise <= 0) continue;
+      const length = (rise / TH) * 0.45;
+      const half = (c.width / TW) * 0.42;
+      const cx = c.gx + 0.5;
+      const cy = c.gy + 0.5;
+      const pts = [
+        this.toScreen(cx, cy - half),
+        this.toScreen(cx + length, cy - half * 0.45 + length * 0.18),
+        this.toScreen(cx + length, cy + half * 0.45 + length * 0.18),
+        this.toScreen(cx, cy + half),
+      ];
+      sc.beginPath();
+      sc.moveTo(pts[0].x, pts[0].y);
+      for (const q of pts.slice(1)) sc.lineTo(q.x, q.y);
+      sc.closePath();
+      sc.fill();
+    }
+
+    sc.setTransform(1, 0, 0, 1, 0, 0);
+    sc.globalCompositeOperation = 'destination-in';
+    const clip = new Path2D();
+    const corners = [this.toScreen(0, 0), this.toScreen(this.extentX, 0), this.toScreen(this.extentX, this.extentY), this.toScreen(0, this.extentY)];
+    clip.moveTo(corners[0].x * this.dpr, corners[0].y * this.dpr);
+    for (const q of corners.slice(1)) clip.lineTo(q.x * this.dpr, q.y * this.dpr);
+    clip.closePath();
+    sc.fill(clip);
+
+    ctx.save();
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.globalAlpha = SHADOW_ALPHA;
+    ctx.drawImage(layer, 0, 0);
+    ctx.restore();
   }
 
   private drawRoadMarkings(ctx: CanvasRenderingContext2D) {
@@ -418,9 +500,10 @@ export class IsoRenderer {
     ctx.imageSmoothingQuality = 'high';
     if (this.ground) ctx.drawImage(this.ground, 0, 0, this.cssWidth, this.cssHeight);
 
-    if (this.hovered) {
+    for (const mark of new Set([this.selected, this.hovered])) {
+      if (!mark) continue;
       ctx.save();
-      this.pathQuad(ctx, { x0: this.hovered.gx, y0: this.hovered.gy, x1: this.hovered.gx + 1, y1: this.hovered.gy + 1 });
+      this.pathQuad(ctx, { x0: mark.gx, y0: mark.gy, x1: mark.gx + 1, y1: mark.gy + 1 });
       ctx.fillStyle = this.theme.ui_accent ?? '#ffcc73';
       ctx.globalAlpha = 0.85;
       ctx.fill();
@@ -440,10 +523,12 @@ export class IsoRenderer {
       }
       if (!cell.sprite) continue;
       const r = this.spriteRect(cell);
-      if (cell === this.hovered) {
+      if (cell === this.hovered || cell === this.selected) {
         ctx.filter = `brightness(1.15) drop-shadow(0 0 ${Math.max(1, this.scale)}px ${this.theme.ui_accent ?? '#ffcc73'})`;
         ctx.drawImage(cell.sprite, r.x, r.y, r.w, r.h);
         ctx.filter = 'none';
+      } else if (this.selected) {
+        ctx.drawImage(this.mutedSprite(cell.sprite), r.x, r.y, r.w, r.h);
       } else {
         ctx.drawImage(cell.sprite, r.x, r.y, r.w, r.h);
       }
@@ -451,6 +536,26 @@ export class IsoRenderer {
     for (; ci < cars.length; ci++) this.drawCar(cars[ci].car, cars[ci].gx, cars[ci].gy);
 
     for (const f of this.flyers) this.drawFlyer(f);
+  }
+
+  /** Desaturated copy used for every building except the selected day, like GitHub's 2D graph. */
+  private mutedSprite(sprite: ImageBitmap): HTMLCanvasElement {
+    let muted = this.muted.get(sprite);
+    if (!muted) {
+      muted = document.createElement('canvas');
+      muted.width = sprite.width;
+      muted.height = sprite.height;
+      const mc = muted.getContext('2d')!;
+      mc.filter = 'saturate(0.25) brightness(0.92) opacity(0.75)';
+      mc.drawImage(sprite, 0, 0);
+      this.muted.set(sprite, muted);
+    }
+    return muted;
+  }
+
+  setSelected(date: string | null) {
+    this.selected = date ? (this.cells.find((c) => c.data.date === date) ?? null) : null;
+    if (!this.frameId) this.draw();
   }
 
   // ------------------------------------------------------------
@@ -722,6 +827,7 @@ export class IsoRenderer {
         this.hovered = cell;
         if (!this.frameId) this.draw();
       }
+      this.canvas.style.cursor = cell && this.onSelect ? 'pointer' : '';
       if (!cell) {
         this.tooltip.classList.remove('is-visible');
         return;
@@ -732,6 +838,12 @@ export class IsoRenderer {
       });
       const label = count === 0 ? 'No contributions' : `${count.toLocaleString()} contribution${count === 1 ? '' : 's'}`;
       this.tooltip.textContent = `${label} on ${when}`;
+      if (cell.landmark) {
+        const line = document.createElement('span');
+        line.className = 'cl-tooltip-landmark';
+        line.textContent = `${cell.landmark.name} · ${cell.landmark.rank === 1 ? 'your best day' : `your ${ordinal(cell.landmark.rank)} best day`}`;
+        this.tooltip.append(line);
+      }
       const r = this.spriteRect(cell);
       this.tooltip.style.left = `${rect.left + r.x + r.w / 2}px`;
       this.tooltip.style.top = `${rect.top + (cell.sprite ? r.y : r.y + r.h) - 6}px`;
@@ -742,11 +854,18 @@ export class IsoRenderer {
       this.tooltip.classList.remove('is-visible');
       if (!this.frameId) this.draw();
     };
+    const onClick = (e: MouseEvent) => {
+      const rect = this.canvas.getBoundingClientRect();
+      const cell = this.cellAt(e.clientX - rect.left, e.clientY - rect.top);
+      if (cell) this.onSelect?.(cell.data.date);
+    };
     this.canvas.addEventListener('pointermove', onMove);
     this.canvas.addEventListener('pointerleave', onLeave);
+    this.canvas.addEventListener('click', onClick);
     this.cleanups.push(() => {
       this.canvas.removeEventListener('pointermove', onMove);
       this.canvas.removeEventListener('pointerleave', onLeave);
+      this.canvas.removeEventListener('click', onClick);
     });
   }
 

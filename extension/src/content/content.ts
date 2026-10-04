@@ -5,7 +5,7 @@
  * for the lazily rendered calendar, then inject the canvas, stats and toggle.
  */
 
-import { IsoRenderer, type ContributionData, type SpriteSet, type ThemeConfig } from './renderer';
+import { IsoRenderer, type ContributionData, type Sprite, type SpriteSet, type ThemeConfig } from './renderer';
 import { computeStats, tooltipCounts, extendWithHistory, formatDate, formatRange, longestStreak, currentStreak, type ContributionStats, type Streak } from './stats';
 import contentCss from './content.css?inline';
 
@@ -25,6 +25,7 @@ let observer: MutationObserver | null = null;
 let renderer: IsoRenderer | null = null;
 let historyRequest: AbortController | null = null;
 let generating = false;
+let selectionObserver: MutationObserver | null = null;
 
 // ============================================================
 //  SETTINGS
@@ -140,8 +141,10 @@ async function loadTheme(): Promise<{ config: ThemeConfig; sprites: SpriteSet }>
   await Promise.all(
     [0, 1, 2, 3, 4].map(async (level) => {
       const names = (files[level] ?? []).filter((f) => !f.includes('-road-'));
-      const bitmaps = await Promise.all(names.map((f) => loadBitmap(`themes/${themeId}/sprites/${f}`)));
-      sprites[level] = bitmaps.filter((b): b is ImageBitmap => b !== null);
+      const loaded = await Promise.all(
+        names.map(async (name) => ({ name, image: await loadBitmap(`themes/${themeId}/sprites/${name}`) })),
+      );
+      sprites[level] = loaded.filter((s): s is Sprite => s.image !== null);
     }),
   );
   return { config, sprites };
@@ -276,7 +279,25 @@ function injectToggle(box: Element) {
   }
 }
 
+function dayCell(date: string): HTMLElement | null {
+  return document.querySelector<HTMLElement>(`.js-calendar-graph td.ContributionCalendar-day[data-date="${date}"]`);
+}
+
+/** GitHub owns day selection (it filters the activity feed); the land only reflects it. */
+function mirrorSelection(calendarGraph: Element) {
+  const sync = () => {
+    const selected = calendarGraph.querySelector<HTMLElement>('td.ContributionCalendar-day[aria-selected="true"]');
+    renderer?.setSelected(selected?.dataset.date ?? null);
+  };
+  selectionObserver?.disconnect();
+  selectionObserver = new MutationObserver(sync);
+  selectionObserver.observe(calendarGraph, { subtree: true, attributes: true, attributeFilter: ['aria-selected'] });
+  sync();
+}
+
 function teardown() {
+  selectionObserver?.disconnect();
+  selectionObserver = null;
   historyRequest?.abort();
   historyRequest = null;
   renderer?.destroy();
@@ -325,7 +346,9 @@ async function generate() {
         if (!panel || getComputedStyle(panel).position !== 'absolute' || panel.offsetParent === null) return [];
         return [{ left: panel.offsetLeft, right: panel.offsetLeft + panel.offsetWidth, bottom: panel.offsetTop + panel.offsetHeight }];
       },
+      onSelect: (date) => dayCell(date)?.click(),
     });
+    mirrorSelection(calendarGraph);
 
     const heading = box.querySelector('h2')?.textContent ?? '';
     const viewingYear = /in \d{4}/.test(heading);

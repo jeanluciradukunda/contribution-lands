@@ -10,5 +10,10 @@
     { "type": "person", "count": 6, "speed": 0.012 },
     { "type": "pigeon", "count": 3, "speed": 0.015 }
   ],
-  "particles": null
+  "particles": null,
+  "landmarks": [
+    { "sprite": "level-4-h.png", "name": "V&A Clock Tower" },
+    { "sprite": "level-4-b.png", "name": "Cape Town Stadium" },
+    { "sprite": "level-4-c.png", "name": "Portside Tower" }
+  ]
 }
