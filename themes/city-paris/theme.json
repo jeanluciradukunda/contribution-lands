@@ -11,5 +11,11 @@
     { "type": "person", "count": 7, "speed": 0.01 },
     { "type": "pigeon", "count": 4, "speed": 0.013 }
   ],
-  "particles": null
+  "particles": null,
+  "landmarks": [
+    { "sprite": "level-4-a.png", "name": "Eiffel Tower" },
+    { "sprite": "level-4-b.png", "name": "Notre-Dame" },
+    { "sprite": "level-4-c.png", "name": "Arc de Triomphe" },
+    { "sprite": "level-4-f.png", "name": "La Grande Arche" }
+  ]
 }

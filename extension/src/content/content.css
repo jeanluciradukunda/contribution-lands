@@ -85,6 +85,7 @@
   transition: opacity 80ms ease-out;
 }
 #cl-tooltip.is-visible { opacity: 1; }
+.cl-tooltip-landmark { display: block; font-weight: 600; color: var(--tooltip-fgColor, #ffffff); opacity: 0.85; }
 
 .cl-toggle-option.selected {
   background-color: var(--button-default-bgColor-selected, #dcdfe3) !important;

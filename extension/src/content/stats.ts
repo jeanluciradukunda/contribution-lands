@@ -100,7 +100,6 @@ export function computeStats(data: ContributionData[], today = todayKey()): Cont
   const weekDays = days.filter((d) => d.week === lastWeek);
   const firstDate = days[0].date;
   const lastDate = (visible[visible.length - 1] ?? days[days.length - 1]).date;
-  const span = Math.max(1, Math.round((utc(lastDate).getTime() - utc(firstDate).getTime()) / DAY_MS) + 1);
 
   return {
     total,
@@ -110,7 +109,7 @@ export function computeStats(data: ContributionData[], today = todayKey()): Cont
     weekStart: weekDays[0]?.date ?? lastDate,
     bestCount,
     bestDate,
-    average: Math.round((total / span) * 10) / 10,
+    average: averagePerDay(total, firstDate, lastDate),
     longest: longestStreak(days),
     current: currentStreak(days, today),
   };
@@ -141,6 +140,37 @@ function parseContributionsHtml(html: string): Day[] {
     });
   }
   return days;
+}
+
+export function averagePerDay(total: number, firstDate: string, lastDate: string): number {
+  const span = Math.max(1, Math.round((utc(lastDate).getTime() - utc(firstDate).getTime()) / DAY_MS) + 1);
+  return Math.round((total / span) * 10) / 10;
+}
+
+export function addDays(date: string, days: number): string {
+  return new Date(utc(date).getTime() + days * DAY_MS).toISOString().slice(0, 10);
+}
+
+export async function fetchDays(username: string, from: string, to: string, signal?: AbortSignal): Promise<Day[]> {
+  const url = `https://github.com/users/${encodeURIComponent(username)}/contributions?from=${from}&to=${to}`;
+  const res = await fetch(url, { signal });
+  if (!res.ok) throw new Error(`contributions ${res.status}`);
+  return sortedDays(parseContributionsHtml(await res.text()).filter((d) => d.date >= from && d.date <= to));
+}
+
+/**
+ * GitHub's heading can count days before the first square of its own calendar
+ * (on Sundays the graph drops the oldest week but the total keeps it). Walks
+ * back through `earlier` (the days just before the calendar, oldest first) and
+ * returns the first date of the window whose total matches the heading.
+ */
+export function reconcileStart(calendarTotal: number, headingTotal: number, earlier: Day[]): string | null {
+  let sum = calendarTotal;
+  let i = earlier.length;
+  while (sum < headingTotal && i > 0) sum += earlier[--i].count;
+  if (sum !== headingTotal || i === earlier.length) return null;
+  while (i > 0 && earlier[i - 1].count === 0) i--;
+  return earlier[i].date;
 }
 
 /**

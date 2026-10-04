@@ -43,6 +43,19 @@
         }
       }
     },
+    "landmarks": {
+      "type": "array",
+      "description": "Named sprites reserved for the busiest days, best day first",
+      "items": {
+        "type": "object",
+        "required": ["sprite", "name"],
+        "properties": {
+          "sprite": { "type": "string" },
+          "name": { "type": "string" }
+        },
+        "additionalProperties": false
+      }
+    },
     "particles": {
       "type": ["object", "null"],
       "properties": {
