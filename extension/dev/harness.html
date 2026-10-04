@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="en" data-color-mode="light" data-light-theme="light" data-dark-theme="dark">
+  <head>
+    <meta charset="utf-8" />
+    <title>Contribution Lands harness</title>
+    <link rel="stylesheet" href="https://github.githubassets.com/assets/primer-primitives-ed9ca172356fd545.css" />
+    <link rel="stylesheet" href="https://github.githubassets.com/assets/light-99f877e9ddfc0e51.css" />
+    <link rel="stylesheet" href="https://github.githubassets.com/assets/dark-79ad2ace604703b3.css" />
+    <link rel="stylesheet" href="https://github.githubassets.com/assets/primer-4136ede8b2650a2d.css" />
+    <link rel="stylesheet" href="https://github.githubassets.com/assets/global-54ba76e934a49d7c.css" />
+    <link rel="stylesheet" href="https://github.githubassets.com/assets/github-7338c07b3a07b8be.css" />
+    <link rel="stylesheet" href="https://github.githubassets.com/assets/profile-f92baa562c27f6e0.css" />
+    <style>
+      body { background: var(--bgColor-default); padding: 24px; }
+      .harness-bar { display: flex; gap: 8px; margin-bottom: 16px; font-size: 12px; }
+    </style>
+  </head>
+  <body>
+    <div class="harness-bar">
+      <button class="btn btn-sm" data-mode="light">Light</button>
+      <button class="btn btn-sm" data-mode="dark">Dark</button>
+      <button class="btn btn-sm" data-width="746">746px</button>
+      <button class="btn btn-sm" data-width="600">600px</button>
+      <button class="btn btn-sm" data-width="420">420px</button>
+      <select id="theme" class="form-select select-sm"></select>
+    </div>
+    <div class="vcard-names-container"></div>
+    <main>
+      <div id="profile-column" style="width: 746px">
+        <div class="mt-4 position-relative">
+          <div id="fixture"></div>
+        </div>
+      </div>
+    </main>
+    <script type="module" src="./harness.ts"></script>
+  </body>
+</html>

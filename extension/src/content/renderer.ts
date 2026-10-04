@@ -1,617 +1,761 @@
 /**
  * Isometric sprite renderer for the contribution grid.
  *
- * Takes parsed GitHub contribution data + theme sprites and renders
- * a depth-sorted isometric scene on a canvas element.
+ * World space is measured in tiles: gx runs along weeks, gy along weekdays.
+ * City themes insert streets *between* blocks of cells, so every day of the
+ * year keeps its own tile.
  */
-
-// ============================================================
-//  TYPES
-// ============================================================
 
 export interface ContributionData {
   date: string;
-  week: number;     // column (0-51)
-  day: number;      // row (0-6)
+  week: number;
+  day: number;
   level: 0 | 1 | 2 | 3 | 4;
   count: number;
 }
 
-interface ThemeConfig {
+export interface ThemeConfig {
   name: string;
   category?: 'city' | 'forest';
   background: string;
   ground_colors: string[];
   ground_stroke: string;
+  ui_accent?: string;
   entities?: Array<{ type: string; count: number; speed: number; flyer?: boolean }>;
 }
 
-// ============================================================
-//  CONSTANTS
-// ============================================================
+export type SpriteSet = Record<number, ImageBitmap[]>;
 
-const TILE_W = 20;
-const TILE_H = 10;
-const SPRITE_SCALE_CITY = 0.16;
-const SPRITE_SCALE_FOREST = 0.22;  // Trees need more presence than buildings
-
-// Road grid
-const ROAD_INTERVAL = 6;
-const CROSS_STREETS = [0, 3, 6];
-
-// Entity speeds (used as fallbacks)
-const TAXI_SPEED = 0.04;
-const PERSON_SPEED = 0.015;
-
-// ============================================================
-//  ENTITY TYPES
-// ============================================================
-
-type CellType = 'road' | 'sidewalk' | 'building';
-
-interface Entity {
-  col: number;
-  row: number;
-  dcol: number;
-  drow: number;
-  type: 'taxi' | 'person' | 'bird';
-  color: string;
-  frame: number;
-  flyHeight: number;
+export interface RendererOptions {
+  motion: boolean;
+  /** Overlays (in canvas CSS px, measured from the top) that tall sprites must not hide behind. */
+  obstacles?: () => Array<{ left: number; right: number; bottom: number }>;
 }
 
-// ============================================================
-//  SEEDED RANDOM
-// ============================================================
+const TW = 20;
+const TH = 10;
+const SLAB_DEPTH = 7;
+
+const BLOCK_WEEKS = 4;
+const STREET_BEFORE_DAY = 4;
+const STREET = 0.8;
+
+const BUILDING_WIDTH = 0.9;
+const FOREST_WIDTH = 1.25;
+
+const FRAME_MS = 1000 / 30;
+
+const CAR_COLOURS = ['#c8453a', '#e9e6df', '#3569a8', '#41444b', '#7d8a96', '#2f7a5b'];
+const TAXI_YELLOW = '#f0bf2c';
+
+interface Cell {
+  data: ContributionData;
+  gx: number;
+  gy: number;
+  sprite: ImageBitmap | null;
+  width: number;
+  height: number;
+}
+
+interface Rect {
+  x0: number;
+  y0: number;
+  x1: number;
+  y1: number;
+}
+
+interface Car {
+  alongX: boolean;
+  fixed: number;
+  pos: number;
+  dir: 1 | -1;
+  speed: number;
+  colour: string;
+  lastTurn: number;
+}
+
+interface Flyer {
+  gx: number;
+  gy: number;
+  vx: number;
+  vy: number;
+  alt: number;
+  phase: number;
+  butterfly: boolean;
+  colour: string;
+}
 
 function mulberry32(seed: number): () => number {
   return () => {
     seed |= 0;
-    seed = (seed + 0x6D2B79F5) | 0;
+    seed = (seed + 0x6d2b79f5) | 0;
     let t = Math.imul(seed ^ (seed >>> 15), 1 | seed);
     t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
     return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
   };
 }
 
-// ============================================================
-//  ISOMETRIC MATH
-// ============================================================
-
-function isoProject(col: number, row: number) {
-  return {
-    x: (col - row) * (TILE_W / 2),
-    y: (col + row) * (TILE_H / 2),
-  };
+function shade(hex: string, factor: number): string {
+  const n = Number.parseInt(hex.replace('#', ''), 16);
+  const ch = (shift: number) => Math.max(0, Math.min(255, Math.round(((n >> shift) & 255) * factor)));
+  return `#${((ch(16) << 16) | (ch(8) << 8) | ch(0)).toString(16).padStart(6, '0')}`;
 }
 
-// ============================================================
-//  RENDERER
-// ============================================================
+const iso = (gx: number, gy: number) => ({ x: (gx - gy) * (TW / 2), y: (gx + gy) * (TH / 2) });
 
 export class IsoRenderer {
-  private canvas: HTMLCanvasElement;
-  private ctx: CanvasRenderingContext2D;
-  private theme: ThemeConfig;
-  private sprites: Record<number, HTMLImageElement[]>;
-  private gridOffsetX = 0;
-  private gridOffsetY = 0;
-  private weeks = 0;
-  private days = 7;
-  // Grid indexed by [week][day]
-  private grid: (ContributionData | null)[][] = [];
+  private readonly canvas: HTMLCanvasElement;
+  private readonly ctx: CanvasRenderingContext2D;
+  private readonly theme: ThemeConfig;
+  private readonly sprites: SpriteSet;
+  private readonly isCity: boolean;
+  private readonly weeks: number;
+  private readonly margin: number;
+  private readonly extentX: number;
+  private readonly extentY: number;
+  private readonly cells: Cell[] = [];
+  private readonly blocks: Rect[] = [];
+  private readonly avenues: number[] = [];
+  private readonly streets: number[] = [];
+
+  private motion: boolean;
+  private readonly obstacles: RendererOptions['obstacles'];
+  private scale = 1;
+  private originX = 0;
+  private originY = 0;
+  private cssWidth = 0;
+  private cssHeight = 0;
+  private dpr = 1;
+  private ground: HTMLCanvasElement | null = null;
+
+  private cars: Car[] = [];
+  private flyers: Flyer[] = [];
+  private hovered: Cell | null = null;
+  private visible = true;
+  private frameId: number | null = null;
+  private lastFrame = 0;
+  private elapsed = 0;
+  private readonly alphaMasks = new Map<ImageBitmap, Uint8ClampedArray>();
+
+  private readonly resizeObserver: ResizeObserver;
+  private readonly intersectionObserver: IntersectionObserver;
+  private readonly tooltip: HTMLElement;
+  private readonly cleanups: Array<() => void> = [];
 
   constructor(
     canvas: HTMLCanvasElement,
     contributions: ContributionData[],
     theme: ThemeConfig,
-    sprites: Record<number, HTMLImageElement[]>,
+    sprites: SpriteSet,
+    options: RendererOptions,
   ) {
     this.canvas = canvas;
     this.ctx = canvas.getContext('2d')!;
     this.theme = theme;
     this.sprites = sprites;
+    this.isCity = theme.category === 'city';
+    this.motion = options.motion;
+    this.obstacles = options.obstacles;
 
-    // Build grid from flat contribution array
     this.weeks = Math.max(...contributions.map((c) => c.week)) + 1;
-    this.grid = Array.from({ length: this.weeks }, () => Array(this.days).fill(null));
-    for (const c of contributions) {
-      if (c.week < this.weeks && c.day < this.days) {
-        this.grid[c.week][c.day] = c;
-      }
-    }
-  }
+    this.margin = this.isCity ? STREET : 0.35;
+    this.extentX = this.gxOf(this.weeks - 1) + 1 + this.margin;
+    this.extentY = this.gyOf(6) + 1 + this.margin;
 
-  private gridToScreen(col: number, row: number) {
-    const iso = isoProject(col, row);
-    return {
-      x: iso.x + this.gridOffsetX,
-      y: iso.y + this.gridOffsetY,
-    };
-  }
-
-  private get isCity(): boolean {
-    return this.theme.category === 'city';
-  }
-
-  private isRoadCell(w: number, d: number): boolean {
-    // Only city themes have roads
-    if (!this.isCity) return false;
-    return (w % ROAD_INTERVAL === 0) || CROSS_STREETS.includes(d);
-  }
-
-  private drawIsoDiamond(
-    cx: number, cy: number,
-    w: number, h: number,
-    fill: string, stroke?: string,
-  ) {
-    const ctx = this.ctx;
-    ctx.beginPath();
-    ctx.moveTo(cx, cy - h / 2);
-    ctx.lineTo(cx + w / 2, cy);
-    ctx.lineTo(cx, cy + h / 2);
-    ctx.lineTo(cx - w / 2, cy);
-    ctx.closePath();
-    ctx.fillStyle = fill;
-    ctx.fill();
-    if (stroke) {
-      ctx.strokeStyle = stroke;
-      ctx.lineWidth = 0.5;
-      ctx.stroke();
-    }
-  }
-
-  private drawRoadNetwork() {
-    const ctx = this.ctx;
-
-    // Avenues (columns)
-    for (let w = 0; w < this.weeks; w += ROAD_INTERVAL) {
-      const f = this.gridToScreen(w, 0);
-      const l = this.gridToScreen(w, this.days - 1);
-      ctx.beginPath();
-      ctx.moveTo(f.x, f.y - TILE_H / 2);
-      ctx.lineTo(f.x + TILE_W / 2, f.y);
-      ctx.lineTo(l.x + TILE_W / 2, l.y);
-      ctx.lineTo(l.x, l.y + TILE_H / 2);
-      ctx.lineTo(l.x - TILE_W / 2, l.y);
-      ctx.lineTo(f.x - TILE_W / 2, f.y);
-      ctx.closePath();
-      ctx.fillStyle = '#505058';
-      ctx.fill();
-
-      // Center dashes
-      ctx.strokeStyle = '#ccbb44';
-      ctx.lineWidth = 0.8;
-      ctx.setLineDash([3, 4]);
-      ctx.beginPath();
-      ctx.moveTo(f.x, f.y);
-      ctx.lineTo(l.x, l.y);
-      ctx.stroke();
-      ctx.setLineDash([]);
-    }
-
-    // Cross streets (rows)
-    for (const d of CROSS_STREETS) {
-      const f = this.gridToScreen(0, d);
-      const l = this.gridToScreen(this.weeks - 1, d);
-      ctx.beginPath();
-      ctx.moveTo(f.x, f.y - TILE_H / 2);
-      ctx.lineTo(l.x + TILE_W / 2, l.y);
-      ctx.lineTo(l.x, l.y + TILE_H / 2);
-      ctx.lineTo(f.x - TILE_W / 2, f.y);
-      ctx.closePath();
-      ctx.fillStyle = '#505058';
-      ctx.fill();
-
-      // Center dashes
-      ctx.strokeStyle = '#ccbb44';
-      ctx.lineWidth = 0.8;
-      ctx.setLineDash([3, 4]);
-      ctx.beginPath();
-      ctx.moveTo(f.x, f.y);
-      ctx.lineTo(l.x, l.y);
-      ctx.stroke();
-      ctx.setLineDash([]);
-    }
-  }
-
-  render() {
-    const ctx = this.ctx;
-    const weeks = this.weeks;
-    const days = this.days;
-
-    // Calculate canvas size
-    const maxIso = isoProject(weeks - 1, 0);
-    const minIso = isoProject(0, days - 1);
-    const padding = 60;
-    const topPadding = 120;
-    const canvasW = (maxIso.x - minIso.x) + TILE_W + padding * 2;
-    const canvasH = (isoProject(weeks - 1, days - 1).y - isoProject(0, 0).y) + TILE_H + padding * 2 + topPadding;
-
-    this.canvas.width = canvasW;
-    this.canvas.height = canvasH;
-    this.gridOffsetX = -minIso.x + TILE_W / 2 + padding;
-    this.gridOffsetY = padding + topPadding;
-
-    // Background
-    // Transparent background — adapts to GitHub's light/dark mode
-    ctx.clearRect(0, 0, canvasW, canvasH);
-
-    // Layer 1: Ground diamonds
-    for (let w = 0; w < weeks; w++) {
-      for (let d = 0; d < days; d++) {
-        if (!this.isRoadCell(w, d)) {
-          const scr = this.gridToScreen(w, d);
-          const gc = this.theme.ground_colors[((w + d) * 7 + w) % this.theme.ground_colors.length];
-          this.drawIsoDiamond(scr.x, scr.y, TILE_W, TILE_H, gc, this.theme.ground_stroke);
-        }
-      }
-    }
-
-    // Layer 2: Road network (city themes only)
-    if (this.isCity) {
-      this.drawRoadNetwork();
-    }
-
-    // Layer 3: Depth-sorted sprites
-    const drawList: { depth: number; w: number; d: number }[] = [];
-    for (let w = 0; w < weeks; w++) {
-      for (let d = 0; d < days; d++) {
-        drawList.push({ depth: w + d, w, d });
-      }
-    }
-    drawList.sort((a, b) => a.depth - b.depth);
-
-    for (const { w, d } of drawList) {
-      // Skip road cells — they're drawn as parallelograms
-      if (this.isRoadCell(w, d)) continue;
-
-      const cell = this.grid[w]?.[d];
-      if (!cell) continue;
-
-      // Pick sprite: L0 cells get parks/trees/sidewalks, L1-4 get buildings
-      const levelSprites = this.sprites[cell.level];
-      if (!levelSprites || levelSprites.length === 0) continue;
-
-      const scr = this.gridToScreen(w, d);
-      const rng = mulberry32((w * 7 + d) * 31337 + 12345);
-      const sprite = levelSprites[Math.floor(rng() * levelSprites.length)];
-
-      // Per-level scale: L0 smallest, L4 largest for dramatic height contrast
-      const baseScale = this.isCity ? SPRITE_SCALE_CITY : SPRITE_SCALE_FOREST;
-      const levelMultiplier = [0.7, 0.85, 1.0, 1.15, 1.4][cell.level] ?? 1.0;
-      const scale = baseScale * levelMultiplier;
-      const sw = sprite.width * scale;
-      const sh = sprite.height * scale;
-      const sx = scr.x - sw / 2;
-      const sy = scr.y - sh + TILE_H / 4;
-
-      ctx.drawImage(sprite, sx, sy, sw, sh);
-    }
-
-    // Build cell type map and spawn entities
-    this.buildCellMap();
+    this.buildCells(contributions);
+    this.buildStreets();
     this.spawnEntities();
-    this.setupTooltip();
 
-    // Start animation loop
-    this.animate();
+    this.tooltip = this.createTooltip();
+    this.resizeObserver = new ResizeObserver(() => this.layout());
+    this.resizeObserver.observe(canvas.parentElement ?? canvas);
+    this.intersectionObserver = new IntersectionObserver(([entry]) => {
+      this.visible = entry.isIntersecting;
+      this.syncLoop();
+    });
+    this.intersectionObserver.observe(canvas);
+    this.bindPointer();
+
+    const onVisibility = () => this.syncLoop();
+    document.addEventListener('visibilitychange', onVisibility);
+    this.cleanups.push(() => document.removeEventListener('visibilitychange', onVisibility));
   }
 
-  // ============================================================
-  //  CELL TYPE MAP — what's at each grid position
-  // ============================================================
+  // ------------------------------------------------------------
+  //  Grid
+  // ------------------------------------------------------------
 
-  private cellMap: CellType[][] = [];
-  private entities: Entity[] = [];
-  private animId: number | null = null;
+  private gxOf(week: number): number {
+    return this.margin + week + (this.isCity ? Math.floor(week / BLOCK_WEEKS) * STREET : 0);
+  }
 
-  private buildCellMap() {
-    this.cellMap = Array.from({ length: this.weeks }, () =>
-      Array(this.days).fill('sidewalk' as CellType)
-    );
-    for (let w = 0; w < this.weeks; w++) {
-      for (let d = 0; d < this.days; d++) {
-        if (this.isRoadCell(w, d)) {
-          this.cellMap[w][d] = 'road';
-        } else if (this.grid[w]?.[d] && this.grid[w][d]!.level > 0) {
-          this.cellMap[w][d] = 'building';
-        } else {
-          this.cellMap[w][d] = 'sidewalk';
-        }
+  private gyOf(day: number): number {
+    return this.margin + day + (this.isCity && day >= STREET_BEFORE_DAY ? STREET : 0);
+  }
+
+  private buildCells(contributions: ContributionData[]) {
+    const widthFactor = this.isCity ? BUILDING_WIDTH : FOREST_WIDTH;
+    for (const data of contributions) {
+      const pool = this.sprites[data.level] ?? [];
+      const rng = mulberry32((data.week * 7 + data.day) * 31337 + 12345);
+      const sprite = pool.length ? pool[Math.floor(rng() * pool.length)] : null;
+      const factor = data.level === 0 ? 1 : widthFactor;
+      const width = TW * factor;
+      this.cells.push({
+        data,
+        gx: this.gxOf(data.week),
+        gy: this.gyOf(data.day),
+        sprite,
+        width,
+        height: sprite ? width * (sprite.height / sprite.width) : 0,
+      });
+    }
+    this.cells.sort((a, b) => a.gx + a.gy - (b.gx + b.gy));
+  }
+
+  private buildStreets() {
+    if (!this.isCity) {
+      this.blocks.push({ x0: this.margin, y0: this.margin, x1: this.extentX - this.margin, y1: this.extentY - this.margin });
+      return;
+    }
+    const half = STREET / 2;
+    this.avenues.push(half);
+    for (let w = BLOCK_WEEKS; w < this.weeks; w += BLOCK_WEEKS) this.avenues.push(this.gxOf(w) - half);
+    this.avenues.push(this.extentX - half);
+    this.streets.push(half, this.gyOf(STREET_BEFORE_DAY) - half, this.extentY - half);
+
+    const rows: Array<[number, number]> = [[0, STREET_BEFORE_DAY - 1], [STREET_BEFORE_DAY, 6]];
+    for (let w = 0; w < this.weeks; w += BLOCK_WEEKS) {
+      const last = Math.min(w + BLOCK_WEEKS, this.weeks) - 1;
+      for (const [first, end] of rows) {
+        this.blocks.push({ x0: this.gxOf(w), y0: this.gyOf(first), x1: this.gxOf(last) + 1, y1: this.gyOf(end) + 1 });
       }
     }
   }
 
-  // ============================================================
-  //  ENTITY SPAWNING — place on valid cells
-  // ============================================================
+  // ------------------------------------------------------------
+  //  Layout
+  // ------------------------------------------------------------
 
-  private spawnEntities() {
-    this.entities = [];
-    const rng = mulberry32(88888);
-    const entityConfigs = this.theme.entities ?? [];
+  private layout() {
+    const host = this.canvas.parentElement ?? this.canvas;
+    const cssWidth = Math.round(host.clientWidth);
+    if (cssWidth === 0) return;
 
-    for (const cfg of entityConfigs) {
-      for (let i = 0; i < cfg.count; i++) {
-        const isFlyer = cfg.flyer ?? (cfg.type === 'bird' || cfg.type === 'butterfly');
-        const isVehicle = cfg.type === 'taxi' || cfg.type === 'cyclist';
+    let top = 0;
+    for (const c of this.cells) {
+      const base = iso(c.gx + 0.5, c.gy + 0.5).y + (c.width / TW) * (TH / 2);
+      top = Math.min(top, base - c.height);
+    }
+    const left = iso(0, this.extentY).x;
+    const right = iso(this.extentX, 0).x;
+    const bottom = iso(this.extentX, this.extentY).y + SLAB_DEPTH;
 
-        if (isFlyer) {
-          // Birds/butterflies fly above everything
-          this.entities.push({
-            col: rng() * this.weeks, row: rng() * this.days,
-            dcol: cfg.speed * (rng() > 0.5 ? 1 : -1),
-            drow: cfg.speed * (rng() - 0.5) * 0.5,
-            type: 'bird', color: cfg.type === 'butterfly' ? '#ff88aa' : '#333',
-            frame: rng() * 200, flyHeight: 15 + rng() * 20,
-          });
-        } else if (isVehicle && this.isCity) {
-          // Vehicles on roads (city only)
-          const roadCells = this.getRoadCells();
-          if (roadCells.length === 0) continue;
-          const cell = roadCells[Math.floor(rng() * roadCells.length)];
-          const isAvenue = cell.w % ROAD_INTERVAL === 0;
-          this.entities.push({
-            col: cell.w, row: cell.d,
-            dcol: isAvenue ? 0 : cfg.speed * (rng() > 0.5 ? 1 : -1),
-            drow: isAvenue ? cfg.speed * (rng() > 0.5 ? 1 : -1) : 0,
-            type: 'taxi', color: '#ffd700', frame: rng() * 200, flyHeight: 0,
-          });
-        } else {
-          // Ground creatures (people, rabbits, deer) on walkable cells
-          const walkable = this.isCity ? this.getSidewalkCells() : this.getGroundCells();
-          if (walkable.length === 0) continue;
-          const cell = walkable[Math.floor(rng() * walkable.length)];
-          const angle = rng() * Math.PI * 2;
-          const colors: Record<string, string> = {
-            person: ['#4488cc','#cc4444','#44aa44','#ddaa33'][Math.floor(rng() * 4)],
-            rabbit: '#c8b098',
-            deer: '#b8865a',
-            pigeon: '#778899',
-          };
-          this.entities.push({
-            col: cell.w, row: cell.d,
-            dcol: Math.cos(angle) * cfg.speed,
-            drow: Math.sin(angle) * cfg.speed,
-            type: 'person', color: colors[cfg.type] ?? '#888',
-            frame: rng() * 200, flyHeight: 0,
-          });
-        }
+    const padX = Math.max(16, cssWidth * 0.04);
+    const padBottom = 28;
+    this.scale = (cssWidth - padX * 2) / (right - left);
+    this.originX = padX - left * this.scale;
+    this.originY = 24 - top * this.scale;
+    this.cssWidth = cssWidth;
+
+    let padTop = 24;
+    for (const o of this.obstacles?.() ?? []) {
+      for (const c of this.cells) {
+        if (!c.sprite) continue;
+        const r = this.spriteRect(c);
+        if (r.x + r.w > o.left && r.x < o.right) padTop = Math.max(padTop, 24 + o.bottom + 8 - r.y);
       }
     }
+    this.originY = padTop - top * this.scale;
+    this.cssHeight = Math.round((bottom - top) * this.scale + padTop + padBottom);
+    this.dpr = window.devicePixelRatio || 1;
+
+    this.canvas.width = Math.round(this.cssWidth * this.dpr);
+    this.canvas.height = Math.round(this.cssHeight * this.dpr);
+    this.canvas.style.width = `${this.cssWidth}px`;
+    this.canvas.style.height = `${this.cssHeight}px`;
+
+    this.ground = this.renderGround();
+    this.draw();
+    this.syncLoop();
   }
 
-  private getGroundCells(): { w: number; d: number }[] {
-    // All non-building cells (for forests — no roads concept)
-    const cells: { w: number; d: number }[] = [];
-    for (let w = 0; w < this.weeks; w++)
-      for (let d = 0; d < this.days; d++)
-        if (this.cellMap[w]?.[d] !== 'building') cells.push({ w, d });
-    return cells;
+  private toScreen(gx: number, gy: number) {
+    const p = iso(gx, gy);
+    return { x: this.originX + p.x * this.scale, y: this.originY + p.y * this.scale };
   }
 
-  private getRoadCells(): { w: number; d: number }[] {
-    const cells: { w: number; d: number }[] = [];
-    for (let w = 0; w < this.weeks; w++)
-      for (let d = 0; d < this.days; d++)
-        if (this.cellMap[w]?.[d] === 'road') cells.push({ w, d });
-    return cells;
-  }
+  // ------------------------------------------------------------
+  //  Static ground layer
+  // ------------------------------------------------------------
 
-  private getSidewalkCells(): { w: number; d: number }[] {
-    const cells: { w: number; d: number }[] = [];
-    for (let w = 0; w < this.weeks; w++)
-      for (let d = 0; d < this.days; d++)
-        if (this.cellMap[w]?.[d] === 'sidewalk') cells.push({ w, d });
-    return cells;
-  }
+  private renderGround(): HTMLCanvasElement {
+    const layer = document.createElement('canvas');
+    layer.width = this.canvas.width;
+    layer.height = this.canvas.height;
+    const ctx = layer.getContext('2d')!;
+    ctx.scale(this.dpr, this.dpr);
 
-  // ============================================================
-  //  ENTITY MOVEMENT — respects map structure
-  // ============================================================
+    const [g0 = '#3a3a40'] = this.theme.ground_colors;
+    const base = this.isCity ? '#2c2e34' : shade(g0, 0.8);
+    this.drawSlab(ctx, base);
 
-  private updateEntities() {
-    for (const e of this.entities) {
-      e.frame++;
-
-      const nextCol = e.col + e.dcol;
-      const nextRow = e.row + e.drow;
-
-      if (e.type === 'taxi') {
-        // Taxis stay on roads. If next cell isn't road, reverse or turn
-        const nw = Math.round(nextCol);
-        const nd = Math.round(nextRow);
-        if (nw >= 0 && nw < this.weeks && nd >= 0 && nd < this.days) {
-          if (this.cellMap[nw]?.[nd] === 'road') {
-            e.col = nextCol;
-            e.row = nextRow;
-          } else {
-            // Try turning at intersection
-            if (e.dcol !== 0) { e.dcol = 0; e.drow = TAXI_SPEED * (Math.random() > 0.5 ? 1 : -1); }
-            else { e.drow = 0; e.dcol = TAXI_SPEED * (Math.random() > 0.5 ? 1 : -1); }
-          }
-        } else {
-          // Reverse at grid edge
-          e.dcol = -e.dcol;
-          e.drow = -e.drow;
-        }
-        // Wrap
-        if (e.col < 0) e.col = this.weeks - 1;
-        if (e.col >= this.weeks) e.col = 0;
-        if (e.row < 0) e.row = this.days - 1;
-        if (e.row >= this.days) e.row = 0;
-
-      } else if (e.type === 'person') {
-        // Ground creatures: stay on walkable cells, avoid buildings
-        const nw = Math.round(nextCol);
-        const nd = Math.round(nextRow);
-        const validCell = this.isCity
-          ? this.cellMap[nw]?.[nd] === 'sidewalk'
-          : this.cellMap[nw]?.[nd] !== 'building';
-        if (nw >= 0 && nw < this.weeks && nd >= 0 && nd < this.days && validCell) {
-          e.col = nextCol;
-          e.row = nextRow;
-        } else {
-          // Random new direction
-          const angle = Math.random() * Math.PI * 2;
-          e.dcol = Math.cos(angle) * PERSON_SPEED;
-          e.drow = Math.sin(angle) * PERSON_SPEED;
-        }
-        // Keep in bounds
-        e.col = Math.max(0, Math.min(this.weeks - 1, e.col));
-        e.row = Math.max(0, Math.min(this.days - 1, e.row));
-
-      } else if (e.type === 'bird') {
-        // Birds fly freely, bob up and down
-        e.col += e.dcol;
-        e.row += e.drow;
-        e.flyHeight = 15 + Math.sin(e.frame * 0.03) * 8;
-        // Wrap around
-        if (e.col < -2) e.col = this.weeks + 1;
-        if (e.col > this.weeks + 2) e.col = -1;
-        if (e.row < -1) e.row = this.days;
-        if (e.row > this.days + 1) e.row = -1;
-      }
+    for (const b of this.blocks) {
+      this.fillQuad(ctx, b, this.isCity ? g0 : base);
     }
-  }
 
-  // ============================================================
-  //  ENTITY DRAWING — tiny scale-appropriate sprites
-  // ============================================================
+    if (this.isCity) this.drawRoadMarkings(ctx);
 
-  private drawEntity(e: Entity) {
-    const ctx = this.ctx;
-    const scr = this.gridToScreen(e.col, e.row);
-    const x = scr.x;
-    const y = scr.y - e.flyHeight;
-
-    ctx.save();
-
-    if (e.type === 'taxi') {
-      // Yellow rectangle, ~4x2px
-      ctx.fillStyle = '#ffd700';
-      ctx.fillRect(x - 2, y - 1.5, 4, 2);
-      // Windshield
-      ctx.fillStyle = '#88bbdd';
-      ctx.fillRect(x + (e.dcol >= 0 ? 1 : -2), y - 1, 1, 1);
-    } else if (e.type === 'person') {
-      // Tiny colored dot with head
-      ctx.fillStyle = e.color;
-      ctx.fillRect(x - 0.5, y - 2, 1, 2);
-      // Head
-      ctx.fillStyle = '#ddbba0';
-      ctx.beginPath();
-      ctx.arc(x, y - 2.5, 0.7, 0, Math.PI * 2);
-      ctx.fill();
-    } else if (e.type === 'bird') {
-      // V-shape with flapping
-      const wing = Math.sin(e.frame * 0.5) * 0.5;
-      ctx.strokeStyle = '#333';
-      ctx.lineWidth = 0.6;
-      ctx.beginPath();
-      ctx.moveTo(x - 2, y + wing * 2);
-      ctx.lineTo(x, y);
-      ctx.lineTo(x + 2, y + wing * 2);
+    ctx.strokeStyle = this.theme.ground_stroke;
+    ctx.globalAlpha = 0.35;
+    ctx.lineWidth = 0.5;
+    for (const c of this.cells) {
+      this.pathQuad(ctx, { x0: c.gx, y0: c.gy, x1: c.gx + 1, y1: c.gy + 1 });
       ctx.stroke();
     }
+    ctx.globalAlpha = 1;
+    return layer;
+  }
 
+  private drawSlab(ctx: CanvasRenderingContext2D, colour: string) {
+    const X = this.extentX;
+    const Y = this.extentY;
+    const d = SLAB_DEPTH * this.scale;
+    const a = this.toScreen(0, Y);
+    const b = this.toScreen(X, Y);
+    const c = this.toScreen(X, 0);
+
+    ctx.fillStyle = shade(colour, 0.62);
+    ctx.beginPath();
+    ctx.moveTo(a.x, a.y);
+    ctx.lineTo(b.x, b.y);
+    ctx.lineTo(b.x, b.y + d);
+    ctx.lineTo(a.x, a.y + d);
+    ctx.closePath();
+    ctx.fill();
+
+    ctx.fillStyle = shade(colour, 0.45);
+    ctx.beginPath();
+    ctx.moveTo(b.x, b.y);
+    ctx.lineTo(c.x, c.y);
+    ctx.lineTo(c.x, c.y + d);
+    ctx.lineTo(b.x, b.y + d);
+    ctx.closePath();
+    ctx.fill();
+
+    this.fillQuad(ctx, { x0: 0, y0: 0, x1: X, y1: Y }, colour);
+
+    // A faint rim keeps the slab's silhouette readable on dark page backgrounds.
+    const o = this.toScreen(0, 0);
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.09)';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(a.x, a.y + d);
+    ctx.lineTo(b.x, b.y + d);
+    ctx.lineTo(c.x, c.y + d);
+    ctx.lineTo(c.x, c.y);
+    ctx.lineTo(o.x, o.y);
+    ctx.lineTo(a.x, a.y);
+    ctx.closePath();
+    ctx.stroke();
+  }
+
+  private drawRoadMarkings(ctx: CanvasRenderingContext2D) {
+    ctx.save();
+    ctx.strokeStyle = 'rgba(232, 205, 120, 0.55)';
+    ctx.lineWidth = Math.max(0.5, 0.06 * TH * this.scale);
+    ctx.setLineDash([2 * this.scale, 3 * this.scale]);
+    const inset = STREET / 2;
+    for (const x of this.avenues) {
+      const p = this.toScreen(x, inset);
+      const q = this.toScreen(x, this.extentY - inset);
+      ctx.beginPath();
+      ctx.moveTo(p.x, p.y);
+      ctx.lineTo(q.x, q.y);
+      ctx.stroke();
+    }
+    for (const y of this.streets) {
+      const p = this.toScreen(inset, y);
+      const q = this.toScreen(this.extentX - inset, y);
+      ctx.beginPath();
+      ctx.moveTo(p.x, p.y);
+      ctx.lineTo(q.x, q.y);
+      ctx.stroke();
+    }
     ctx.restore();
   }
 
-  // ============================================================
-  //  ANIMATION LOOP
-  // ============================================================
-
-  private staticImage: ImageData | null = null;
-
-  private captureStatic() {
-    // Capture the static rendered frame so we don't re-render sprites every tick
-    this.staticImage = this.ctx.getImageData(0, 0, this.canvas.width, this.canvas.height);
+  private pathQuad(ctx: CanvasRenderingContext2D, r: Rect) {
+    const p = [this.toScreen(r.x0, r.y0), this.toScreen(r.x1, r.y0), this.toScreen(r.x1, r.y1), this.toScreen(r.x0, r.y1)];
+    ctx.beginPath();
+    ctx.moveTo(p[0].x, p[0].y);
+    for (const q of p.slice(1)) ctx.lineTo(q.x, q.y);
+    ctx.closePath();
   }
 
-  private animate() {
-    // Capture the static scene on first frame
-    if (!this.staticImage) {
-      this.captureStatic();
+  private fillQuad(ctx: CanvasRenderingContext2D, r: Rect, colour: string) {
+    this.pathQuad(ctx, r);
+    ctx.fillStyle = colour;
+    ctx.fill();
+  }
+
+  // ------------------------------------------------------------
+  //  Frame
+  // ------------------------------------------------------------
+
+  private spriteRect(c: Cell) {
+    const centre = this.toScreen(c.gx + 0.5, c.gy + 0.5);
+    const w = c.width * this.scale;
+    const h = c.height * this.scale;
+    const bottom = centre.y + (c.width / TW) * (TH / 2) * this.scale;
+    return { x: centre.x - w / 2, y: bottom - h, w, h };
+  }
+
+  private draw() {
+    const ctx = this.ctx;
+    ctx.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
+    ctx.clearRect(0, 0, this.cssWidth, this.cssHeight);
+    ctx.imageSmoothingQuality = 'high';
+    if (this.ground) ctx.drawImage(this.ground, 0, 0, this.cssWidth, this.cssHeight);
+
+    if (this.hovered) {
+      ctx.save();
+      this.pathQuad(ctx, { x0: this.hovered.gx, y0: this.hovered.gy, x1: this.hovered.gx + 1, y1: this.hovered.gy + 1 });
+      ctx.fillStyle = this.theme.ui_accent ?? '#ffcc73';
+      ctx.globalAlpha = 0.85;
+      ctx.fill();
+      ctx.restore();
     }
 
-    const loop = () => {
-      // Restore static background
-      if (this.staticImage) {
-        this.ctx.putImageData(this.staticImage, 0, 0);
+    const cars = this.cars
+      .map((car) => ({ car, ...this.carCentre(car) }))
+      .sort((a, b) => a.gx + a.gy - (b.gx + b.gy));
+    let ci = 0;
+
+    for (const cell of this.cells) {
+      const depth = cell.gx + cell.gy + 1;
+      while (ci < cars.length && cars[ci].gx + cars[ci].gy < depth) {
+        this.drawCar(cars[ci].car, cars[ci].gx, cars[ci].gy);
+        ci++;
       }
-
-      // Update and draw entities
-      this.updateEntities();
-
-      // Sort by depth for proper overlap
-      const sorted = [...this.entities].sort((a, b) => (a.col + a.row) - (b.col + b.row));
-      for (const e of sorted) {
-        this.drawEntity(e);
+      if (!cell.sprite) continue;
+      const r = this.spriteRect(cell);
+      if (cell === this.hovered) {
+        ctx.filter = `brightness(1.15) drop-shadow(0 0 ${Math.max(1, this.scale)}px ${this.theme.ui_accent ?? '#ffcc73'})`;
+        ctx.drawImage(cell.sprite, r.x, r.y, r.w, r.h);
+        ctx.filter = 'none';
+      } else {
+        ctx.drawImage(cell.sprite, r.x, r.y, r.w, r.h);
       }
+    }
+    for (; ci < cars.length; ci++) this.drawCar(cars[ci].car, cars[ci].gx, cars[ci].gy);
 
-      this.animId = requestAnimationFrame(loop);
+    for (const f of this.flyers) this.drawFlyer(f);
+  }
+
+  // ------------------------------------------------------------
+  //  Traffic
+  // ------------------------------------------------------------
+
+  private spawnEntities() {
+    const rng = mulberry32(88888);
+    const configs = this.theme.entities ?? [];
+
+    if (this.isCity) {
+      const hasTaxis = configs.some((c) => c.type === 'taxi');
+      const count = Math.round(this.weeks / 3.5);
+      for (let i = 0; i < count; i++) {
+        const alongX = rng() < 0.55;
+        const lines = alongX ? this.streets : this.avenues;
+        const fixed = lines[Math.floor(rng() * lines.length)];
+        const span = alongX ? this.extentX : this.extentY;
+        this.cars.push({
+          alongX,
+          fixed,
+          pos: STREET / 2 + rng() * (span - STREET),
+          dir: rng() < 0.5 ? 1 : -1,
+          speed: 0.9 + rng() * 0.6,
+          colour: hasTaxis && rng() < 0.45 ? TAXI_YELLOW : CAR_COLOURS[Math.floor(rng() * CAR_COLOURS.length)],
+          lastTurn: Number.NaN,
+        });
+      }
+    }
+
+    for (const cfg of configs) {
+      const flyer = cfg.flyer ?? (cfg.type === 'bird' || cfg.type === 'butterfly');
+      if (!flyer) continue;
+      const butterfly = cfg.type === 'butterfly';
+      for (let i = 0; i < cfg.count; i++) {
+        const angle = rng() * Math.PI * 2;
+        const speed = butterfly ? 0.35 : 1.4;
+        this.flyers.push({
+          gx: rng() * this.extentX,
+          gy: rng() * this.extentY,
+          vx: Math.cos(angle) * speed,
+          vy: Math.sin(angle) * speed * 0.4,
+          alt: butterfly ? 4 + rng() * 6 : 26 + rng() * 14,
+          phase: rng() * 10,
+          butterfly,
+          colour: butterfly ? ['#f4a7c1', '#ffd36e', '#a8d8ff'][i % 3] : '#3b3b44',
+        });
+      }
+    }
+  }
+
+  private carCentre(car: Car) {
+    const lane = 0.17 * car.dir;
+    return car.alongX
+      ? { gx: car.pos, gy: car.fixed + lane }
+      : { gx: car.fixed - lane, gy: car.pos };
+  }
+
+  private stepCar(car: Car, dt: number) {
+    const crossings = car.alongX ? this.avenues : this.streets;
+    const next = car.pos + car.dir * car.speed * dt;
+    const lo = Math.min(car.pos, next);
+    const hi = Math.max(car.pos, next);
+    const hit = crossings.find((c) => c > lo && c <= hi && c !== car.lastTurn);
+
+    if (hit === undefined) {
+      car.pos = next;
+      return;
+    }
+
+    const atEnd = hit === crossings[0] || hit === crossings[crossings.length - 1];
+    if (!atEnd && Math.random() > 0.3) {
+      car.pos = next;
+      return;
+    }
+
+    const perpendicular = car.alongX ? this.streets : this.avenues;
+    const from = car.fixed;
+    car.alongX = !car.alongX;
+    car.pos = from;
+    car.fixed = hit;
+    car.lastTurn = from;
+    if (from === perpendicular[0]) car.dir = 1;
+    else if (from === perpendicular[perpendicular.length - 1]) car.dir = -1;
+    else car.dir = Math.random() < 0.5 ? 1 : -1;
+  }
+
+  private drawCar(car: Car, gx: number, gy: number) {
+    const ctx = this.ctx;
+    const half = car.alongX ? { x: 0.27, y: 0.14 } : { x: 0.14, y: 0.27 };
+    const lift = (h: number) => h * this.scale;
+
+    const box = (hx: number, hy: number, z0: number, z1: number, top: string, sideX: string, sideY: string) => {
+      const p = (dx: number, dy: number, z: number) => {
+        const s = this.toScreen(gx + dx, gy + dy);
+        return { x: s.x, y: s.y - lift(z) };
+      };
+      const poly = (pts: Array<{ x: number; y: number }>, fill: string) => {
+        ctx.beginPath();
+        ctx.moveTo(pts[0].x, pts[0].y);
+        for (const q of pts.slice(1)) ctx.lineTo(q.x, q.y);
+        ctx.closePath();
+        ctx.fillStyle = fill;
+        ctx.fill();
+      };
+      poly([p(hx, -hy, z0), p(hx, hy, z0), p(hx, hy, z1), p(hx, -hy, z1)], sideX);
+      poly([p(-hx, hy, z0), p(hx, hy, z0), p(hx, hy, z1), p(-hx, hy, z1)], sideY);
+      poly([p(-hx, -hy, z1), p(hx, -hy, z1), p(hx, hy, z1), p(-hx, hy, z1)], top);
     };
 
-    loop();
+    ctx.save();
+    const shadow = this.toScreen(gx, gy);
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.25)';
+    ctx.beginPath();
+    ctx.ellipse(shadow.x, shadow.y + lift(0.4), 0.3 * TW * this.scale * 0.6, 0.3 * TH * this.scale * 0.6, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    box(half.x, half.y, 0.6, 2.4, car.colour, shade(car.colour, 0.72), shade(car.colour, 0.86));
+    const cabin = car.alongX ? { x: 0.14, y: 0.11 } : { x: 0.11, y: 0.14 };
+    box(cabin.x, cabin.y, 2.4, 3.6, shade(car.colour, 0.95), '#5d7183', '#7890a5');
+
+    const front = car.alongX ? { dx: half.x * car.dir, dy: 0 } : { dx: 0, dy: half.y * car.dir };
+    const head = this.toScreen(gx + front.dx, gy + front.dy);
+    const tail = this.toScreen(gx - front.dx, gy - front.dy);
+    const r = Math.max(0.6, 0.5 * this.scale);
+    ctx.fillStyle = '#fff6cf';
+    ctx.beginPath();
+    ctx.arc(head.x, head.y - lift(1.4), r, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#ff5a48';
+    ctx.beginPath();
+    ctx.arc(tail.x, tail.y - lift(1.4), r * 0.8, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+  }
+
+  private stepFlyer(f: Flyer, dt: number) {
+    f.phase += dt;
+    f.gx += f.vx * dt;
+    f.gy += f.vy * dt;
+    if (f.butterfly) {
+      f.vx += Math.sin(f.phase * 1.7) * 0.02;
+      f.vy += Math.cos(f.phase * 1.3) * 0.02;
+    }
+    if (f.gx < -2) f.gx = this.extentX + 2;
+    if (f.gx > this.extentX + 2) f.gx = -2;
+    if (f.gy < -1) f.gy = this.extentY + 1;
+    if (f.gy > this.extentY + 1) f.gy = -1;
+  }
+
+  private drawFlyer(f: Flyer) {
+    const ctx = this.ctx;
+    const p = this.toScreen(f.gx, f.gy);
+    const y = p.y - (f.alt + Math.sin(f.phase * 2) * 2) * this.scale;
+    const s = this.scale;
+    ctx.save();
+    if (f.butterfly) {
+      const flap = Math.abs(Math.sin(f.phase * 14));
+      ctx.fillStyle = f.colour;
+      ctx.beginPath();
+      ctx.ellipse(p.x - 0.9 * s * flap, y, 0.9 * s * flap + 0.2, 0.7 * s, 0, 0, Math.PI * 2);
+      ctx.ellipse(p.x + 0.9 * s * flap, y, 0.9 * s * flap + 0.2, 0.7 * s, 0, 0, Math.PI * 2);
+      ctx.fill();
+    } else {
+      const flap = Math.sin(f.phase * 9) * 1.4 * s;
+      ctx.strokeStyle = f.colour;
+      ctx.lineWidth = Math.max(0.8, 0.45 * s);
+      ctx.lineCap = 'round';
+      ctx.beginPath();
+      ctx.moveTo(p.x - 2.2 * s, y - flap);
+      ctx.quadraticCurveTo(p.x - 1 * s, y - 1.2 * s, p.x, y);
+      ctx.quadraticCurveTo(p.x + 1 * s, y - 1.2 * s, p.x + 2.2 * s, y - flap);
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
+
+  // ------------------------------------------------------------
+  //  Animation loop
+  // ------------------------------------------------------------
+
+  private get animated(): boolean {
+    return this.motion && (this.cars.length > 0 || this.flyers.length > 0);
+  }
+
+  relayout() {
+    this.layout();
+  }
+
+  setMotion(motion: boolean) {
+    this.motion = motion;
+    this.syncLoop();
+    this.draw();
+  }
+
+  private syncLoop() {
+    const shouldRun = this.animated && this.visible && document.visibilityState === 'visible' && this.cssWidth > 0;
+    if (shouldRun && this.frameId === null) {
+      this.lastFrame = performance.now();
+      this.frameId = requestAnimationFrame(this.tick);
+    } else if (!shouldRun && this.frameId !== null) {
+      cancelAnimationFrame(this.frameId);
+      this.frameId = null;
+    }
+  }
+
+  private readonly tick = (now: number) => {
+    this.frameId = requestAnimationFrame(this.tick);
+    this.elapsed += now - this.lastFrame;
+    this.lastFrame = now;
+    if (this.elapsed < FRAME_MS) return;
+    const step = Math.min(0.1, this.elapsed / 1000);
+    this.elapsed = 0;
+    for (const car of this.cars) this.stepCar(car, step);
+    for (const f of this.flyers) this.stepFlyer(f, step);
+    this.draw();
+  };
+
+  // ------------------------------------------------------------
+  //  Hover
+  // ------------------------------------------------------------
+
+  private alphaAt(sprite: ImageBitmap, u: number, v: number): number {
+    let mask = this.alphaMasks.get(sprite);
+    if (!mask) {
+      const c = new OffscreenCanvas(sprite.width, sprite.height);
+      const cx = c.getContext('2d')!;
+      cx.drawImage(sprite, 0, 0);
+      const pixels = cx.getImageData(0, 0, sprite.width, sprite.height).data;
+      mask = new Uint8ClampedArray(sprite.width * sprite.height);
+      for (let i = 0; i < mask.length; i++) mask[i] = pixels[i * 4 + 3];
+      this.alphaMasks.set(sprite, mask);
+    }
+    const x = Math.min(sprite.width - 1, Math.max(0, Math.floor(u * sprite.width)));
+    const y = Math.min(sprite.height - 1, Math.max(0, Math.floor(v * sprite.height)));
+    return mask[y * sprite.width + x];
+  }
+
+  private cellAt(x: number, y: number): Cell | null {
+    for (let i = this.cells.length - 1; i >= 0; i--) {
+      const c = this.cells[i];
+      if (!c.sprite) continue;
+      const r = this.spriteRect(c);
+      if (x < r.x || x > r.x + r.w || y < r.y || y > r.y + r.h) continue;
+      if (this.alphaAt(c.sprite, (x - r.x) / r.w, (y - r.y) / r.h) > 40) return c;
+    }
+    const px = (x - this.originX) / this.scale / (TW / 2);
+    const py = (y - this.originY) / this.scale / (TH / 2);
+    const gx = (px + py) / 2;
+    const gy = (py - px) / 2;
+    return this.cells.find((c) => gx >= c.gx && gx < c.gx + 1 && gy >= c.gy && gy < c.gy + 1) ?? null;
+  }
+
+  private createTooltip(): HTMLElement {
+    const existing = document.getElementById('cl-tooltip');
+    if (existing) return existing;
+    const el = document.createElement('div');
+    el.id = 'cl-tooltip';
+    el.setAttribute('role', 'tooltip');
+    document.body.appendChild(el);
+    return el;
+  }
+
+  private bindPointer() {
+    const onMove = (e: PointerEvent) => {
+      const rect = this.canvas.getBoundingClientRect();
+      const cell = this.cellAt(e.clientX - rect.left, e.clientY - rect.top);
+      if (cell !== this.hovered) {
+        this.hovered = cell;
+        if (!this.frameId) this.draw();
+      }
+      if (!cell) {
+        this.tooltip.classList.remove('is-visible');
+        return;
+      }
+      const { count, date } = cell.data;
+      const when = new Date(`${date}T00:00:00Z`).toLocaleDateString('en-GB', {
+        weekday: 'short', day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC',
+      });
+      const label = count === 0 ? 'No contributions' : `${count.toLocaleString()} contribution${count === 1 ? '' : 's'}`;
+      this.tooltip.textContent = `${label} on ${when}`;
+      const r = this.spriteRect(cell);
+      this.tooltip.style.left = `${rect.left + r.x + r.w / 2}px`;
+      this.tooltip.style.top = `${rect.top + (cell.sprite ? r.y : r.y + r.h) - 6}px`;
+      this.tooltip.classList.add('is-visible');
+    };
+    const onLeave = () => {
+      this.hovered = null;
+      this.tooltip.classList.remove('is-visible');
+      if (!this.frameId) this.draw();
+    };
+    this.canvas.addEventListener('pointermove', onMove);
+    this.canvas.addEventListener('pointerleave', onLeave);
+    this.cleanups.push(() => {
+      this.canvas.removeEventListener('pointermove', onMove);
+      this.canvas.removeEventListener('pointerleave', onLeave);
+    });
   }
 
   destroy() {
-    if (this.animId) cancelAnimationFrame(this.animId);
-  }
-
-  private setupTooltip() {
-    let tooltip: HTMLElement | null = document.getElementById('cl-tooltip');
-    if (!tooltip) {
-      tooltip = document.createElement('div');
-      tooltip.id = 'cl-tooltip';
-      tooltip.style.cssText = `
-        position: fixed; background: #1c2128; border: 1px solid #30363d;
-        border-radius: 6px; padding: 6px 10px; font-size: 12px;
-        color: #e6edf3; pointer-events: none; display: none;
-        z-index: 10000; white-space: nowrap;
-        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
-      `;
-      document.body.appendChild(tooltip);
-    }
-
-    this.canvas.addEventListener('mousemove', (e) => {
-      const rect = this.canvas.getBoundingClientRect();
-      const mx = (e.clientX - rect.left) * (this.canvas.width / rect.width);
-      const my = (e.clientY - rect.top) * (this.canvas.height / rect.height);
-
-      // Find which cell the mouse is over
-      let found: ContributionData | null = null;
-      for (let w = this.weeks - 1; w >= 0; w--) {
-        for (let d = this.days - 1; d >= 0; d--) {
-          const scr = this.gridToScreen(w, d);
-          const dx = Math.abs(mx - scr.x) / (TILE_W / 2);
-          const dy = Math.abs(my - scr.y) / (TILE_H / 2);
-          if (dx + dy <= 1) {
-            found = this.grid[w]?.[d] ?? null;
-            break;
-          }
-        }
-        if (found) break;
-      }
-
-      if (found && tooltip) {
-        const date = new Date(found.date);
-        const dateStr = date.toLocaleDateString('en-US', {
-          weekday: 'short', month: 'short', day: 'numeric', year: 'numeric',
-        });
-        tooltip.innerHTML = `<strong>${found.count} contribution${found.count !== 1 ? 's' : ''}</strong> on ${dateStr}`;
-        tooltip.style.display = 'block';
-        tooltip.style.left = `${e.clientX + 12}px`;
-        tooltip.style.top = `${e.clientY - 30}px`;
-      } else if (tooltip) {
-        tooltip.style.display = 'none';
-      }
-    });
-
-    this.canvas.addEventListener('mouseleave', () => {
-      if (tooltip) tooltip.style.display = 'none';
-    });
+    if (this.frameId !== null) cancelAnimationFrame(this.frameId);
+    this.frameId = null;
+    this.resizeObserver.disconnect();
+    this.intersectionObserver.disconnect();
+    this.tooltip.classList.remove('is-visible');
+    for (const fn of this.cleanups) fn();
   }
 }

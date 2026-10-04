@@ -1,395 +1,399 @@
 /**
- * Contribution Lands — Content Script
+ * Contribution Lands — content script.
  *
- * Mirrors the exact initialization pattern from isometric-contributions:
- *   1. Wait for .vcard-names-container (confirms profile page)
- *   2. MutationObserver on <main> or <body> watching for .js-calendar-graph
- *   3. Parse contribution data from DOM
- *   4. Inject canvas + toggle buttons
- *   5. Re-init on turbo:load (GitHub SPA navigation)
+ * Same lifecycle as isometric-contributions: wait for a profile page, watch
+ * for the lazily rendered calendar, then inject the canvas, stats and toggle.
  */
 
-import { IsoRenderer, type ContributionData } from './renderer';
+import { IsoRenderer, type ContributionData, type SpriteSet, type ThemeConfig } from './renderer';
+import { computeStats, tooltipCounts, extendWithHistory, formatDate, formatRange, longestStreak, currentStreak, type ContributionStats, type Streak } from './stats';
+import contentCss from './content.css?inline';
 
-// ============================================================
-//  STATE
-// ============================================================
+type ViewSetting = 'squares' | 'cubes' | 'both';
 
-let contributionsWrapper: HTMLElement | null = null;
+interface Settings {
+  viewSetting: ViewSetting;
+  motion: boolean;
+  showStats: boolean;
+}
+
+const DEFAULTS: Settings = { viewSetting: 'cubes', motion: true, showStats: true };
+const POPUP_KEY = 'contributionLandsPopupSettings';
+
+let settings: Settings = { ...DEFAULTS };
 let observer: MutationObserver | null = null;
-let viewSetting: 'squares' | 'cubes' | 'both' = 'cubes';
+let renderer: IsoRenderer | null = null;
+let historyRequest: AbortController | null = null;
+let generating = false;
 
 // ============================================================
-//  STORAGE (same pattern as isometric-contributions)
+//  SETTINGS
 // ============================================================
 
-function getStorage() {
-  if (typeof chrome !== 'undefined' && chrome?.storage?.local) {
-    return chrome.storage.local;
+async function loadSettings(): Promise<Settings> {
+  try {
+    const stored = await chrome.storage.local.get(Object.keys(DEFAULTS));
+    return { ...DEFAULTS, ...stored } as Settings;
+  } catch {
+    return { ...DEFAULTS };
   }
-  return null;
 }
 
-async function loadSetting<T>(key: string, defaultValue: T): Promise<T> {
-  const storage = getStorage();
-  if (storage && typeof storage.get === 'function') {
-    return new Promise((resolve) => {
-      storage.get([key], (result: Record<string, T>) => {
-        resolve(result[key] ?? defaultValue);
-      });
-    });
-  }
-  return defaultValue;
-}
-
-function saveSetting(key: string, value: unknown) {
-  const storage = getStorage();
-  if (storage && typeof storage.set === 'function') {
-    storage.set({ [key]: value });
+function saveSetting<K extends keyof Settings>(key: K, value: Settings[K]) {
+  settings[key] = value;
+  try {
+    void chrome.storage.local.set({ [key]: value });
+  } catch {
+    // Extension context invalidated after a reload; the page keeps working.
   }
 }
 
 // ============================================================
-//  DOM PARSING (adapted from isometric-contributions/utils.js)
+//  DOM PARSING
 // ============================================================
-
-function getContributionCount(text: string): number {
-  const match = text.match(/(\d+|No) contributions? on/);
-  if (!match) return 0;
-  return match[1] === 'No' ? 0 : parseInt(match[1], 10);
-}
 
 function parseCalendarGraph(): ContributionData[] | null {
-  const dayElements = document.querySelectorAll(
-    '.js-calendar-graph-table tbody td.ContributionCalendar-day'
-  );
-  const tooltipElements = document.querySelectorAll(
-    '.js-calendar-graph tool-tip'
-  );
+  const dayElements = document.querySelectorAll<HTMLElement>('.js-calendar-graph-table tbody td.ContributionCalendar-day');
+  if (!dayElements.length) return null;
 
-  if (!dayElements.length) {
-    console.log('[CL] No calendar day elements found');
-    return null;
-  }
-
-  console.log(`[CL] Found ${dayElements.length} day cells, ${tooltipElements.length} tooltips`);
-
-  // Build tooltip lookup
-  const tooltipMap = new Map<string, number>();
-  tooltipElements.forEach((t) => {
-    tooltipMap.set(t.id, getContributionCount(t.textContent ?? ''));
-  });
+  const counts = tooltipCounts(document.querySelectorAll('.js-calendar-graph tool-tip'));
 
   const data: ContributionData[] = [];
-
-  dayElements.forEach((el) => {
-    const td = el as HTMLElement;
+  for (const td of dayElements) {
     const date = td.dataset.date;
-    if (!date) return;
-
-    const week = parseInt(td.dataset.ix ?? '0', 10);
-    const level = parseInt(td.getAttribute('data-level') ?? '0', 10);
-
-    // Get row index (day of week)
-    const tr = td.closest('tr');
-    let day = 0;
-    if (tr?.parentElement) {
-      const rows = tr.parentElement.querySelectorAll('tr');
-      rows.forEach((row, idx) => {
-        if (row === tr) day = idx;
-      });
-    }
-
-    // Get count from tooltip
-    const tid = td.getAttribute('aria-labelledby') ?? '';
-    const count = tooltipMap.get(tid) ?? 0;
-
+    if (!date) continue;
+    const row = td.closest('tr');
+    const day = row?.parentElement ? [...row.parentElement.children].indexOf(row) : 0;
     data.push({
       date,
-      week,
+      week: Number.parseInt(td.dataset.ix ?? '0', 10),
       day,
-      level: Math.min(4, Math.max(0, level)) as 0 | 1 | 2 | 3 | 4,
-      count,
+      level: Math.min(4, Math.max(0, Number.parseInt(td.dataset.level ?? '0', 10))) as ContributionData['level'],
+      count: counts.get(td.id) ?? counts.get(td.getAttribute('aria-labelledby') ?? '') ?? 0,
     });
-  });
-
-  return data.length > 0 ? data : null;
+  }
+  return data.length ? data : null;
 }
 
 // ============================================================
-//  THEME + SPRITE LOADING
+//  THEME + SPRITES
 // ============================================================
 
-async function loadThemeAndSprites() {
+const FALLBACK_THEME: ThemeConfig = {
+  name: 'NYC Skyline',
+  category: 'city',
+  background: '#0a0e14',
+  ground_colors: ['#3a3a40', '#35353b', '#404046'],
+  ground_stroke: '#2a2a30',
+};
+
+async function loadBitmap(path: string): Promise<ImageBitmap | null> {
+  try {
+    const res = await fetch(chrome.runtime.getURL(path));
+    if (!res.ok) return null;
+    return await createImageBitmap(await res.blob());
+  } catch {
+    return null;
+  }
+}
+
+async function spriteFiles(themeId: string): Promise<Record<string, string[]>> {
+  try {
+    const res = await fetch(chrome.runtime.getURL(`themes/${themeId}/sprites/manifest.json`));
+    if (res.ok) return await res.json();
+  } catch {
+    // Dev builds have no manifest; fall through to probing.
+  }
+  const found: Record<string, string[]> = {};
+  for (let level = 0; level <= 4; level++) {
+    found[level] = [];
+    for (let i = 0; i < 26; i++) {
+      const name = `level-${level}-${String.fromCharCode(97 + i)}.png`;
+      const res = await fetch(chrome.runtime.getURL(`themes/${themeId}/sprites/${name}`)).catch(() => null);
+      if (!res?.ok) break;
+      found[level].push(name);
+    }
+  }
+  return found;
+}
+
+async function loadTheme(): Promise<{ config: ThemeConfig; sprites: SpriteSet }> {
   let themeId = 'city-nyc';
   try {
-    // Popup stores settings under 'contributionLandsPopupSettings' key
-    const result = await chrome.storage.sync.get('contributionLandsPopupSettings');
-    const settings = result.contributionLandsPopupSettings as { selectedThemeId?: string } | undefined;
-    if (settings?.selectedThemeId) {
-      themeId = settings.selectedThemeId;
-    }
-  } catch {}
+    const result = await chrome.storage.sync.get(POPUP_KEY);
+    const saved = result[POPUP_KEY] as { selectedThemeId?: string } | undefined;
+    if (saved?.selectedThemeId) themeId = saved.selectedThemeId;
+  } catch {
+    // Use the default theme.
+  }
 
-  // Load theme config
-  let config = {
-    name: 'NYC Skyline',
-    background: '#0a0e14',
-    ground_colors: ['#3a3a40', '#35353b', '#404046'],
-    ground_stroke: '#2a2a30',
-  };
-
+  let config = FALLBACK_THEME;
   try {
-    const url = chrome.runtime.getURL(`themes/${themeId}/theme.json`);
-    const res = await fetch(url);
+    const res = await fetch(chrome.runtime.getURL(`themes/${themeId}/theme.json`));
     config = await res.json();
-  } catch (e) {
-    console.log('[CL] Failed to load theme config, using defaults', e);
+  } catch {
+    themeId = 'city-nyc';
   }
 
-  // Load sprites — try variants a through z, stop when not found
-  const sprites: Record<number, HTMLImageElement[]> = { 0: [], 1: [], 2: [], 3: [], 4: [] };
+  const files = await spriteFiles(themeId);
+  const sprites: SpriteSet = {};
+  await Promise.all(
+    [0, 1, 2, 3, 4].map(async (level) => {
+      const names = (files[level] ?? []).filter((f) => !f.includes('-road-'));
+      const bitmaps = await Promise.all(names.map((f) => loadBitmap(`themes/${themeId}/sprites/${f}`)));
+      sprites[level] = bitmaps.filter((b): b is ImageBitmap => b !== null);
+    }),
+  );
+  return { config, sprites };
+}
 
-  for (let level = 0; level <= 4; level++) {
-    for (let vi = 0; vi < 26; vi++) {
-      const variant = String.fromCharCode(97 + vi);
-      const spriteUrl = chrome.runtime.getURL(`themes/${themeId}/sprites/level-${level}-${variant}.png`);
+// ============================================================
+//  STATS PANELS
+// ============================================================
 
-      try {
-        const img = await new Promise<HTMLImageElement | null>((resolve) => {
-          const image = new Image();
-          image.onload = () => resolve(image);
-          image.onerror = () => resolve(null);
-          image.src = spriteUrl;
-        });
-        if (img) {
-          sprites[level].push(img);
-        } else {
-          break; // No more variants for this level
-        }
-      } catch {
-        break;
-      }
+function statBlock(id: string, value: string, unit: string, label: string, detail: string): string {
+  return `
+    <div class="cl-stat">
+      <span class="cl-stat-value" id="${id}-value">${value}${unit ? ` <span class="cl-stat-unit">${unit}</span>` : ''}</span>
+      <span class="cl-stat-label">${label}</span>
+      <span class="cl-stat-detail" id="${id}-detail">${detail}</span>
+    </div>`;
+}
+
+function streakDetail(streak: Streak, empty: string): string {
+  return streak.length > 0 && streak.start && streak.end ? formatRange(streak.start, streak.end, streak.length) : empty;
+}
+
+interface Pending {
+  longest: boolean;
+  current: boolean;
+}
+
+function renderStats(wrapper: HTMLElement, stats: ContributionStats, viewingYear: boolean, pending: Pending) {
+  const top = document.createElement('div');
+  top.className = 'cl-panel cl-panel-top';
+  top.innerHTML = `
+    <h5 class="cl-panel-title">Contributions</h5>
+    <div class="cl-panel-box">
+      ${statBlock('cl-total', stats.total.toLocaleString(), '', 'Total', formatRange(stats.firstDate, stats.lastDate))}
+      ${viewingYear ? '' : statBlock('cl-week', stats.weekTotal.toLocaleString(), '', 'This week', formatRange(stats.weekStart, stats.lastDate))}
+      ${statBlock('cl-best', stats.bestCount.toLocaleString(), '', 'Best day', stats.bestDate ? formatDate(stats.bestDate) : 'No activity')}
+    </div>
+    <p class="cl-panel-note">Average: <strong>${stats.average}</strong> <span>/ day</span></p>`;
+
+  const bottom = document.createElement('div');
+  bottom.className = 'cl-panel cl-panel-bottom';
+  const streak = (id: string, s: Streak, label: string, empty: string, loading: boolean) =>
+    loading
+      ? statBlock(id, '…', 'days', label, 'Checking earlier years…')
+      : statBlock(id, String(s.length), 'days', label, streakDetail(s, empty));
+  bottom.innerHTML = `
+    <h5 class="cl-panel-title">Streaks</h5>
+    <div class="cl-panel-box">
+      ${streak('cl-longest', stats.longest, 'Longest', 'No streak yet', pending.longest)}
+      ${viewingYear ? '' : streak('cl-current', stats.current, 'Current', 'No current streak', pending.current)}
+    </div>`;
+
+  wrapper.append(top, bottom);
+}
+
+function updateStreak(id: string, streak: Streak, empty: string) {
+  const value = document.getElementById(`${id}-value`);
+  const detail = document.getElementById(`${id}-detail`);
+  if (value) value.innerHTML = `${streak.length} <span class="cl-stat-unit">days</span>`;
+  if (detail) detail.textContent = streakDetail(streak, empty);
+}
+
+function pendingHistory(data: ContributionData[], stats: ContributionStats): Pending {
+  const username = location.pathname.split('/').filter(Boolean)[0];
+  const first = data.reduce((a, b) => (a.date <= b.date ? a : b));
+  const reachesStart = (s: Streak) => Boolean(username) && first.count > 0 && s.start === first.date;
+  return { longest: reachesStart(stats.longest), current: reachesStart(stats.current) };
+}
+
+async function extendStreaks(data: ContributionData[], stats: ContributionStats, pending: Pending) {
+  if (!pending.longest && !pending.current) return;
+  const username = location.pathname.split('/').filter(Boolean)[0];
+  historyRequest?.abort();
+  const request = new AbortController();
+  historyRequest = request;
+  let days: Array<{ date: string; count: number }> = data;
+  try {
+    days = await extendWithHistory(username, data, request.signal);
+  } catch {
+    // Fall back to the visible calendar.
+  }
+  if (request.signal.aborted) return;
+  updateStreak('cl-longest', days === data ? stats.longest : longestStreak(days), 'No streak yet');
+  updateStreak('cl-current', days === data ? stats.current : currentStreak(days), 'No current streak');
+}
+
+// ============================================================
+//  VIEW TOGGLE
+// ============================================================
+
+function applyView(box: Element, view: ViewSetting) {
+  box.classList.toggle('cl-squares', view === 'squares');
+  box.classList.toggle('cl-cubes', view === 'cubes');
+  box.classList.toggle('cl-both', view === 'both');
+  for (const btn of document.querySelectorAll<HTMLButtonElement>('.cl-toggle-option')) {
+    const selected = btn.dataset.clOption === view;
+    btn.classList.toggle('selected', selected);
+    btn.setAttribute('aria-pressed', String(selected));
+  }
+}
+
+function applyStatsVisibility(box: Element) {
+  box.classList.toggle('cl-hide-stats', !settings.showStats);
+}
+
+function injectToggle(box: Element) {
+  const group = document.createElement('div');
+  group.className = 'BtnGroup cl-toggle';
+  const modes: Array<[string, ViewSetting]> = [['2D', 'squares'], ['Lands', 'cubes'], ['Both', 'both']];
+  for (const [label, value] of modes) {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.textContent = label;
+    btn.className = 'cl-toggle-option btn BtnGroup-item btn-sm py-0 px-2';
+    btn.dataset.clOption = value;
+    btn.addEventListener('click', () => {
+      saveSetting('viewSetting', value);
+      applyView(box, value);
+    });
+    group.append(btn);
+  }
+
+  const controls = document.createElement('div');
+  controls.className = 'cl-controls d-flex flex-items-center float-right';
+  const settingsMenu = box.querySelector('focus-group, details.contrib-settings');
+  if (settingsMenu) {
+    settingsMenu.before(controls);
+    controls.append(settingsMenu, group);
+  } else {
+    controls.append(group);
+    box.querySelector('h2')?.before(controls);
+  }
+}
+
+function teardown() {
+  historyRequest?.abort();
+  historyRequest = null;
+  renderer?.destroy();
+  renderer = null;
+  document.querySelector('.cl-contributions-wrapper')?.remove();
+  const controls = document.querySelector('.cl-controls');
+  if (controls) {
+    const settingsMenu = controls.querySelector('focus-group, details.contrib-settings');
+    if (settingsMenu) controls.before(settingsMenu);
+    controls.remove();
+  }
+}
+
+// ============================================================
+//  MAIN
+// ============================================================
+
+async function generate() {
+  if (generating || document.querySelector('.cl-contributions-wrapper')) return;
+  generating = true;
+  try {
+    const calendarGraph = document.querySelector('.js-calendar-graph');
+    const box = document.querySelector('.js-yearly-contributions');
+    if (!calendarGraph || !box) return;
+    const data = parseCalendarGraph();
+    if (!data) return;
+
+    const { config, sprites } = await loadTheme();
+    if (document.querySelector('.cl-contributions-wrapper') || !calendarGraph.isConnected) return;
+
+    const wrapper = document.createElement('div');
+    wrapper.className = 'cl-contributions-wrapper';
+    calendarGraph.before(wrapper);
+
+    const canvas = document.createElement('canvas');
+    canvas.id = 'contribution-lands-canvas';
+    canvas.setAttribute('role', 'img');
+    canvas.setAttribute('aria-label', `${config.name} contribution land`);
+    wrapper.append(canvas);
+
+    const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
+    renderer = new IsoRenderer(canvas, data, config, sprites, {
+      motion: settings.motion && !reducedMotion,
+      obstacles: () => {
+        const panel = wrapper.querySelector<HTMLElement>('.cl-panel-top');
+        if (!panel || getComputedStyle(panel).position !== 'absolute' || panel.offsetParent === null) return [];
+        return [{ left: panel.offsetLeft, right: panel.offsetLeft + panel.offsetWidth, bottom: panel.offsetTop + panel.offsetHeight }];
+      },
+    });
+
+    const heading = box.querySelector('h2')?.textContent ?? '';
+    const viewingYear = /in \d{4}/.test(heading);
+    const stats = computeStats(data);
+    const pending = pendingHistory(data, stats);
+    renderStats(wrapper, stats, viewingYear, pending);
+    if (!document.querySelector('.cl-controls')) injectToggle(box);
+    applyView(box, settings.viewSetting);
+    applyStatsVisibility(box);
+    void extendStreaks(data, stats, pending);
+  } finally {
+    generating = false;
+  }
+}
+
+function setupObserver() {
+  observer?.disconnect();
+  teardown();
+  if (!document.querySelector('.vcard-names-container')) return;
+
+  const initIfReady = () => {
+    if (document.querySelector('.js-calendar-graph') && !document.querySelector('.cl-contributions-wrapper')) {
+      void generate();
     }
-  }
-
-  console.log(`[CL] Loaded theme "${config.name}", sprites:`,
-    Object.entries(sprites).map(([l, s]) => `L${l}:${s.length}`).join(' '));
-
-  return { themeId, config, sprites };
+  };
+  initIfReady();
+  observer = new MutationObserver(initIfReady);
+  observer.observe(document.querySelector('main') ?? document.body, { childList: true, subtree: true });
 }
 
-// ============================================================
-//  VIEW TOGGLE (CSS class approach from isometric-contributions)
-// ============================================================
-
-function applyViewType(container: HTMLElement, type: string) {
-  container.classList.toggle('cl-squares', type === 'squares');
-  container.classList.toggle('cl-cubes', type === 'cubes');
-  container.classList.toggle('cl-both', type === 'both');
-}
-
-function injectCSS() {
+function injectCss() {
   if (document.getElementById('contribution-lands-css')) return;
   const style = document.createElement('style');
   style.id = 'contribution-lands-css';
-  style.textContent = `
-    /* Original graph only */
-    .cl-squares #contribution-lands-canvas,
-    .cl-squares .cl-contributions-wrapper { display: none; }
-
-    /* Isometric only */
-    .cl-cubes .js-calendar-graph { display: none !important; }
-
-    /* Both — everything visible */
-
-    /* Toggle buttons */
-    .cl-toggle-option.selected {
-      background-color: #1f6feb !important;
-      color: #fff !important;
-      border-color: #1f6feb !important;
-    }
-  `;
-  document.head.appendChild(style);
+  style.textContent = contentCss;
+  document.head.append(style);
 }
-
-// ============================================================
-//  MAIN: generateIsometricChart (mirrors isometric-contributions)
-// ============================================================
-
-let isGenerating = false;
-let activeRenderer: IsoRenderer | null = null;
-
-async function generateIsometricChart() {
-  // Prevent double-init from rapid MutationObserver callbacks
-  if (isGenerating || document.querySelector('.cl-contributions-wrapper')) return;
-  isGenerating = true;
-
-  try {
-    const calendarGraph = document.querySelector('.js-calendar-graph');
-    const contributionsBox = document.querySelector('.js-yearly-contributions');
-
-    if (!calendarGraph || !contributionsBox) {
-      console.log('[CL] Calendar graph or contributions box not found');
-      return;
-    }
-
-    console.log('[CL] Generating isometric chart...');
-
-    // Parse contribution data
-    const data = parseCalendarGraph();
-    if (!data || data.length === 0) {
-      console.log('[CL] No contribution data parsed');
-      return;
-    }
-
-    // Load theme
-    const { config, sprites } = await loadThemeAndSprites();
-
-    // Destroy previous renderer if re-initializing
-    if (activeRenderer) {
-      activeRenderer.destroy();
-      activeRenderer = null;
-    }
-
-    // Create wrapper (same pattern as isometric-contributions)
-    contributionsWrapper = document.createElement('div');
-    contributionsWrapper.className = 'cl-contributions-wrapper position-relative';
-    calendarGraph.before(contributionsWrapper);
-
-    // Create canvas
-    const canvas = document.createElement('canvas');
-    canvas.id = 'contribution-lands-canvas';
-    canvas.style.width = '100%';
-    contributionsWrapper.appendChild(canvas);
-
-    // Render
-    activeRenderer = new IsoRenderer(canvas, data, config, sprites);
-    activeRenderer.render();
-
-    // Inject toggle buttons (same position as isometric-contributions: before the H2)
-    let insertLocation: Element | null = contributionsBox.querySelector('h2');
-    if (
-      insertLocation?.previousElementSibling &&
-      insertLocation.previousElementSibling.nodeName === 'DETAILS'
-    ) {
-      insertLocation = insertLocation.previousElementSibling;
-    }
-
-    const buttonGroup = document.createElement('div');
-    buttonGroup.className = 'BtnGroup mt-1 ml-3 position-relative top-0 float-right';
-
-    const modes: { label: string; value: string }[] = [
-      { label: '2D', value: 'squares' },
-      { label: 'Lands', value: 'cubes' },
-      { label: 'Both', value: 'both' },
-    ];
-
-    modes.forEach(({ label, value }) => {
-      const btn = document.createElement('button');
-      btn.textContent = label;
-      btn.className = `cl-toggle-option ${value} btn BtnGroup-item btn-sm py-0 px-1`;
-      btn.dataset.clOption = value;
-      if (viewSetting === value) btn.classList.add('selected');
-
-      btn.addEventListener('click', () => {
-        for (const toggle of document.querySelectorAll('.cl-toggle-option')) {
-          toggle.classList.remove('selected');
-        }
-        btn.classList.add('selected');
-        viewSetting = value as typeof viewSetting;
-        saveSetting('viewSetting', value);
-        applyViewType(contributionsBox as HTMLElement, value);
-      });
-
-      buttonGroup.appendChild(btn);
-    });
-
-    if (insertLocation) {
-      insertLocation.before(buttonGroup);
-    }
-
-    // Apply current view
-    applyViewType(contributionsBox as HTMLElement, viewSetting);
-
-    console.log(`[CL] Initialized! ${data.length} cells, theme: ${config.name}, view: ${viewSetting}`);
-  } finally {
-    isGenerating = false;
-  }
-}
-
-// ============================================================
-//  SETUP OBSERVER (exact pattern from isometric-contributions)
-// ============================================================
-
-function setupObserver() {
-  // Must be on a profile page
-  if (!document.querySelector('.vcard-names-container')) {
-    console.log('[CL] Not a profile page (no .vcard-names-container)');
-    return;
-  }
-
-  // Cleanup previous
-  document.querySelector('.cl-contributions-wrapper')?.remove();
-  document.querySelector('.cl-toggle-option')?.parentElement?.remove();
-
-  // Try immediately
-  const initIfReady = () => {
-    if (
-      document.querySelector('.js-calendar-graph') &&
-      !document.querySelector('.cl-contributions-wrapper')
-    ) {
-      generateIsometricChart();
-    }
-  };
-
-  initIfReady();
-
-  // Observe for lazy-loaded graph
-  observer?.disconnect();
-  const target = document.querySelector('main') || document.body;
-  observer = new MutationObserver(() => initIfReady());
-  observer.observe(target, { childList: true, subtree: true });
-}
-
-// ============================================================
-//  ENTRY POINT (exact pattern from isometric-contributions)
-// ============================================================
 
 (async () => {
-  console.log('[CL] Content script loaded on', window.location.href);
-
-  injectCSS();
-  viewSetting = await loadSetting('viewSetting', 'cubes');
-
-  // Listen for theme changes (dark/light mode)
-  globalThis.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
-    if (document.querySelector('.cl-contributions-wrapper')) {
-      document.querySelector('.cl-contributions-wrapper')?.remove();
-      document.querySelector('.cl-toggle-option')?.parentElement?.remove();
-      generateIsometricChart();
-    }
-  });
-
+  injectCss();
+  settings = await loadSettings();
   setupObserver();
   document.addEventListener('turbo:load', setupObserver);
-  document.addEventListener('visibilitychange', () => {
-    if (
-      document.visibilityState === 'visible' &&
-      document.querySelector('.cl-contributions-wrapper')
-    ) {
-      // Re-render when tab becomes visible (performance optimization)
-    }
-  });
 
-  // Re-render on theme change from popup
   try {
-    chrome.storage.onChanged.addListener((changes) => {
-      if (changes.contributionLandsPopupSettings) {
-        document.querySelector('.cl-contributions-wrapper')?.remove();
-        document.querySelector('.cl-toggle-option')?.parentElement?.remove();
-        generateIsometricChart();
+    chrome.storage.onChanged.addListener((changes, area) => {
+      if (area === 'sync' && changes[POPUP_KEY]) {
+        teardown();
+        void generate();
+        return;
+      }
+      if (area !== 'local') return;
+      const box = document.querySelector('.js-yearly-contributions');
+      if (changes.viewSetting) {
+        settings.viewSetting = changes.viewSetting.newValue as ViewSetting;
+        if (box) applyView(box, settings.viewSetting);
+      }
+      if (changes.motion) {
+        settings.motion = Boolean(changes.motion.newValue);
+        renderer?.setMotion(settings.motion && !matchMedia('(prefers-reduced-motion: reduce)').matches);
+      }
+      if (changes.showStats) {
+        settings.showStats = Boolean(changes.showStats.newValue);
+        if (box) applyStatsVisibility(box);
+        renderer?.relayout();
       }
     });
-  } catch {}
+  } catch {
+    // No extension context (harness or invalidated).
+  }
 })();
