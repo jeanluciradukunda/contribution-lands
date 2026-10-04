@@ -27,5 +27,7 @@
     { "sprite": "level-4-d.png", "name": "Central Park Tower" },
     { "sprite": "level-3-d.png", "name": "Woolworth Building" },
     { "sprite": "level-3-g.png", "name": "The Vessel" }
-  ]
+  ],
+  "today_sprites": ["special-today-0.png", "special-today-1.png", "special-today-2.png", "special-today-3.png", "special-today-4.png"],
+  "park_sprites": ["level-0-d.png", "level-0-f.png", "level-0-g.png", "level-0-h.png", "level-0-o.png", "level-0-p.png", "level-0-r.png", "level-0-s.png", "level-0-t.png", "level-0-v.png"]
 }

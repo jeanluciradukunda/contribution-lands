@@ -6,7 +6,7 @@
  */
 
 import { IsoRenderer, type ContributionData, type Sprite, type SpriteSet, type ThemeConfig } from './renderer';
-import { addDays, averagePerDay, computeStats, fetchDays, reconcileStart, tooltipCounts, extendWithHistory, formatDate, formatRange, longestStreak, currentStreak, type ContributionStats, type Streak } from './stats';
+import { addDays, averagePerDay, computeStats, fetchDays, reconcileStart, todayKey, tooltipCounts, extendWithHistory, formatDate, formatRange, longestStreak, currentStreak, type ContributionStats, type Streak } from './stats';
 import contentCss from './content.css?inline';
 
 type ViewSetting = 'squares' | 'cubes' | 'both';
@@ -118,7 +118,7 @@ async function spriteFiles(themeId: string): Promise<Record<string, string[]>> {
   return found;
 }
 
-async function loadTheme(): Promise<{ config: ThemeConfig; sprites: SpriteSet }> {
+async function loadTheme(): Promise<{ config: ThemeConfig; sprites: SpriteSet; todayStages: Array<ImageBitmap | null> }> {
   let themeId = 'city-nyc';
   try {
     const result = await chrome.storage.sync.get(POPUP_KEY);
@@ -147,7 +147,9 @@ async function loadTheme(): Promise<{ config: ThemeConfig; sprites: SpriteSet }>
       sprites[level] = loaded.filter((s): s is Sprite => s.image !== null);
     }),
   );
-  return { config, sprites };
+  const stageNames = config.today_sprites ?? (config.today_sprite ? [config.today_sprite] : []);
+  const todayStages = await Promise.all(stageNames.map((name) => loadBitmap(`themes/${themeId}/sprites/${name}`)));
+  return { config, sprites, todayStages };
 }
 
 // ============================================================
@@ -257,8 +259,11 @@ async function extendStreaks(data: ContributionData[], stats: ContributionStats,
     // Fall back to the visible calendar.
   }
   if (request.signal.aborted) return;
-  updateStreak('cl-longest', days === data ? stats.longest : longestStreak(days), 'No streak yet');
-  updateStreak('cl-current', days === data ? stats.current : currentStreak(days), 'No current streak');
+  const longest = days === data ? stats.longest : longestStreak(days);
+  const current = days === data ? stats.current : currentStreak(days);
+  updateStreak('cl-longest', longest, 'No streak yet');
+  updateStreak('cl-current', current, 'No current streak');
+  renderer?.setStreaks({ longest, current });
 }
 
 // ============================================================
@@ -355,7 +360,7 @@ async function generate() {
     const data = parseCalendarGraph();
     if (!data) return;
 
-    const { config, sprites } = await loadTheme();
+    const { config, sprites, todayStages } = await loadTheme();
     if (document.querySelector('.cl-contributions-wrapper') || !calendarGraph.isConnected) return;
 
     const wrapper = document.createElement('div');
@@ -369,7 +374,10 @@ async function generate() {
     wrapper.append(canvas);
 
     const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const stats = computeStats(data);
     renderer = new IsoRenderer(canvas, data, config, sprites, {
+      today: { date: todayKey(), stages: todayStages },
+      streaks: { longest: stats.longest, current: stats.current },
       motion: settings.motion && !reducedMotion,
       obstacles: () => {
         const panel = wrapper.querySelector<HTMLElement>('.cl-panel-top');
@@ -382,7 +390,6 @@ async function generate() {
 
     const heading = box.querySelector('h2')?.textContent ?? '';
     const viewingYear = /in \d{4}/.test(heading);
-    const stats = computeStats(data);
     const shownTotal = headingTotal(box);
     if (shownTotal !== null && shownTotal !== stats.total) void alignWithHeading(stats, shownTotal);
     const pending = pendingHistory(data, stats);

@@ -23,6 +23,20 @@ export interface ThemeConfig {
   ui_accent?: string;
   entities?: Array<{ type: string; count: number; speed: number; flyer?: boolean }>;
   landmarks?: Array<{ sprite: string; name: string }>;
+  park_sprites?: string[];
+  today_sprite?: string;
+  today_sprites?: string[];
+}
+
+export interface StreakSpan {
+  length: number;
+  start: string | null;
+  end: string | null;
+}
+
+export interface Streaks {
+  longest: StreakSpan;
+  current: StreakSpan;
 }
 
 export interface Sprite {
@@ -37,6 +51,9 @@ export interface RendererOptions {
   /** Overlays (in canvas CSS px, measured from the top) that tall sprites must not hide behind. */
   obstacles?: () => Array<{ left: number; right: number; bottom: number }>;
   onSelect?: (date: string) => void;
+  /** Construction sprites for today's lot: one per level, or a single one used only while today is empty. */
+  today?: { date: string; stages: Array<ImageBitmap | null> };
+  streaks?: Streaks;
 }
 
 const TW = 20;
@@ -52,6 +69,8 @@ const SHADOW_ALPHA = 0.35;
 const FOREST_WIDTH = 1.25;
 
 const FRAME_MS = 1000 / 30;
+const VIADUCT_HEIGHT = 12;
+const TRAIN_SPEED = 2.2;
 
 const CAR_COLOURS = ['#c8453a', '#e9e6df', '#3569a8', '#41444b', '#7d8a96', '#2f7a5b'];
 const TAXI_YELLOW = '#f0bf2c';
@@ -64,6 +83,14 @@ interface Cell {
   width: number;
   height: number;
   landmark: { name: string; rank: number } | null;
+  underConstruction: boolean;
+}
+
+interface StreakPath {
+  kind: 'longest' | 'current';
+  span: StreakSpan;
+  x0: number;
+  x1: number;
 }
 
 interface Rect {
@@ -110,6 +137,10 @@ function shade(hex: string, factor: number): string {
   return `#${((ch(16) << 16) | (ch(8) << 8) | ch(0)).toString(16).padStart(6, '0')}`;
 }
 
+function fmtDay(date: string): string {
+  return new Date(`${date}T00:00:00Z`).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', timeZone: 'UTC' });
+}
+
 function ordinal(n: number): string {
   const suffix = n % 100 >= 11 && n % 100 <= 13 ? 'th' : ['th', 'st', 'nd', 'rd'][n % 10] ?? 'th';
   return `${n}${suffix}`;
@@ -148,6 +179,11 @@ export class IsoRenderer {
   private selected: Cell | null = null;
   private readonly muted = new Map<ImageBitmap, HTMLCanvasElement>();
   private readonly onSelect: RendererOptions['onSelect'];
+  private streaks: Streaks | null;
+  private streakPaths: StreakPath[] = [];
+  private readonly hitPaths = new Map<StreakPath, Path2D>();
+  private trainPos = 0;
+  private trainDir: 1 | -1 = 1;
   private visible = true;
   private frameId: number | null = null;
   private lastFrame = 0;
@@ -174,14 +210,16 @@ export class IsoRenderer {
     this.motion = options.motion;
     this.obstacles = options.obstacles;
     this.onSelect = options.onSelect;
+    this.streaks = options.streaks ?? null;
 
     this.weeks = Math.max(...contributions.map((c) => c.week)) + 1;
     this.margin = this.isCity ? STREET : 0.35;
     this.extentX = this.gxOf(this.weeks - 1) + 1 + this.margin;
     this.extentY = this.gyOf(6) + 1 + this.margin;
 
-    this.buildCells(contributions);
+    this.buildCells(contributions, options.today);
     this.buildStreets();
+    this.buildStreakPaths();
     this.spawnEntities();
 
     this.tooltip = this.createTooltip();
@@ -211,7 +249,7 @@ export class IsoRenderer {
     return this.margin + day + (this.isCity && day >= STREET_BEFORE_DAY ? STREET : 0);
   }
 
-  private buildCells(contributions: ContributionData[]) {
+  private buildCells(contributions: ContributionData[], today: RendererOptions['today']) {
     const byName = new Map<string, ImageBitmap>();
     for (const level of Object.values(this.sprites)) for (const sp of level) byName.set(sp.name, sp.image);
     const landmarks = (this.theme.landmarks ?? []).filter((l) => byName.has(l.sprite));
@@ -222,15 +260,30 @@ export class IsoRenderer {
       .sort((a, b) => b.count - a.count || b.date.localeCompare(a.date));
     const landmarkFor = new Map(ranked.slice(0, landmarks.length).map((c, i) => [c.date, { ...landmarks[i], rank: i + 1 }]));
 
+    const parks = new Set((this.theme.park_sprites ?? []).map((name) => byName.get(name)).filter(Boolean));
+
     const widthFactor = this.isCity ? BUILDING_WIDTH : FOREST_WIDTH;
     for (const data of contributions) {
       const all = (this.sprites[data.level] ?? []).map((sp) => sp.image);
       const unreserved = all.filter((img) => !reserved.has(img));
-      const pool = unreserved.length ? unreserved : all;
+      let pool = unreserved.length ? unreserved : all;
+      if (data.level === 0 && parks.size) {
+        const weekend = [0, 6].includes(new Date(`${data.date}T00:00:00Z`).getUTCDay());
+        const matching = pool.filter((img) => parks.has(img) === weekend);
+        if (matching.length) pool = matching;
+      }
       const landmark = landmarkFor.get(data.date);
+      const stage = data.date === today?.date ? (today.stages.length > 1 ? today.stages[data.level] : data.count === 0 ? today.stages[0] : null) : null;
+      const underConstruction = Boolean(stage);
       const rng = mulberry32((data.week * 7 + data.day) * 31337 + 12345);
-      const sprite = landmark ? byName.get(landmark.sprite)! : pool.length ? pool[Math.floor(rng() * pool.length)] : null;
-      const factor = data.level === 0 && !landmark ? 1 : widthFactor;
+      const sprite = underConstruction
+        ? stage!
+        : landmark
+          ? byName.get(landmark.sprite)!
+          : pool.length
+            ? pool[Math.floor(rng() * pool.length)]
+            : null;
+      const factor = data.level === 0 && !landmark && !underConstruction ? 1 : widthFactor;
       const width = TW * factor;
       this.cells.push({
         data,
@@ -240,9 +293,36 @@ export class IsoRenderer {
         width,
         height: sprite ? width * (sprite.height / sprite.width) : 0,
         landmark: landmark ? { name: landmark.name, rank: landmark.rank } : null,
+        underConstruction,
       });
     }
     this.cells.sort((a, b) => a.gx + a.gy - (b.gx + b.gy));
+  }
+
+  /** Clips each streak to the visible calendar and maps it to a run of weeks along the front street. */
+  private buildStreakPaths() {
+    this.streakPaths = [];
+    if (!this.streaks) return;
+    const byDate = new Map(this.cells.map((c) => [c.data.date, c]));
+    const dates = [...byDate.keys()].sort();
+    for (const kind of ['longest', 'current'] as const) {
+      const span = this.streaks[kind];
+      if (!span.length || !span.start || !span.end) continue;
+      const start = byDate.get(span.start < dates[0] ? dates[0] : span.start);
+      const end = byDate.get(span.end);
+      if (!start || !end) continue;
+      this.streakPaths.push({ kind, span, x0: start.gx, x1: end.gx + 1 });
+    }
+  }
+
+  setStreaks(streaks: Streaks) {
+    this.streaks = streaks;
+    this.buildStreakPaths();
+    if (this.cssWidth) this.layout();
+  }
+
+  private get frontStreet(): number {
+    return this.extentY - this.margin / 2;
   }
 
   private buildStreets() {
@@ -338,6 +418,7 @@ export class IsoRenderer {
 
     if (this.isCity) this.drawRoadMarkings(ctx);
     this.drawShadows(ctx);
+    this.drawCurrentStreak(ctx);
 
     ctx.strokeStyle = this.theme.ground_stroke;
     ctx.globalAlpha = 0.35;
@@ -442,6 +523,101 @@ export class IsoRenderer {
     ctx.restore();
   }
 
+  private drawCurrentStreak(ctx: CanvasRenderingContext2D) {
+    const path = this.streakPaths.find((p) => p.kind === 'current');
+    if (!path) return;
+    const y = this.frontStreet;
+    const a = this.toScreen(path.x0, y);
+    const b = this.toScreen(path.x1, y);
+    ctx.save();
+    ctx.lineCap = 'round';
+    ctx.strokeStyle = this.theme.ui_accent ?? '#ffcc73';
+    ctx.shadowColor = this.theme.ui_accent ?? '#ffcc73';
+    ctx.shadowBlur = 6 * this.scale;
+    ctx.lineWidth = Math.max(1.5, 0.22 * TH * this.scale);
+    ctx.globalAlpha = 0.9;
+    ctx.beginPath();
+    ctx.moveTo(a.x, a.y);
+    ctx.lineTo(b.x, b.y);
+    ctx.stroke();
+    ctx.restore();
+
+    const hit = new Path2D();
+    const w = 0.35;
+    const q = [this.toScreen(path.x0, y - w), this.toScreen(path.x1, y - w), this.toScreen(path.x1, y + w), this.toScreen(path.x0, y + w)];
+    hit.moveTo(q[0].x, q[0].y);
+    for (const p of q.slice(1)) hit.lineTo(p.x, p.y);
+    hit.closePath();
+    this.hitPaths.set(path, hit);
+  }
+
+  /** An elevated railway over the weeks of the longest streak, in front of every building. */
+  private drawViaduct() {
+    const path = this.streakPaths.find((p) => p.kind === 'longest');
+    if (!path) return;
+    const ctx = this.ctx;
+    const y = this.frontStreet;
+    const h = this.isCity ? VIADUCT_HEIGHT : 3;
+    const steel = this.isCity ? '#55705f' : '#8a6a45';
+    const half = 0.22;
+    const up = (z: number) => z * this.scale;
+    const pt = (gx: number, gy: number, z: number) => {
+      const s = this.toScreen(gx, gy);
+      return { x: s.x, y: s.y - up(z) };
+    };
+    const poly = (pts: Array<{ x: number; y: number }>, fill: string) => {
+      ctx.beginPath();
+      ctx.moveTo(pts[0].x, pts[0].y);
+      for (const q of pts.slice(1)) ctx.lineTo(q.x, q.y);
+      ctx.closePath();
+      ctx.fillStyle = fill;
+      ctx.fill();
+    };
+
+    ctx.save();
+    if (this.isCity) {
+      for (let x = path.x0 + 0.4; x < path.x1; x += 1) {
+        poly([pt(x - 0.05, y + half, 0), pt(x + 0.05, y + half, 0), pt(x + 0.05, y + half, h), pt(x - 0.05, y + half, h)], shade(steel, 0.7));
+      }
+    }
+    const deckBottom = h - 1.4;
+    poly([pt(path.x0, y + half, deckBottom), pt(path.x1, y + half, deckBottom), pt(path.x1, y + half, h), pt(path.x0, y + half, h)], shade(steel, 0.8));
+    poly([pt(path.x1, y - half, deckBottom), pt(path.x1, y + half, deckBottom), pt(path.x1, y + half, h), pt(path.x1, y - half, h)], shade(steel, 0.6));
+    poly([pt(path.x0, y - half, h), pt(path.x1, y - half, h), pt(path.x1, y + half, h), pt(path.x0, y + half, h)], steel);
+    const accent = this.theme.ui_accent ?? '#ffcc73';
+    poly([pt(path.x0, y + half, h - 0.9), pt(path.x1, y + half, h - 0.9), pt(path.x1, y + half, h - 0.3), pt(path.x0, y + half, h - 0.3)], accent);
+
+    if (this.isCity) {
+      const span = path.x1 - path.x0;
+      const carLength = Math.min(0.75, span / 3);
+      const head = path.x0 + carLength * 2 + Math.max(0, Math.min(1, this.trainPos)) * (span - carLength * 2);
+      for (let i = 0; i < 2; i++) {
+        const x1 = head - i * (carLength + 0.04);
+        const x0 = x1 - carLength;
+        const top = h + 2.4;
+        poly([pt(x0, y + 0.11, h), pt(x1, y + 0.11, h), pt(x1, y + 0.11, top), pt(x0, y + 0.11, top)], '#c9ced4');
+        poly([pt(x1, y - 0.11, h), pt(x1, y + 0.11, h), pt(x1, y + 0.11, top), pt(x1, y - 0.11, top)], '#9aa1a8');
+        poly([pt(x0, y - 0.11, top), pt(x1, y - 0.11, top), pt(x1, y + 0.11, top), pt(x0, y + 0.11, top)], '#e3e6ea');
+        ctx.strokeStyle = this.theme.ui_accent ?? '#ffcc73';
+        ctx.lineWidth = Math.max(0.6, 0.3 * this.scale);
+        const w0 = pt(x0 + 0.06, y + 0.11, h + 1.5);
+        const w1 = pt(x1 - 0.06, y + 0.11, h + 1.5);
+        ctx.beginPath();
+        ctx.moveTo(w0.x, w0.y);
+        ctx.lineTo(w1.x, w1.y);
+        ctx.stroke();
+      }
+    }
+    ctx.restore();
+
+    const hit = new Path2D();
+    const q = [pt(path.x0, y - half, h + 3), pt(path.x1, y - half, h + 3), pt(path.x1, y + half, 0), pt(path.x0, y + half, 0)];
+    hit.moveTo(q[0].x, q[0].y);
+    for (const p of q.slice(1)) hit.lineTo(p.x, p.y);
+    hit.closePath();
+    this.hitPaths.set(path, hit);
+  }
+
   private drawRoadMarkings(ctx: CanvasRenderingContext2D) {
     ctx.save();
     ctx.strokeStyle = 'rgba(232, 205, 120, 0.55)';
@@ -500,6 +676,17 @@ export class IsoRenderer {
     ctx.imageSmoothingQuality = 'high';
     if (this.ground) ctx.drawImage(this.ground, 0, 0, this.cssWidth, this.cssHeight);
 
+    const site = this.cells.find((c) => c.underConstruction);
+    if (site) {
+      ctx.save();
+      this.pathQuad(ctx, { x0: site.gx - 0.06, y0: site.gy - 0.06, x1: site.gx + 1.06, y1: site.gy + 1.06 });
+      ctx.strokeStyle = this.theme.ui_accent ?? '#ffcc73';
+      ctx.lineWidth = Math.max(1, 0.12 * TH * this.scale);
+      ctx.globalAlpha = this.frameId === null ? 0.8 : 0.45 + 0.4 * Math.sin(performance.now() / 400);
+      ctx.stroke();
+      ctx.restore();
+    }
+
     for (const mark of new Set([this.selected, this.hovered])) {
       if (!mark) continue;
       ctx.save();
@@ -534,6 +721,7 @@ export class IsoRenderer {
       }
     }
     for (; ci < cars.length; ci++) this.drawCar(cars[ci].car, cars[ci].gx, cars[ci].gy);
+    this.drawViaduct();
 
     for (const f of this.flyers) this.drawFlyer(f);
   }
@@ -692,6 +880,19 @@ export class IsoRenderer {
     ctx.restore();
   }
 
+  private stepTrain(dt: number) {
+    const path = this.streakPaths.find((p) => p.kind === 'longest');
+    if (!path) return;
+    this.trainPos += (this.trainDir * TRAIN_SPEED * dt) / Math.max(1, path.x1 - path.x0);
+    if (this.trainPos > 1) {
+      this.trainPos = 1;
+      this.trainDir = -1;
+    } else if (this.trainPos < 0) {
+      this.trainPos = 0;
+      this.trainDir = 1;
+    }
+  }
+
   private stepFlyer(f: Flyer, dt: number) {
     f.phase += dt;
     f.gx += f.vx * dt;
@@ -738,7 +939,8 @@ export class IsoRenderer {
   // ------------------------------------------------------------
 
   private get animated(): boolean {
-    return this.motion && (this.cars.length > 0 || this.flyers.length > 0);
+    const train = this.isCity && this.streakPaths.some((p) => p.kind === 'longest');
+    return this.motion && (this.cars.length > 0 || this.flyers.length > 0 || train);
   }
 
   relayout() {
@@ -771,6 +973,7 @@ export class IsoRenderer {
     this.elapsed = 0;
     for (const car of this.cars) this.stepCar(car, step);
     for (const f of this.flyers) this.stepFlyer(f, step);
+    this.stepTrain(step);
     this.draw();
   };
 
@@ -809,6 +1012,14 @@ export class IsoRenderer {
     return this.cells.find((c) => gx >= c.gx && gx < c.gx + 1 && gy >= c.gy && gy < c.gy + 1) ?? null;
   }
 
+  private streakAt(x: number, y: number): StreakPath | null {
+    for (const path of ['longest', 'current'].flatMap((k) => this.streakPaths.filter((p) => p.kind === k))) {
+      const hit = this.hitPaths.get(path);
+      if (hit && this.ctx.isPointInPath(hit, x * this.dpr, y * this.dpr)) return path;
+    }
+    return null;
+  }
+
   private createTooltip(): HTMLElement {
     const existing = document.getElementById('cl-tooltip');
     if (existing) return existing;
@@ -822,6 +1033,24 @@ export class IsoRenderer {
   private bindPointer() {
     const onMove = (e: PointerEvent) => {
       const rect = this.canvas.getBoundingClientRect();
+      const streak = this.streakAt(e.clientX - rect.left, e.clientY - rect.top);
+      if (streak) {
+        if (this.hovered) {
+          this.hovered = null;
+          if (!this.frameId) this.draw();
+        }
+        this.canvas.style.cursor = '';
+        const label = streak.kind === 'longest' ? 'Longest streak' : 'Current streak';
+        this.tooltip.textContent = `${label}: ${streak.span.length} days`;
+        const line = document.createElement('span');
+        line.className = 'cl-tooltip-landmark';
+        line.textContent = `${fmtDay(streak.span.start!)} → ${fmtDay(streak.span.end!)}`;
+        this.tooltip.append(line);
+        this.tooltip.style.left = `${e.clientX}px`;
+        this.tooltip.style.top = `${e.clientY - 12}px`;
+        this.tooltip.classList.add('is-visible');
+        return;
+      }
       const cell = this.cellAt(e.clientX - rect.left, e.clientY - rect.top);
       if (cell !== this.hovered) {
         this.hovered = cell;
@@ -837,7 +1066,11 @@ export class IsoRenderer {
         weekday: 'short', day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC',
       });
       const label = count === 0 ? 'No contributions' : `${count.toLocaleString()} contribution${count === 1 ? '' : 's'}`;
-      this.tooltip.textContent = `${label} on ${when}`;
+      this.tooltip.textContent = !cell.underConstruction
+        ? `${label} on ${when}`
+        : count === 0
+          ? 'No contributions yet today'
+          : `${label} today, still building`;
       if (cell.landmark) {
         const line = document.createElement('span');
         line.className = 'cl-tooltip-landmark';

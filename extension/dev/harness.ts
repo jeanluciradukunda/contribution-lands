@@ -31,6 +31,19 @@ function area(name: 'local' | 'sync') {
 
 document.getElementById('fixture')!.innerHTML = fixture;
 
+const todayLevel = new URLSearchParams(location.search).get('today');
+if (todayLevel !== null) {
+  const now = new Date();
+  const today = new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate())).toISOString().slice(0, 10);
+  const cell = document.querySelector<HTMLElement>(`td.ContributionCalendar-day[data-date="${today}"]`);
+  const tip = cell && document.querySelector(`tool-tip[for="${cell.id}"]`);
+  if (cell && tip) {
+    const level = Number(todayLevel);
+    tip.textContent = level === 0 ? 'No contributions on today.' : `${level * 9} contributions on today.`;
+    cell.dataset.level = String(level);
+  }
+}
+
 const themes = ['city-nyc', 'city-paris', 'city-capetown', 'city-tokyo', 'forest-summer', 'forest-autumn', 'forest-winter', 'forest-spring', 'forest-rainforest'];
 const select = document.getElementById('theme') as HTMLSelectElement;
 const current = (store.sync.contributionLandsPopupSettings as { selectedThemeId?: string } | undefined)?.selectedThemeId ?? 'city-nyc';

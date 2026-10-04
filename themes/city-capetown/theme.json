@@ -15,5 +15,7 @@
     { "sprite": "level-4-h.png", "name": "V&A Clock Tower" },
     { "sprite": "level-4-b.png", "name": "Cape Town Stadium" },
     { "sprite": "level-4-c.png", "name": "Portside Tower" }
-  ]
+  ],
+  "today_sprite": "special-today.png",
+  "park_sprites": ["level-0-a.png", "level-0-d.png", "level-0-e.png"]
 }

@@ -33,7 +33,7 @@ function utc(date: string): Date {
   return new Date(`${date}T00:00:00Z`);
 }
 
-function todayKey(): string {
+export function todayKey(): string {
   const now = new Date();
   return new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate())).toISOString().slice(0, 10);
 }
