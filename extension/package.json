@@ -7,7 +7,8 @@
     "dev": "vite",
     "build": "tsc && vite build",
     "preview": "vite preview",
-    "harness": "vite --config dev/vite.harness.config.ts"
+    "harness": "vite --config dev/vite.harness.config.ts",
+    "build:card": "vite build --config card/vite.card.config.ts"
   },
   "dependencies": {
     "react": "^19.0.0",

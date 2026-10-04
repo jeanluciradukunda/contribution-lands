@@ -1,0 +1,57 @@
+name: Contribution Lands card
+description: Render your GitHub contribution graph as an isometric city or forest for your profile README.
+branding:
+  icon: map
+  color: green
+
+inputs:
+  username:
+    description: GitHub username to render
+    default: ${{ github.repository_owner }}
+  theme:
+    description: Theme id, for example city-nyc, city-paris, city-capetown or forest-rainforest
+    default: city-nyc
+  output-dir:
+    description: Directory for contribution-land-light.webp and contribution-land-dark.webp
+    default: .
+
+outputs:
+  light:
+    description: Path of the light-mode image
+    value: ${{ steps.render.outputs.light }}
+  dark:
+    description: Path of the dark-mode image
+    value: ${{ steps.render.outputs.dark }}
+
+runs:
+  using: composite
+  steps:
+    - uses: pnpm/action-setup@v4
+      with:
+        version: 9
+    - uses: actions/setup-node@v4
+      with:
+        node-version: 22
+    - name: Build card page
+      shell: bash
+      working-directory: ${{ github.action_path }}/extension
+      run: pnpm install --frozen-lockfile && pnpm build:card
+    - name: Install renderer
+      shell: bash
+      working-directory: ${{ github.action_path }}/tools/card
+      run: npm ci
+    - name: Render
+      id: render
+      shell: bash
+      env:
+        USERNAME: ${{ inputs.username }}
+        THEME: ${{ inputs.theme }}
+        OUT: ${{ inputs.output-dir }}
+      run: |
+        mkdir -p "$OUT"
+        light="$OUT/contribution-land-light.webp"
+        dark="$OUT/contribution-land-dark.webp"
+        node "$GITHUB_ACTION_PATH/tools/card/render.mjs" --user "$USERNAME" --theme "$THEME" --out "$light"
+        node "$GITHUB_ACTION_PATH/tools/card/render.mjs" --user "$USERNAME" --theme "$THEME" --scheme dark --out "$dark"
+        echo "light=$light" >> "$GITHUB_OUTPUT"
+        echo "dark=$dark" >> "$GITHUB_OUTPUT"

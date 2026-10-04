@@ -37,3 +37,6 @@ reports/
 # Environment
 .env
 .env.local
+
+# README card build
+extension/card-dist/
