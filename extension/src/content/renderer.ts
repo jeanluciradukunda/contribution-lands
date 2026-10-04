@@ -43,11 +43,11 @@ const TW = 20;
 const TH = 10;
 const SLAB_DEPTH = 7;
 
-const BLOCK_WEEKS = 4;
+const BLOCK_WEEKS = 6;
 const STREET_BEFORE_DAY = 4;
-const STREET = 0.8;
+const STREET = 0.5;
 
-const BUILDING_WIDTH = 0.9;
+const BUILDING_WIDTH = 0.95;
 const SHADOW_ALPHA = 0.35;
 const FOREST_WIDTH = 1.25;
 
@@ -283,7 +283,7 @@ export class IsoRenderer {
     const right = iso(this.extentX, 0).x;
     const bottom = iso(this.extentX, this.extentY).y + SLAB_DEPTH;
 
-    const padX = Math.max(16, cssWidth * 0.04);
+    const padX = 16;
     const padBottom = 28;
     this.scale = (cssWidth - padX * 2) / (right - left);
     this.originX = padX - left * this.scale;
@@ -608,7 +608,7 @@ export class IsoRenderer {
   }
 
   private carCentre(car: Car) {
-    const lane = 0.17 * car.dir;
+    const lane = 0.11 * car.dir;
     return car.alongX
       ? { gx: car.pos, gy: car.fixed + lane }
       : { gx: car.fixed - lane, gy: car.pos };
@@ -645,7 +645,7 @@ export class IsoRenderer {
 
   private drawCar(car: Car, gx: number, gy: number) {
     const ctx = this.ctx;
-    const half = car.alongX ? { x: 0.27, y: 0.14 } : { x: 0.14, y: 0.27 };
+    const half = car.alongX ? { x: 0.22, y: 0.1 } : { x: 0.1, y: 0.22 };
     const lift = (h: number) => h * this.scale;
 
     const box = (hx: number, hy: number, z0: number, z1: number, top: string, sideX: string, sideY: string) => {
@@ -674,7 +674,7 @@ export class IsoRenderer {
     ctx.fill();
 
     box(half.x, half.y, 0.6, 2.4, car.colour, shade(car.colour, 0.72), shade(car.colour, 0.86));
-    const cabin = car.alongX ? { x: 0.14, y: 0.11 } : { x: 0.11, y: 0.14 };
+    const cabin = car.alongX ? { x: 0.11, y: 0.08 } : { x: 0.08, y: 0.11 };
     box(cabin.x, cabin.y, 2.4, 3.6, shade(car.colour, 0.95), '#5d7183', '#7890a5');
 
     const front = car.alongX ? { dx: half.x * car.dir, dy: 0 } : { dx: 0, dy: half.y * car.dir };
