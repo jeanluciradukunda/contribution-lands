@@ -17,5 +17,7 @@
     { "sprite": "level-4-b.png", "name": "Notre-Dame" },
     { "sprite": "level-4-c.png", "name": "Arc de Triomphe" },
     { "sprite": "level-4-f.png", "name": "La Grande Arche" }
-  ]
+  ],
+  "today_sprite": "special-today.png",
+  "park_sprites": ["level-0-c.png", "level-0-d.png", "level-0-g.png"]
 }

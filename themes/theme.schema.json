@@ -56,6 +56,22 @@
         "additionalProperties": false
       }
     },
+    "today_sprite": {
+      "type": "string",
+      "description": "Sprite for today's lot while today has no contributions yet"
+    },
+    "today_sprites": {
+      "type": "array",
+      "items": { "type": "string" },
+      "minItems": 5,
+      "maxItems": 5,
+      "description": "Construction stages for today's lot, one per contribution level; replaces today_sprite"
+    },
+    "park_sprites": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Level-0 sprites used for weekend days with no contributions"
+    },
     "particles": {
       "type": ["object", "null"],
       "properties": {
