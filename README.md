@@ -10,7 +10,7 @@
 </p>
 
 <p align="center">
-  <img src="docs/hero-banner.svg" alt="Forest and city biome blueprint showing level progression from bare earth to ancient redwood and empty lot to supertall skyscraper" width="860">
+  <img src="docs/hero-nyc.png" alt="A year of GitHub contributions rendered as an isometric NYC skyline — brownstones, apartments, skyscrapers, and supertalls" width="860">
 </p>
 
 > Transform your GitHub contribution graph into a living isometric world — forests, cities, and beyond.
