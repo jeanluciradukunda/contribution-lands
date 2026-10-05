@@ -10,7 +10,11 @@
 <meta name="theme-color" content="#09090b" media="(prefers-color-scheme: dark)">
 <meta property="og:title" content="Contribution Lands">
 <meta property="og:description" content="Your contribution year, drawn as a city plan and built as New York.">
-<meta property="og:image" content="https://jeanluciradukunda.github.io/contribution-lands/card-example.png">
+<meta property="og:image" content="https://jeanluciradukunda.github.io/contribution-lands/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="A line drawing of a contribution year, partly built into New York towers">
+<meta property="og:url" content="https://jeanluciradukunda.github.io/contribution-lands/">
 <meta property="og:type" content="website">
 <meta name="twitter:card" content="summary_large_image">
 <link rel="icon" type="image/png" sizes="32x32" href="assets/icon-32.png">
@@ -369,10 +373,10 @@ pre code { background: none; border: 0; padding: 0; font-size: inherit; }
 
     <figure class="card hero-card" style="margin-inline:0;margin-bottom:0">
       <div class="bar">
-        <span class="mono" id="hero-spec">fig. 01 · a sample year · 1 lot = 1 day</span>
+        <span class="mono" id="hero-spec">fig. 01 · a real year · 1 lot = 1 day</span>
         <button type="button" class="pill" id="build-all" aria-pressed="false">Show the city</button>
       </div>
-      <div class="hero-fig" id="hero-fig" tabindex="0" role="group" aria-roledescription="drawing" aria-label="A line drawing of a sample contribution year, one lot per day. Move the pointer, or use the arrow keys, to build the lots near it as New York buildings." aria-describedby="hero-read">
+      <div class="hero-fig" id="hero-fig" tabindex="0" role="group" aria-roledescription="drawing" aria-label="A line drawing of a real contribution year, one lot per day. Move the pointer, or use the arrow keys, to build the lots near it as New York buildings." aria-describedby="hero-read">
         <svg class="hl" id="hero-svg" aria-hidden="true"></svg>
         <noscript><img src="card-example.png" alt="A contribution land rendered as an isometric New York City with stats panels." width="1200" height="761"></noscript>
       </div>
@@ -397,7 +401,7 @@ pre code { background: none; border: 0; padding: 0; font-size: inherit; }
       <div class="txt">
         <p>Each lot is one day of your contribution graph. The commits, pull requests, reviews and issues GitHub already counts for that day set its shade, and the shade sets its height.</p>
         <p>The extension reads the calendar on the profile you are viewing, and the public contributions page for earlier dates so streaks are complete. Nothing is sent anywhere else and nothing is stored but your settings. <a href="privacy.html">Privacy policy</a>.</p>
-        <p class="mono" style="margin:0">Works on any profile, yours or anyone's.</p>
+        <p class="mono" style="margin:0">Works on any profile, yours or anyone's. The drawing above is the maker's own last 22 weeks, refreshed every night.</p>
       </div>
     </article>
   </section>
@@ -607,6 +611,7 @@ pnpm install &amp;&amp; pnpm build</code></pre></div></li>
   </div>
 </footer>
 
+<script src="data/year.js"></script>
 <script>
 (function () {
   'use strict';
@@ -701,8 +706,9 @@ pnpm install &amp;&amp; pnpm build</code></pre></div></li>
   }
 
   /* Sample year */
+  var REAL = window.CL_YEAR && window.CL_YEAR.days && window.CL_YEAR.days.length >= 7 ? window.CL_YEAR : null;
   var now = new Date();
-  var TODAY = new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate()));
+  var TODAY = REAL ? new Date(REAL.days[REAL.days.length - 1][0] + 'T00:00:00Z') : new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate()));
   var DOW = TODAY.getUTCDay();
   var WEEKS = 22;
   var dayFmt = new Intl.DateTimeFormat('en-GB', { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'UTC' });
@@ -712,7 +718,20 @@ pnpm install &amp;&amp; pnpm build</code></pre></div></li>
   function levelOf(c) { return c === 0 ? 0 : c <= 3 ? 1 : c <= 7 ? 2 : c <= 12 ? 3 : 4; }
   function countText(c) { return c === 0 ? 'no contributions' : c + ' contribution' + (c === 1 ? '' : 's'); }
 
-  var DAYS = (function () {
+  function realDays() {
+    var r = rng(4021), first = new Date(REAL.days[0][0] + 'T00:00:00Z').getTime();
+    return REAL.days.map(function (row) {
+      var date = new Date(row[0] + 'T00:00:00Z'), idx = Math.round((date.getTime() - first) / 864e5);
+      var w = Math.floor(idx / 7), d = date.getUTCDay(), c = row[1], level = row[2], weekend = d === 0 || d === 6;
+      var today = date.getTime() === TODAY.getTime(), name;
+      if (today) name = 'special-today-' + level;
+      else if (level === 0) { var pool = weekend ? POOLS.park : POOLS.lot; name = pool[Math.floor(r() * pool.length)]; }
+      else name = POOLS[level][Math.floor(r() * POOLS[level].length)];
+      return { w: w, d: d, date: date, count: c, level: level, weekend: weekend, today: today, name: name };
+    }).filter(function (d) { return d.w < WEEKS; });
+  }
+
+  var DAYS = REAL ? realDays() : (function () {
     var r = rng(4021), out = [];
     for (var w = 0; w < WEEKS; w++) {
       for (var d = 0; d < 7; d++) {
@@ -843,7 +862,7 @@ pnpm install &amp;&amp; pnpm build</code></pre></div></li>
       svg.setAttribute('viewBox', [minX, minY - 4, maxX - minX, maxY - minY + 4].map(r2).join(' '));
       base = new Set();
       if (RM.matches) lots.forEach(function (l) { if (l.d.w - W0 >= weeks / 2) base.add(l); });
-      spec.textContent = 'fig. 01 · a sample year, ' + weeks + ' weeks';
+      spec.textContent = REAL ? 'fig. 01 · @' + REAL.user + ', the last ' + weeks + ' weeks' : 'fig. 01 · a sample year, ' + weeks + ' weeks';
       sizeText();
       apply();
     }
