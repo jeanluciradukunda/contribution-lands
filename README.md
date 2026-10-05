@@ -10,7 +10,7 @@
 </p>
 
 <p align="center">
-  <img src="docs/hero-banner.svg" alt="Forest and city biome blueprint showing level progression from bare earth to ancient redwood and empty lot to supertall skyscraper" width="860">
+  <a href="https://jeanluciradukunda.github.io/contribution-lands/"><img src="docs/readme-hero.webp" alt="A line drawing of a real contribution year building, lot by lot, into an isometric New York" width="860"></a>
 </p>
 
 > Turns the contribution graph on GitHub profile pages into an isometric New York skyline, with streaks, stats and landmarks.
