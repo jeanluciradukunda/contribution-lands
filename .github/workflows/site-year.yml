@@ -1,0 +1,26 @@
+name: Refresh site year
+
+on:
+  schedule:
+    - cron: "15 2 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  snapshot:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: node tools/site/snapshot-year.mjs jeanluciradukunda
+      - run: |
+          git diff --quiet docs/data/year.js && exit 0
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add docs/data/year.js
+          git commit -m "Refresh the site's contribution year"
+          git push

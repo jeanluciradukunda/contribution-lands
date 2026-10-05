@@ -1,1743 +1,1386 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en-GB">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Contribution Lands -- Chrome Extension for GitHub</title>
-<meta name="description" content="Transform GitHub's flat contribution graph into themed isometric worlds. Forests, cities, seasons. Free, open source Chrome extension.">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Contribution Lands: your contribution year, drawn and built as New York</title>
+<meta name="description" content="A free, open source Chrome extension that rebuilds the contribution graph on GitHub profile pages as an isometric New York City.">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#09090b" media="(prefers-color-scheme: dark)">
+<meta property="og:title" content="Contribution Lands">
+<meta property="og:description" content="Your contribution year, drawn as a city plan and built as New York.">
+<meta property="og:image" content="https://jeanluciradukunda.github.io/contribution-lands/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="A line drawing of a contribution year, partly built into New York towers">
+<meta property="og:url" content="https://jeanluciradukunda.github.io/contribution-lands/">
+<meta property="og:type" content="website">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="icon" type="image/png" sizes="32x32" href="assets/icon-32.png">
+<link rel="apple-touch-icon" href="assets/icon-128.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@300;400;500;600&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500&family=Instrument+Serif:ital@1&display=swap" rel="stylesheet">
 <style>
-/* ============================================================
-   DESIGN TOKENS
-   ============================================================ */
 :root {
-  --blueprint: #0a1628;
-  --grid: rgba(100,160,255,.06);
-  --line: #4a90d9;
-  --line-dim: #2a5a8a;
-  --accent: #ffcc73;
-  --green: #4ade80;
-  --text: #c8d8e8;
-  --text-muted: #5a7090;
-  --mono: 'IBM Plex Mono', monospace;
-  --sans: 'IBM Plex Sans', sans-serif;
+  --bg: #ffffff;
+  --card: #ffffff;
+  --line: #ebebee;
+  --lo: #e0e0e4;
+  --mid: #c3c3c9;
+  --edge: #a4a4ac;
+  --ink: #232327;
+  --text: #232327;
+  --muted: #6b6b73;
+  --soft: #f6f6f7;
+  --taxi: #f2c12e;
+  --taxi-side: #d6a619;
+  --taxi-end: #b88b0f;
+  --g0: #ebedf0; --g1: #9be9a8; --g2: #40c463; --g3: #30a14e; --g4: #216e39;
+  --sans: 'Geist', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --mono: 'Geist Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+  --serif: 'Instrument Serif', Georgia, serif;
+  --sw: .9;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #09090b;
+    --card: #0f0f12;
+    --line: #202024;
+    --lo: #29292e;
+    --mid: #4c4c54;
+    --edge: #8e8e97;
+    --ink: #fafafa;
+    --text: #ececee;
+    --muted: #a1a1aa;
+    --soft: #16161a;
+    --g0: #151b23; --g1: #033a16; --g2: #196c2e; --g3: #2ea043; --g4: #56d364;
+  }
 }
 
-/* ============================================================
-   RESET & BASE
-   ============================================================ */
-*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+*, *::before, *::after { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; scroll-behavior: smooth; }
+@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+body { margin: 0; background: var(--bg); color: var(--text); font: 400 15px/1.6 var(--sans); overflow-x: hidden; }
+img { max-width: 100%; height: auto; display: block; }
+a { color: inherit; text-decoration: underline; text-decoration-color: var(--mid); text-decoration-thickness: 1px; text-underline-offset: .22em; }
+a:hover { text-decoration-color: var(--ink); }
+:focus-visible { outline: 1.5px solid var(--ink); outline-offset: 3px; border-radius: 4px; }
+button { font: inherit; color: inherit; }
+.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.skip { position: absolute; left: -9999px; }
+.skip:focus { left: 16px; top: 12px; z-index: 20; background: var(--ink); color: var(--bg); padding: .4rem .7rem; border-radius: 6px; }
+.mono { font-family: var(--mono); font-size: 12px; letter-spacing: 0; color: var(--muted); }
+em.acc { font-family: var(--serif); font-style: italic; font-weight: 400; font-size: 1.12em; letter-spacing: 0; }
 
-html {
-  scroll-behavior: smooth;
-  -webkit-font-smoothing: antialiased;
-}
+/* Top bar */
+.top { border-bottom: 1px solid var(--line); }
+.top-in { max-width: 1280px; margin: 0 auto; padding: 0 24px; height: 56px; display: flex; align-items: center; gap: 12px; }
+.word { display: inline-flex; align-items: center; gap: 9px; text-decoration: none; font-weight: 500; font-size: 15px; letter-spacing: -.01em; }
+.word svg { width: 20px; height: 20px; }
+.top nav { margin-left: auto; display: flex; gap: 22px; font-size: 14px; }
+.top nav a { text-decoration: none; color: var(--muted); }
+.top nav a:hover { color: var(--text); }
+@media (max-width: 640px) { .top-in { padding: 0 16px; } .top nav { gap: 16px; } .top nav .wide { display: none; } }
 
-body {
-  font-family: var(--sans);
-  background-color: var(--blueprint);
-  color: var(--text);
-  line-height: 1.6;
-  overflow-x: hidden;
-  background-image:
-    repeating-linear-gradient(var(--grid) 0 1px, transparent 1px 40px),
-    repeating-linear-gradient(90deg, var(--grid) 0 1px, transparent 1px 40px);
-  background-size: 100% 100%;
-  background-attachment: fixed;
-}
-
-a { color: var(--line); text-decoration: none; transition: color .2s; }
-a:hover { color: var(--accent); }
-
-/* ============================================================
-   TYPOGRAPHY UTILITIES
-   ============================================================ */
-.section-label {
-  font-family: var(--mono);
-  font-size: .75rem;
-  font-weight: 500;
-  letter-spacing: .15em;
-  text-transform: uppercase;
-  color: var(--text-muted);
-  margin-bottom: 2.5rem;
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-}
-.section-label::after {
-  content: '';
-  flex: 1;
-  height: 1px;
-  background: var(--line-dim);
-  opacity: .4;
+/* Shell */
+.shell { max-width: 1280px; margin: 0 auto; padding: 0 24px; display: grid; grid-template-columns: 188px minmax(0, 1fr); gap: 56px; }
+.side { position: sticky; top: 0; align-self: start; padding: 44px 0 24px; }
+.side ol { list-style: none; margin: 0; padding: 0; }
+.side a { display: flex; justify-content: space-between; gap: 8px; padding: 5px 10px; margin: 0 -10px; border-radius: 7px; text-decoration: none; color: var(--muted); font-size: 14px; }
+.side a:hover { color: var(--text); }
+.side a[aria-current="true"] { color: var(--text); background: var(--soft); }
+.side a span { font-family: var(--mono); font-size: 12px; color: var(--muted); }
+.side .rule { border-top: 1px solid var(--line); margin: 10px 0; }
+main { min-width: 0; padding-bottom: 40px; }
+@media (max-width: 980px) {
+  .shell { grid-template-columns: minmax(0, 1fr); gap: 0; padding: 0 16px; }
+  .side { display: none; }
 }
 
-.mono { font-family: var(--mono); }
+/* Hero */
+.hero { padding: 56px 0 28px; }
+h1 { font-weight: 500; font-size: clamp(2rem, 4.4vw, 3.15rem); line-height: 1.08; letter-spacing: -.028em; margin: 0 0 18px; max-width: 18ch; text-wrap: balance; }
+.lede { font-size: 17px; color: var(--muted); max-width: 58ch; margin: 0 0 24px; }
+.actions { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+.btn { display: inline-flex; align-items: center; gap: 8px; height: 38px; padding: 0 16px; border-radius: 999px; border: 1px solid var(--line); text-decoration: none; font-size: 14px; font-weight: 500; background: var(--card); }
+.btn:hover { border-color: var(--mid); }
+.btn.dark { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+.btn.dark:hover { opacity: .9; }
+.facts { margin: 18px 0 0; }
 
-/* ============================================================
-   LAYOUT
-   ============================================================ */
-.container {
-  max-width: 1100px;
-  margin: 0 auto;
-  padding: 0 1.5rem;
-}
+/* Cards */
+.card { background: var(--card); border: 1px solid var(--line); border-radius: 14px; min-width: 0; position: relative; }
+.bar { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 12px 16px; flex-wrap: wrap; }
+.pill { height: 28px; padding: 0 12px; border-radius: 999px; border: 1px solid var(--line); background: var(--card); font-size: 12.5px; cursor: pointer; color: var(--text); }
+.pill:hover { border-color: var(--mid); }
+.pill[aria-pressed="true"] { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+.cap { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; padding: 14px 16px 0; }
+.cap h3 { margin: 0; font-size: 14.5px; font-weight: 500; letter-spacing: -.005em; }
+.cap { flex-wrap: wrap; }
+.cap .mono { min-width: 0; }
+.cap .ro { position: absolute; top: 12px; left: 16px; right: 16px; text-align: left; pointer-events: none; z-index: 2; }
+.card > p { margin: 3px 16px 16px; font-size: 13.5px; color: var(--muted); line-height: 1.5; }
 
-section {
-  padding: 6rem 0;
-}
+/* Hairline drawing */
+.hl { display: block; width: 100%; height: auto; overflow: visible; }
+.hl polygon, .hl path, .hl line, .hl circle, .hl ellipse { vector-effect: non-scaling-stroke; stroke-width: var(--sw); fill: none; stroke-linejoin: round; stroke-linecap: round; }
+.hl .pl { fill: var(--card); }
+.hl .e { stroke: var(--edge); }
+.hl .m { stroke: var(--mid); }
+.hl .l { stroke: var(--lo); }
+.hl .k { stroke: var(--ink); stroke-width: 1.25; }
+.hl .dash { stroke-dasharray: 2 3; }
+.hl .fk { fill: var(--ink); stroke: none; }
+.hl text { font-family: var(--mono); fill: var(--muted); }
+.hl image { pointer-events: none; }
 
-/* ============================================================
-   BUTTONS
-   ============================================================ */
-.btn {
-  display: inline-flex;
-  align-items: center;
-  gap: .5rem;
-  font-family: var(--mono);
-  font-size: .8rem;
-  font-weight: 500;
-  letter-spacing: .08em;
-  text-transform: uppercase;
-  padding: .75rem 1.5rem;
-  border: 1px solid transparent;
-  cursor: pointer;
-  transition: all .25s;
-  text-decoration: none;
+/* Hero figure */
+.hero-card { margin-top: 36px; }
+.hero-fig { position: relative; padding: 8px 24px 4px; touch-action: pan-y; cursor: crosshair; outline-offset: -6px; }
+.hero-fig:focus-visible { outline-offset: -6px; }
+.lot .wire { transition: opacity .5s ease .9s; }
+.lot.on .wire { opacity: 0; transition: opacity .2s ease; }
+.lot .spr { opacity: 0; transform: translateY(5px); transition: opacity .45s ease .9s, transform .45s ease .9s; }
+.lot.on .spr { opacity: 1; transform: none; transition: opacity .3s ease, transform .5s cubic-bezier(.2, .8, .2, 1); }
+.hero-foot { display: flex; justify-content: space-between; gap: 12px; padding: 10px 16px 14px; border-top: 1px solid var(--line); flex-wrap: wrap; }
+.hero-foot .now { color: var(--text); }
+@media (prefers-reduced-motion: reduce) {
+  .lot .wire, .lot.on .wire, .lot .spr, .lot.on .spr { transition: opacity .15s linear; transform: none; }
 }
-.btn--primary {
-  background: var(--accent);
-  color: var(--blueprint);
-  border-color: var(--accent);
-}
-.btn--primary:hover {
-  background: #ffd98a;
-  color: var(--blueprint);
-  transform: translateY(-1px);
-  box-shadow: 0 4px 20px rgba(255,204,115,.15);
-}
-.btn--outline {
-  background: transparent;
-  color: var(--line);
-  border-color: var(--line);
-}
-.btn--outline:hover {
-  color: var(--accent);
-  border-color: var(--accent);
-  transform: translateY(-1px);
-}
-.btn--small {
-  font-size: .7rem;
-  padding: .5rem 1rem;
-}
+@media (max-width: 640px) { .hero-fig { padding: 6px 8px 2px; } }
 
-/* ============================================================
-   BLUEPRINT PANEL (card style)
-   ============================================================ */
-.bp-panel {
-  border: 1px solid var(--line-dim);
-  background: rgba(10,22,40,.4);
-  padding: 1.5rem;
-}
+/* Sections */
+.sec { padding: 72px 0 0; scroll-margin-top: 16px; }
+.sec-head { display: flex; justify-content: space-between; align-items: baseline; gap: 16px; margin-bottom: 18px; flex-wrap: wrap; }
+h2 { font-weight: 500; font-size: clamp(1.55rem, 2.6vw, 2rem); line-height: 1.15; letter-spacing: -.022em; margin: 0 0 10px; text-wrap: balance; }
+.intro { color: var(--muted); max-width: 60ch; margin: 0 0 8px; }
+.shelf { padding-top: 40px; scroll-margin-top: 16px; }
+.shelf-head { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; padding-bottom: 12px; }
+.shelf-head h3 { margin: 0; font-size: 15px; font-weight: 500; }
+.grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
+.span2 { grid-column: span 2; }
+.span3 { grid-column: 1 / -1; }
+@media (max-width: 1180px) { .grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } .span3, .span2 { grid-column: 1 / -1; } }
+@media (max-width: 700px) { .grid { grid-template-columns: minmax(0, 1fr); } }
+.fig { position: relative; aspect-ratio: 5 / 4; display: flex; align-items: center; justify-content: center; padding: 18px; border-bottom: 1px solid var(--line); }
+.fig > svg { max-height: 100%; width: auto; max-width: 100%; }
+.fig.free { aspect-ratio: auto; min-height: 260px; }
 
-/* ============================================================
-   REVEAL ANIMATION
-   ============================================================ */
-.reveal {
-  opacity: 0;
-  transform: translateY(24px);
-  transition: opacity .7s cubic-bezier(.22,1,.36,1), transform .7s cubic-bezier(.22,1,.36,1);
-  will-change: opacity, transform;
-}
-.reveal.visible {
-  opacity: 1;
-  transform: translateY(0);
-}
+/* Shades */
+.sw-row { position: absolute; left: 0; right: 0; bottom: 14px; display: flex; justify-content: center; gap: 6px; }
+.sw-row button { width: 22px; height: 22px; border-radius: 5px; border: 0; box-shadow: inset 0 0 0 1px rgba(27, 31, 36, .06); cursor: pointer; padding: 0; }
+.sw-row button[aria-pressed="true"] { outline: 1.5px solid var(--ink); outline-offset: 2px; }
+.shades .fig { padding-bottom: 50px; }
 
-/* ============================================================
-   SVG DRAW-IN ANIMATION
-   ============================================================ */
-.draw-line {
-  stroke-dasharray: var(--dash, 1000);
-  stroke-dashoffset: var(--dash, 1000);
-  transition: stroke-dashoffset 1.2s cubic-bezier(.22,1,.36,1);
-}
-.draw-line.drawn {
-  stroke-dashoffset: 0;
-}
+/* Today */
+.today .fig { gap: 18px; cursor: ns-resize; touch-action: pan-x; }
+.today .fig > svg { height: 100%; }
+.ruler { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; justify-content: space-between; height: 86%; border-left: 1px solid var(--mid); font: 11.5px/1.2 var(--mono); color: var(--muted); }
+.ruler li { position: relative; padding-left: 12px; white-space: nowrap; }
+.ruler li::before { content: ''; position: absolute; left: 0; top: 50%; width: 7px; border-top: 1px solid var(--mid); }
+.ruler li.on { color: var(--text); }
+.ruler li.on::before { border-color: var(--ink); width: 9px; }
 
-/* ============================================================
-   SECTION 1: HERO
-   ============================================================ */
-.hero {
-  min-height: 100vh;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  padding-top: 2rem;
-  padding-bottom: 4rem;
-  position: relative;
-}
+/* Tooltips */
+.tip { position: absolute; z-index: 3; pointer-events: none; transform: translate(-50%, calc(-100% - 8px)); padding: 4px 8px; border-radius: 6px; background: #25292e; color: #fff; font: 12px/1.5 -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans', Helvetica, Arial, sans-serif; white-space: nowrap; opacity: 0; transition: opacity 80ms ease-out; }
+.tip.on { opacity: 1; }
+.tip b { display: block; font-weight: 600; opacity: .85; }
+@media (prefers-color-scheme: dark) { .tip { background: #3d444d; } }
+.lm-list { margin: 0 16px 16px; font-size: 13px; color: var(--muted); }
+.lm-list summary { cursor: pointer; width: max-content; max-width: 100%; }
+.lm-list ol { margin: 8px 0 0; padding-left: 1.4em; columns: 2; column-gap: 1.5em; line-height: 1.55; }
 
-.title-block {
-  border: 1px solid var(--line-dim);
-  padding: .75rem 1.25rem;
-  display: inline-block;
-  font-family: var(--mono);
-  font-size: .75rem;
-  line-height: 1.7;
-  color: var(--text-muted);
-  margin-bottom: 2.5rem;
-  position: relative;
-}
-.title-block strong {
-  color: var(--text);
-  font-weight: 500;
-  font-size: .9rem;
-  letter-spacing: .08em;
-}
+/* Streets */
+.rail .fig { cursor: ew-resize; }
+.deck, .pier { transition: transform .55s cubic-bezier(.2, .8, .2, 1); }
+.pier { transform-box: fill-box; transform-origin: 50% 100%; transform: scaleY(0); }
+.rail .up .pier { transform: scaleY(1); }
+.train { transition: transform .35s cubic-bezier(.2, .8, .2, 1), opacity .3s; opacity: 0; }
+.rail .up .train { opacity: 1; }
+.rail .up .deck .e, .rail .up .deck .m { stroke: var(--ink); }
+@media (prefers-reduced-motion: reduce) { .deck, .pier, .train { transition: none; } }
 
-.hero-blueprint {
-  width: 100%;
-  margin: 0 auto 2.5rem;
-  display: block;
+/* Stats */
+.stats .fig { aspect-ratio: auto; flex-direction: column; align-items: stretch; gap: 18px; padding: 20px; }
+.gh { display: flex; flex-wrap: wrap; gap: 14px 18px; align-items: flex-start; justify-content: space-between; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans', Helvetica, Arial, sans-serif; color: #1f2328; }
+.gh-panel h4 { margin: 0 0 4px; font-size: 14px; font-weight: 600; color: var(--text); }
+.gh-box { display: flex; gap: 4px; padding: 0 8px; border: 1px solid #d1d9e0; border-radius: 6px; background: var(--card); }
+.gh-stat { display: flex; flex-direction: column; padding: 8px; border-radius: 6px; cursor: default; }
+.gh-stat:hover, .gh-stat:focus-visible, .gh-stat.on { background: var(--soft); }
+.gh-v { font-size: 24px; font-weight: 600; line-height: 1.25; color: #1a7f37; font-variant-numeric: tabular-nums; }
+.gh-v small { font-size: 16px; }
+.gh-l { font-size: 12px; font-weight: 600; color: var(--text); }
+.gh-d { font-size: 12px; color: #59636e; white-space: nowrap; }
+.gh-note { margin: 4px 0 0; font-size: 12px; text-align: right; color: var(--text); }
+.gh-note strong { color: #1a7f37; }
+.gh-note span { color: #59636e; }
+@media (prefers-color-scheme: dark) {
+  .gh-box { border-color: #3d444d; }
+  .gh-v, .gh-note strong { color: #3fb950; }
+  .gh-d, .gh-note span { color: #9198a1; }
 }
-.hero-blueprint svg {
-  width: 100%;
-  height: auto;
-}
+@media (max-width: 520px) { .gh-d { display: none; } .gh-v { font-size: 20px; } .gh-note { text-align: left; } }
+.stats .fig > svg.stats-plan { width: 100%; height: 210px; max-height: 210px; }
 
-.hero-tagline {
-  font-family: var(--sans);
-  font-size: 1.35rem;
-  font-weight: 300;
-  color: var(--text);
-  margin-bottom: 1.25rem;
-  letter-spacing: .01em;
-}
+/* Click */
+.click .fig { flex-direction: column; aspect-ratio: auto; gap: 8px; }
+.click .fig > svg { width: 100%; max-height: 230px; }
+.pick { cursor: pointer; }
+.pick:focus { outline: none; }
+.pick:focus-visible .lotline { stroke: var(--ink); }
+.pick .spr { transition: opacity .3s, filter .3s; }
+.has-sel .pick:not(.sel) .spr { opacity: .18; filter: grayscale(1); }
+.feed { width: 100%; font-size: 12.5px; border-top: 1px solid var(--line); padding-top: 10px; min-height: 64px; }
+.feed b { font-weight: 500; }
+.feed p { margin: 2px 0; color: var(--muted); }
 
-.beta-pill {
-  display: inline-block;
-  font-family: var(--mono);
-  font-size: .65rem;
-  font-weight: 600;
-  letter-spacing: .12em;
-  text-transform: uppercase;
-  background: var(--accent);
-  color: var(--blueprint);
-  padding: .3rem .8rem;
-  margin-bottom: .75rem;
+/* Popup */
+.toolbar { display: grid; grid-template-columns: minmax(0, 340px) minmax(0, 1fr); gap: 0; }
+.toolbar .fig { aspect-ratio: auto; border-bottom: 0; border-right: 1px solid var(--line); padding: 28px; background: var(--soft); border-radius: 14px 0 0 14px; }
+.spec { padding: 20px 24px; display: flex; flex-direction: column; }
+.spec dl { margin: 12px 0 0; }
+.spec dl div { display: grid; grid-template-columns: 7.5rem minmax(0, 1fr); gap: 12px; padding: 9px 0; border-top: 1px solid var(--line); font-size: 14px; }
+.spec dt { font-weight: 500; }
+.spec dd { margin: 0; color: var(--muted); }
+@media (max-width: 760px) {
+  .toolbar { grid-template-columns: minmax(0, 1fr); }
+  .toolbar .fig { border-right: 0; border-bottom: 1px solid var(--line); border-radius: 14px 14px 0 0; padding: 20px 12px; }
+  .spec dl div { grid-template-columns: minmax(0, 1fr); gap: 2px; }
 }
+.pop {
+  --p-bg: #ffffff; --p-muted: #f6f8fa; --p-border: #d1d9e0; --p-border-m: #e5e9ee; --p-fg: #1f2328; --p-fg-m: #59636e; --p-accent: #0969da;
+  width: 100%; max-width: 300px; margin: 0 auto; padding: 16px; background: var(--p-bg); color: var(--p-fg); border-radius: 10px;
+  box-shadow: 0 0 0 1px var(--p-border), 0 12px 32px rgba(31, 35, 40, .1);
+  font: 13px/1.45 -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans', Helvetica, Arial, sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  .pop { --p-bg: #0d1117; --p-muted: #151b23; --p-border: #3d444d; --p-border-m: #262c36; --p-fg: #f0f6fc; --p-fg-m: #9198a1; --p-accent: #4493f8; box-shadow: 0 0 0 1px var(--p-border), 0 12px 32px rgba(0, 0, 0, .5); }
+}
+.pop :focus-visible { outline: 2px solid var(--p-accent); outline-offset: 2px; }
+.pop-head { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; }
+.pop-head img { width: 32px; height: 32px; }
+.pop-head b { display: block; font-size: 15px; font-weight: 600; }
+.pop-head span { display: block; color: var(--p-fg-m); font-size: 12px; }
+.pop-h2 { display: block; margin: 16px 0 8px; font-size: 12px; font-weight: 600; color: var(--p-fg-m); }
+.pop-theme { width: 100%; display: flex; flex-direction: column; gap: 5px; padding: 4px 4px 6px; border: 1px solid var(--p-accent); box-shadow: 0 0 0 1px var(--p-accent); border-radius: 8px; background: var(--p-bg); text-align: left; cursor: pointer; }
+.pop-sky { position: relative; height: 84px; border-radius: 5px; overflow: hidden; background: linear-gradient(180deg, color-mix(in srgb, #0a0e14 70%, #4a6a9a) 0%, #0a0e14 100%); }
+.pop-ground { position: absolute; left: -10%; right: -10%; bottom: -14px; height: 26px; background: #3a3a40; transform: skewX(-40deg); }
+.pop-row-img { position: absolute; inset: 5px 4px 3px; display: flex; align-items: flex-end; justify-content: center; gap: 2px; }
+.pop-row-img img { width: 22%; max-height: 100%; object-fit: contain; object-position: bottom; }
+.pop-row-img img:nth-child(3) { width: 26%; }
+.pop-name { padding: 0 2px; font-weight: 600; font-size: 11px; }
+.pop-seg { display: grid; grid-template-columns: repeat(3, 1fr); padding: 2px; border: 1px solid var(--p-border); border-radius: 8px; background: var(--p-muted); }
+.pop-seg button { padding: 5px 0; border: 0; border-radius: 6px; background: transparent; color: var(--p-fg-m); cursor: pointer; }
+.pop-seg button[aria-checked="true"] { background: var(--p-bg); color: var(--p-fg); font-weight: 600; box-shadow: 0 0 0 1px var(--p-border), 0 1px 2px rgba(0, 0, 0, .06); }
+.pop-tog { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 8px 0; border-bottom: 1px solid var(--p-border-m); cursor: pointer; }
+.pop-tog:first-of-type { margin-top: 6px; }
+.pop-tog:last-of-type { border-bottom: 0; }
+.pop-tog b { display: block; font-weight: 600; }
+.pop-tog i { display: block; font-style: normal; color: var(--p-fg-m); font-size: 12px; }
+.pop-tog input { appearance: none; flex: none; position: relative; width: 32px; height: 18px; margin: 0; border-radius: 9px; background: var(--p-border); cursor: pointer; transition: background 120ms ease; }
+.pop-tog input::after { content: ''; position: absolute; top: 2px; left: 2px; width: 14px; height: 14px; border-radius: 50%; background: #fff; box-shadow: 0 1px 2px rgba(0, 0, 0, .25); transition: transform 120ms ease; }
+.pop-tog input:checked { background: var(--p-accent); }
+.pop-tog input:checked::after { transform: translateX(14px); }
+.pop-foot { margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--p-border-m); color: var(--p-fg-m); font-size: 11px; }
 
-.hero-sub {
-  font-size: .85rem;
-  color: var(--text-muted);
-  max-width: 520px;
-  margin-bottom: 1.75rem;
-  line-height: 1.6;
-}
+/* README card */
+.readme { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); }
+.readme .fig { aspect-ratio: auto; border-bottom: 0; border-right: 1px solid var(--line); padding: 24px; flex-direction: column; gap: 10px; align-items: stretch; justify-content: flex-start; }
+.readme .fig img { border-radius: 8px; box-shadow: 0 0 0 1px var(--line); background: #fff; }
+.readme .side-txt { padding: 20px 24px; min-width: 0; }
+.readme ol { margin: 6px 0 14px; padding-left: 1.2em; color: var(--muted); font-size: 14px; }
+.readme li { margin-bottom: 4px; }
+pre { margin: 0; padding: 14px 16px; background: var(--soft); border: 1px solid var(--line); border-radius: 10px; font: 12px/1.65 var(--mono); overflow-x: auto; color: var(--text); tab-size: 2; }
+pre .c { color: var(--muted); }
+pre .k { color: var(--text); font-weight: 500; }
+pre .s { color: #1a7f37; }
+@media (prefers-color-scheme: dark) { pre .s { color: #7ee2a8; } }
+code { font-family: var(--mono); font-size: .88em; background: var(--soft); border: 1px solid var(--line); padding: .05em .35em; border-radius: 5px; }
+pre code { background: none; border: 0; padding: 0; font-size: inherit; }
+@media (max-width: 900px) { .readme { grid-template-columns: minmax(0, 1fr); } .readme .fig { border-right: 0; border-bottom: 1px solid var(--line); } }
 
-.hero-actions {
-  display: flex;
-  gap: 1rem;
-  flex-wrap: wrap;
-  margin-bottom: 1rem;
-}
+/* Branches */
+.source { display: grid; grid-template-columns: minmax(0, 300px) minmax(0, 1fr); }
+.source .fig { aspect-ratio: auto; flex-direction: column; align-items: stretch; border-bottom: 0; border-right: 1px solid var(--line); padding: 14px; gap: 6px; }
+.branches-box { width: 100%; aspect-ratio: 5 / 4; }
+.source .txt { padding: 20px 24px; }
+.source .txt p { margin: 0 0 10px; color: var(--muted); max-width: 58ch; }
+.credit { font: 11.5px/1.4 var(--mono); color: var(--muted); }
+@media (max-width: 760px) { .source { grid-template-columns: minmax(0, 1fr); } .source .fig { border-right: 0; border-bottom: 1px solid var(--line); } .branches-box { max-width: 300px; margin: 0 auto; } }
 
-.hero-meta {
-  font-family: var(--mono);
-  font-size: .65rem;
-  color: var(--text-muted);
-  letter-spacing: .1em;
-  text-transform: uppercase;
-}
+/* Install */
+.steps { list-style: none; margin: 18px 0 0; padding: 0; counter-reset: s; border-top: 1px solid var(--line); }
+.steps li { counter-increment: s; display: grid; grid-template-columns: 2.4rem minmax(0, 1fr); gap: 8px; padding: 16px 0; border-bottom: 1px solid var(--line); }
+.steps li::before { content: counter(s, decimal-leading-zero); font: 12px/1.9 var(--mono); color: var(--muted); }
+.steps b { font-weight: 500; display: block; margin-bottom: 4px; }
+.steps p { margin: 0 0 8px; color: var(--muted); }
+.steps pre { margin-top: 6px; }
 
-/* ============================================================
-   SECTION 2: THEME GALLERY
-   ============================================================ */
-.tab-bar {
-  display: flex;
-  flex-wrap: wrap;
-  gap: .25rem;
-  margin-bottom: 2rem;
-}
-.tab-btn {
-  font-family: var(--mono);
-  font-size: .65rem;
-  font-weight: 500;
-  letter-spacing: .1em;
-  text-transform: uppercase;
-  background: transparent;
-  color: var(--text-muted);
-  border: 1px solid transparent;
-  padding: .5rem 1rem;
-  cursor: pointer;
-  transition: all .2s;
-}
-.tab-btn:hover {
-  color: var(--text);
-  border-color: var(--line-dim);
-}
-.tab-btn.active {
-  color: var(--accent);
-  border-color: var(--line);
-  background: rgba(74,144,217,.06);
-}
-
-.drawing-card {
-  display: none;
-  grid-template-columns: 1fr 1fr;
-  gap: 2rem;
-  border: 1px solid var(--line-dim);
-  padding: 2rem;
-  background: rgba(10,22,40,.3);
-}
-.drawing-card.active {
-  display: grid;
-}
-.drawing-card__title {
-  grid-column: 1 / -1;
-  font-family: var(--mono);
-  font-size: .8rem;
-  font-weight: 500;
-  letter-spacing: .1em;
-  color: var(--accent);
-  text-transform: uppercase;
-  padding-bottom: 1rem;
-  border-bottom: 1px solid var(--line-dim);
-  margin-bottom: .5rem;
-}
-.drawing-card__blueprint svg {
-  width: 100%;
-  height: auto;
-}
-.drawing-card__levels {
-  display: flex;
-  flex-direction: column;
-  gap: .5rem;
-}
-.level-box {
-  border: 1px solid var(--line-dim);
-  padding: .5rem .75rem;
-  font-family: var(--mono);
-  font-size: .7rem;
-  display: flex;
-  align-items: center;
-  gap: .75rem;
-  transition: border-color .2s;
-}
-.level-box:hover {
-  border-color: var(--line);
-}
-.level-num {
-  color: var(--accent);
-  font-weight: 600;
-  min-width: 2.5rem;
-}
-.level-name {
-  color: var(--text);
-}
-.level-desc {
-  color: var(--text-muted);
-  font-size: .65rem;
-  margin-left: auto;
-}
-
-/* ============================================================
-   SECTION 3: HOW IT WORKS
-   ============================================================ */
-.schematic-wrap {
-  overflow-x: auto;
-  padding: 1rem 0;
-}
-.schematic-svg {
-  display: block;
-  margin: 0 auto 2rem;
-  max-width: 100%;
-  height: auto;
-}
-.schematic-annotations {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 1rem;
-  text-align: center;
-}
-.schematic-anno {
-  font-family: var(--mono);
-  font-size: .7rem;
-  color: var(--text-muted);
-  line-height: 1.5;
-}
-.schematic-anno strong {
-  color: var(--accent);
-  font-weight: 500;
-}
-
-/* ============================================================
-   SECTION 4: FEATURES / SPECIFICATIONS
-   ============================================================ */
-.spec-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-  gap: 1.25rem;
-}
-.spec-card {
-  border: 1px solid var(--line-dim);
-  padding: 1.5rem;
-  background: rgba(10,22,40,.3);
-  transition: border-color .3s;
-}
-.spec-card:hover {
-  border-color: var(--line);
-}
-.spec-card__icon {
-  margin-bottom: 1rem;
-}
-.spec-card__icon svg {
-  width: 32px;
-  height: 32px;
-}
-.spec-card__title {
-  font-family: var(--mono);
-  font-size: .8rem;
-  font-weight: 600;
-  letter-spacing: .08em;
-  color: var(--accent);
-  text-transform: uppercase;
-  margin-bottom: .5rem;
-}
-.spec-card__body {
-  font-size: .85rem;
-  color: var(--text-muted);
-  line-height: 1.55;
-}
-
-/* ============================================================
-   SECTION 5: INSTALLATION
-   ============================================================ */
-.install-steps {
-  display: flex;
-  flex-direction: column;
-  gap: 2rem;
-}
-.install-step {
-  display: flex;
-  align-items: flex-start;
-  gap: 1.5rem;
-}
-.step-num {
-  flex-shrink: 0;
-  width: 40px;
-  height: 40px;
-  border: 2px solid var(--accent);
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-family: var(--mono);
-  font-size: .75rem;
-  font-weight: 600;
-  color: var(--accent);
-}
-.step-content {
-  flex: 1;
-}
-.step-title {
-  font-family: var(--mono);
-  font-size: .8rem;
-  font-weight: 500;
-  letter-spacing: .08em;
-  color: var(--text);
-  text-transform: uppercase;
-  margin-bottom: .35rem;
-  display: flex;
-  align-items: center;
-  gap: .75rem;
-}
-.step-title::before {
-  content: '';
-  width: 2rem;
-  height: 1px;
-  background: var(--accent);
-  opacity: .5;
-}
-.step-cmd {
-  font-family: var(--mono);
-  font-size: .8rem;
-  color: var(--line);
-  padding: .75rem 1rem;
-  border-left: 2px solid var(--line-dim);
-  margin-top: .5rem;
-  white-space: pre-wrap;
-  word-break: break-all;
-}
-
-/* ============================================================
-   SECTION 6: BETA BANNER
-   ============================================================ */
-.beta-banner {
-  text-align: center;
-  padding: 5rem 0;
-}
-.beta-banner__title {
-  font-family: var(--mono);
-  font-size: 1.4rem;
-  font-weight: 500;
-  letter-spacing: .12em;
-  color: var(--accent);
-  text-transform: uppercase;
-  margin-bottom: 1rem;
-}
-.beta-banner__sub {
-  font-size: .95rem;
-  color: var(--text-muted);
-  max-width: 540px;
-  margin: 0 auto 2rem;
-  line-height: 1.6;
-}
-.beta-banner__actions {
-  display: flex;
-  justify-content: center;
-  gap: 1rem;
-  flex-wrap: wrap;
-}
-
-/* ============================================================
-   SECTION 7: FOOTER
-   ============================================================ */
-.footer-block {
-  border: 1px solid var(--line-dim);
-  padding: 2rem 2.5rem;
-  font-family: var(--mono);
-  font-size: .75rem;
-  line-height: 2;
-  max-width: 600px;
-  margin: 0 auto 2rem;
-  color: var(--text-muted);
-}
-.footer-block .fb-title {
-  color: var(--text);
-  font-weight: 500;
-  font-size: .85rem;
-  letter-spacing: .06em;
-}
-.footer-block .fb-divider {
-  border: none;
-  border-top: 1px solid var(--line-dim);
-  margin: .5rem 0;
-}
-.footer-block .fb-row {
-  display: flex;
-  gap: 1rem;
-}
-.footer-block .fb-label {
-  min-width: 7rem;
-  color: var(--text-muted);
-  text-transform: uppercase;
-  letter-spacing: .08em;
-  font-size: .65rem;
-}
-.footer-block .fb-val {
-  color: var(--text);
-}
-
-.footer-links {
-  text-align: center;
-  font-family: var(--mono);
-  font-size: .7rem;
-  letter-spacing: .1em;
-  padding-bottom: 3rem;
-}
-.footer-links a {
-  color: var(--text-muted);
-  margin: 0 .75rem;
-  text-transform: uppercase;
-  transition: color .2s;
-}
-.footer-links a:hover {
-  color: var(--accent);
-}
-
-/* ============================================================
-   RESPONSIVE
-   ============================================================ */
-@media (max-width: 768px) {
-  .hero { min-height: auto; padding-top: 3rem; padding-bottom: 3rem; }
-  .hero-tagline { font-size: 1.1rem; }
-  .drawing-card.active { grid-template-columns: 1fr; }
-  .schematic-annotations { grid-template-columns: 1fr; gap: 1.5rem; }
-  .spec-grid { grid-template-columns: 1fr; }
-  .install-step { flex-direction: column; gap: .75rem; }
-  .beta-banner__title { font-size: 1rem; }
-  .footer-block { padding: 1.5rem; }
-  section { padding: 4rem 0; }
-  .tab-btn { padding: .4rem .6rem; font-size: .6rem; }
-}
-
-@media (max-width: 480px) {
-  .hero-actions { flex-direction: column; }
-  .btn { width: 100%; justify-content: center; }
-}
+/* Footer */
+.foot { border-top: 1px solid var(--line); margin-top: 80px; }
+.foot-in { max-width: 1280px; margin: 0 auto; padding: 28px 24px 44px; display: flex; flex-wrap: wrap; justify-content: space-between; gap: 18px 40px; font-size: 13.5px; color: var(--muted); }
+.foot-in nav { display: flex; flex-wrap: wrap; gap: 6px 20px; }
+.foot-in p { margin: 0 0 4px; }
+@media (max-width: 640px) { .foot-in { padding: 24px 16px 36px; } }
 </style>
 </head>
 <body>
+<a class="skip" href="#main">Skip to content</a>
 
-<!-- ============================================================
-     SECTION 1: HERO
-     ============================================================ -->
-<section class="hero">
-  <div class="container">
-    <div class="title-block reveal">
-      <strong>CONTRIBUTION LANDS</strong><br>
-      Chrome Extension for GitHub<br>
-      Rev 0.1.0 &middot; Public Beta
-    </div>
-
-    <div class="hero-blueprint reveal" id="hero-blueprint">
-      <svg viewBox="0 0 1100 420" fill="none" xmlns="http://www.w3.org/2000/svg" aria-label="Blueprint showing forest and city theme progressions">
-        <!-- Ground / contour lines -->
-        <path class="draw-line" d="M0,360 Q100,355 200,358 Q350,362 500,356 Q650,350 800,354 Q950,358 1100,352" stroke="#2a5a8a" stroke-width="1" fill="none" style="--dash:1400"/>
-        <path class="draw-line" d="M0,370 Q150,366 300,372 Q500,378 700,368 Q900,362 1100,366" stroke="#2a5a8a" stroke-width=".7" fill="none" style="--dash:1400"/>
-        <path class="draw-line" d="M0,380 Q200,376 400,382 Q600,388 800,378 Q1000,374 1100,380" stroke="#2a5a8a" stroke-width=".5" fill="none" style="--dash:1400"/>
-        <path class="draw-line" d="M0,390 Q250,388 500,392 Q750,396 1000,388 L1100,390" stroke="#2a5a8a" stroke-width=".3" fill="none" style="--dash:1400"/>
-
-        <!-- === LEFT SIDE: FOREST === -->
-        <!-- Section label -->
-        <text x="250" y="22" font-family="IBM Plex Mono, monospace" font-size="10" fill="#5a7090" letter-spacing="2" text-anchor="middle">FOREST BIOME</text>
-        <line class="draw-line" x1="140" y1="28" x2="360" y2="28" stroke="#2a5a8a" stroke-width=".5" style="--dash:220"/>
-
-        <!-- LVL 0: Bare earth - small mound -->
-        <line class="draw-line" x1="50" y1="355" x2="100" y2="355" stroke="#4a90d9" stroke-width="1" style="--dash:50"/>
-        <circle class="draw-line" cx="75" cy="353" r="2" stroke="#4a90d9" stroke-width="1" fill="none" style="--dash:13"/>
-        <text x="75" y="345" font-family="IBM Plex Mono, monospace" font-size="7" fill="#5a7090" text-anchor="middle">+</text>
-        <text x="75" y="400" font-family="IBM Plex Mono, monospace" font-size="7" fill="#5a7090" text-anchor="middle">LVL 0</text>
-        <text x="75" y="410" font-family="IBM Plex Mono, monospace" font-size="6" fill="#4a90d9" text-anchor="middle">BARE EARTH</text>
-
-        <!-- LVL 1: Sapling -->
-        <line class="draw-line" x1="140" y1="355" x2="200" y2="355" stroke="#4a90d9" stroke-width="1" style="--dash:60"/>
-        <line class="draw-line" x1="170" y1="355" x2="170" y2="320" stroke="#4a90d9" stroke-width="1" style="--dash:35"/>
-        <polygon class="draw-line" points="170,305 158,330 182,330" stroke="#4ade80" stroke-width="1" fill="none" style="--dash:80"/>
-        <text x="170" y="300" font-family="IBM Plex Mono, monospace" font-size="7" fill="#5a7090" text-anchor="middle">+</text>
-        <text x="170" y="400" font-family="IBM Plex Mono, monospace" font-size="7" fill="#5a7090" text-anchor="middle">LVL 1</text>
-        <text x="170" y="410" font-family="IBM Plex Mono, monospace" font-size="6" fill="#4a90d9" text-anchor="middle">SAPLING</text>
-
-        <!-- Dimension arrow LVL0 to LVL1 -->
-        <line class="draw-line" x1="90" y1="44" x2="155" y2="44" stroke="#5a7090" stroke-width=".5" stroke-dasharray="3,2" style="--dash:80"/>
-        <polygon points="87,44 93,41 93,47" fill="#5a7090"/>
-        <polygon points="158,44 152,41 152,47" fill="#5a7090"/>
-        <text x="122" y="40" font-family="IBM Plex Mono, monospace" font-size="6" fill="#5a7090" text-anchor="middle">&gt;</text>
-
-        <!-- LVL 2: Young tree -->
-        <line class="draw-line" x1="230" y1="355" x2="310" y2="355" stroke="#4a90d9" stroke-width="1" style="--dash:80"/>
-        <line class="draw-line" x1="270" y1="355" x2="270" y2="290" stroke="#4a90d9" stroke-width="1.2" style="--dash:65"/>
-        <polygon class="draw-line" points="270,260 248,300 292,300" stroke="#4ade80" stroke-width="1" fill="none" style="--dash:120"/>
-        <polygon class="draw-line" points="270,275 253,305 287,305" stroke="#4ade80" stroke-width=".7" fill="none" style="--dash:100"/>
-        <text x="270" y="254" font-family="IBM Plex Mono, monospace" font-size="7" fill="#5a7090" text-anchor="middle">+</text>
-        <text x="270" y="400" font-family="IBM Plex Mono, monospace" font-size="7" fill="#5a7090" text-anchor="middle">LVL 2</text>
-        <text x="270" y="410" font-family="IBM Plex Mono, monospace" font-size="6" fill="#4a90d9" text-anchor="middle">YOUNG TREE</text>
-
-        <!-- Dimension arrow LVL1 to LVL2 -->
-        <line class="draw-line" x1="185" y1="54" x2="255" y2="54" stroke="#5a7090" stroke-width=".5" stroke-dasharray="3,2" style="--dash:80"/>
-        <polygon points="182,54 188,51 188,57" fill="#5a7090"/>
-        <polygon points="258,54 252,51 252,57" fill="#5a7090"/>
-
-        <!-- LVL 3: Mature -->
-        <line class="draw-line" x1="340" y1="355" x2="430" y2="355" stroke="#4a90d9" stroke-width="1" style="--dash:90"/>
-        <line class="draw-line" x1="385" y1="355" x2="385" y2="250" stroke="#4a90d9" stroke-width="1.5" style="--dash:105"/>
-        <polygon class="draw-line" points="385,210 355,265 415,265" stroke="#4ade80" stroke-width="1" fill="none" style="--dash:150"/>
-        <polygon class="draw-line" points="385,230 360,275 410,275" stroke="#4ade80" stroke-width=".8" fill="none" style="--dash:130"/>
-        <polygon class="draw-line" points="385,248 365,290 405,290" stroke="#4ade80" stroke-width=".6" fill="none" style="--dash:110"/>
-        <!-- Branch details -->
-        <line class="draw-line" x1="385" y1="300" x2="370" y2="310" stroke="#4a90d9" stroke-width=".7" style="--dash:20"/>
-        <line class="draw-line" x1="385" y1="305" x2="400" y2="315" stroke="#4a90d9" stroke-width=".7" style="--dash:20"/>
-        <text x="385" y="203" font-family="IBM Plex Mono, monospace" font-size="7" fill="#5a7090" text-anchor="middle">+</text>
-        <text x="385" y="400" font-family="IBM Plex Mono, monospace" font-size="7" fill="#5a7090" text-anchor="middle">LVL 3</text>
-        <text x="385" y="410" font-family="IBM Plex Mono, monospace" font-size="6" fill="#4a90d9" text-anchor="middle">MATURE</text>
-
-        <!-- Dimension arrow LVL2 to LVL3 -->
-        <line class="draw-line" x1="285" y1="64" x2="370" y2="64" stroke="#5a7090" stroke-width=".5" stroke-dasharray="3,2" style="--dash:100"/>
-        <polygon points="282,64 288,61 288,67" fill="#5a7090"/>
-        <polygon points="373,64 367,61 367,67" fill="#5a7090"/>
-
-        <!-- LVL 4: Ancient Redwood -->
-        <line class="draw-line" x1="460" y1="355" x2="560" y2="355" stroke="#4a90d9" stroke-width="1" style="--dash:100"/>
-        <line class="draw-line" x1="510" y1="355" x2="510" y2="180" stroke="#4a90d9" stroke-width="2" style="--dash:175"/>
-        <polygon class="draw-line" points="510,130 470,210 550,210" stroke="#4ade80" stroke-width="1.2" fill="none" style="--dash:180"/>
-        <polygon class="draw-line" points="510,155 475,225 545,225" stroke="#4ade80" stroke-width=".9" fill="none" style="--dash:160"/>
-        <polygon class="draw-line" points="510,178 480,245 540,245" stroke="#4ade80" stroke-width=".7" fill="none" style="--dash:140"/>
-        <polygon class="draw-line" points="510,200 485,265 535,265" stroke="#4ade80" stroke-width=".5" fill="none" style="--dash:120"/>
-        <!-- Root details -->
-        <path class="draw-line" d="M500,355 Q490,365 475,368" stroke="#4a90d9" stroke-width=".8" fill="none" style="--dash:30"/>
-        <path class="draw-line" d="M520,355 Q530,365 545,368" stroke="#4a90d9" stroke-width=".8" fill="none" style="--dash:30"/>
-        <!-- Branch details -->
-        <line class="draw-line" x1="510" y1="270" x2="488" y2="282" stroke="#4a90d9" stroke-width=".7" style="--dash:26"/>
-        <line class="draw-line" x1="510" y1="265" x2="534" y2="278" stroke="#4a90d9" stroke-width=".7" style="--dash:28"/>
-        <line class="draw-line" x1="510" y1="310" x2="492" y2="322" stroke="#4a90d9" stroke-width=".6" style="--dash:22"/>
-        <line class="draw-line" x1="510" y1="315" x2="530" y2="325" stroke="#4a90d9" stroke-width=".6" style="--dash:22"/>
-        <text x="510" y="122" font-family="IBM Plex Mono, monospace" font-size="7" fill="#5a7090" text-anchor="middle">+</text>
-        <text x="510" y="400" font-family="IBM Plex Mono, monospace" font-size="7" fill="#5a7090" text-anchor="middle">LVL 4</text>
-        <text x="510" y="410" font-family="IBM Plex Mono, monospace" font-size="6" fill="#4a90d9" text-anchor="middle">ANCIENT REDWOOD</text>
-
-        <!-- Dimension arrow LVL3 to LVL4 -->
-        <line class="draw-line" x1="400" y1="74" x2="495" y2="74" stroke="#5a7090" stroke-width=".5" stroke-dasharray="3,2" style="--dash:110"/>
-        <polygon points="397,74 403,71 403,77" fill="#5a7090"/>
-        <polygon points="498,74 492,71 492,77" fill="#5a7090"/>
-
-        <!-- Divider -->
-        <line class="draw-line" x1="580" y1="100" x2="580" y2="380" stroke="#2a5a8a" stroke-width=".5" stroke-dasharray="6,4" style="--dash:300"/>
-
-        <!-- === RIGHT SIDE: CITY === -->
-        <text x="820" y="22" font-family="IBM Plex Mono, monospace" font-size="10" fill="#5a7090" letter-spacing="2" text-anchor="middle">CITY BIOME</text>
-        <line class="draw-line" x1="720" y1="28" x2="920" y2="28" stroke="#2a5a8a" stroke-width=".5" style="--dash:200"/>
-
-        <!-- LVL 0: Empty lot -->
-        <line class="draw-line" x1="610" y1="355" x2="660" y2="355" stroke="#4a90d9" stroke-width="1" style="--dash:50"/>
-        <rect class="draw-line" x="625" y="348" width="20" height="7" stroke="#4a90d9" stroke-width=".7" fill="none" rx="0" style="--dash:54"/>
-        <text x="635" y="340" font-family="IBM Plex Mono, monospace" font-size="7" fill="#5a7090" text-anchor="middle">+</text>
-        <text x="635" y="400" font-family="IBM Plex Mono, monospace" font-size="7" fill="#5a7090" text-anchor="middle">LVL 0</text>
-        <text x="635" y="410" font-family="IBM Plex Mono, monospace" font-size="6" fill="#4a90d9" text-anchor="middle">EMPTY LOT</text>
-
-        <!-- LVL 1: Brownstone -->
-        <line class="draw-line" x1="680" y1="355" x2="750" y2="355" stroke="#4a90d9" stroke-width="1" style="--dash:70"/>
-        <rect class="draw-line" x="698" y="300" width="34" height="55" stroke="#4a90d9" stroke-width="1" fill="none" style="--dash:180"/>
-        <!-- Windows -->
-        <rect class="draw-line" x="703" y="308" width="8" height="8" stroke="#4a90d9" stroke-width=".5" fill="none" style="--dash:32"/>
-        <rect class="draw-line" x="719" y="308" width="8" height="8" stroke="#4a90d9" stroke-width=".5" fill="none" style="--dash:32"/>
-        <rect class="draw-line" x="703" y="324" width="8" height="8" stroke="#4a90d9" stroke-width=".5" fill="none" style="--dash:32"/>
-        <rect class="draw-line" x="719" y="324" width="8" height="8" stroke="#4a90d9" stroke-width=".5" fill="none" style="--dash:32"/>
-        <!-- Door -->
-        <rect class="draw-line" x="710" y="340" width="10" height="15" stroke="#4a90d9" stroke-width=".5" fill="none" style="--dash:50"/>
-        <text x="715" y="293" font-family="IBM Plex Mono, monospace" font-size="7" fill="#5a7090" text-anchor="middle">+</text>
-        <text x="715" y="400" font-family="IBM Plex Mono, monospace" font-size="7" fill="#5a7090" text-anchor="middle">LVL 1</text>
-        <text x="715" y="410" font-family="IBM Plex Mono, monospace" font-size="6" fill="#4a90d9" text-anchor="middle">BROWNSTONE</text>
-
-        <!-- LVL 2: Walk-up -->
-        <line class="draw-line" x1="770" y1="355" x2="850" y2="355" stroke="#4a90d9" stroke-width="1" style="--dash:80"/>
-        <rect class="draw-line" x="786" y="250" width="48" height="105" stroke="#4a90d9" stroke-width="1.2" fill="none" style="--dash:310"/>
-        <!-- Window grid 3x4 -->
-        <rect class="draw-line" x="792" y="258" width="8" height="8" stroke="#4a90d9" stroke-width=".5" fill="none" style="--dash:32"/>
-        <rect class="draw-line" x="806" y="258" width="8" height="8" stroke="#4a90d9" stroke-width=".5" fill="none" style="--dash:32"/>
-        <rect class="draw-line" x="820" y="258" width="8" height="8" stroke="#4a90d9" stroke-width=".5" fill="none" style="--dash:32"/>
-        <rect class="draw-line" x="792" y="275" width="8" height="8" stroke="#4a90d9" stroke-width=".5" fill="none" style="--dash:32"/>
-        <rect class="draw-line" x="806" y="275" width="8" height="8" stroke="#4a90d9" stroke-width=".5" fill="none" style="--dash:32"/>
-        <rect class="draw-line" x="820" y="275" width="8" height="8" stroke="#4a90d9" stroke-width=".5" fill="none" style="--dash:32"/>
-        <rect class="draw-line" x="792" y="292" width="8" height="8" stroke="#4a90d9" stroke-width=".5" fill="none" style="--dash:32"/>
-        <rect class="draw-line" x="806" y="292" width="8" height="8" stroke="#4a90d9" stroke-width=".5" fill="none" style="--dash:32"/>
-        <rect class="draw-line" x="820" y="292" width="8" height="8" stroke="#4a90d9" stroke-width=".5" fill="none" style="--dash:32"/>
-        <rect class="draw-line" x="792" y="309" width="8" height="8" stroke="#4a90d9" stroke-width=".5" fill="none" style="--dash:32"/>
-        <rect class="draw-line" x="806" y="309" width="8" height="8" stroke="#4a90d9" stroke-width=".5" fill="none" style="--dash:32"/>
-        <rect class="draw-line" x="820" y="309" width="8" height="8" stroke="#4a90d9" stroke-width=".5" fill="none" style="--dash:32"/>
-        <!-- Door -->
-        <rect class="draw-line" x="804" y="336" width="12" height="19" stroke="#4a90d9" stroke-width=".5" fill="none" style="--dash:62"/>
-        <text x="810" y="243" font-family="IBM Plex Mono, monospace" font-size="7" fill="#5a7090" text-anchor="middle">+</text>
-        <text x="810" y="400" font-family="IBM Plex Mono, monospace" font-size="7" fill="#5a7090" text-anchor="middle">LVL 2</text>
-        <text x="810" y="410" font-family="IBM Plex Mono, monospace" font-size="6" fill="#4a90d9" text-anchor="middle">WALK-UP</text>
-
-        <!-- LVL 3: Office tower -->
-        <line class="draw-line" x1="865" y1="355" x2="955" y2="355" stroke="#4a90d9" stroke-width="1" style="--dash:90"/>
-        <rect class="draw-line" x="884" y="180" width="52" height="175" stroke="#4a90d9" stroke-width="1.4" fill="none" style="--dash:460"/>
-        <!-- Window grid 3 columns, many rows -->
-        <g stroke="#4a90d9" stroke-width=".4" fill="none">
-          <rect class="draw-line" x="891" y="190" width="8" height="6" style="--dash:28"/>
-          <rect class="draw-line" x="906" y="190" width="8" height="6" style="--dash:28"/>
-          <rect class="draw-line" x="921" y="190" width="8" height="6" style="--dash:28"/>
-          <rect class="draw-line" x="891" y="204" width="8" height="6" style="--dash:28"/>
-          <rect class="draw-line" x="906" y="204" width="8" height="6" style="--dash:28"/>
-          <rect class="draw-line" x="921" y="204" width="8" height="6" style="--dash:28"/>
-          <rect class="draw-line" x="891" y="218" width="8" height="6" style="--dash:28"/>
-          <rect class="draw-line" x="906" y="218" width="8" height="6" style="--dash:28"/>
-          <rect class="draw-line" x="921" y="218" width="8" height="6" style="--dash:28"/>
-          <rect class="draw-line" x="891" y="232" width="8" height="6" style="--dash:28"/>
-          <rect class="draw-line" x="906" y="232" width="8" height="6" style="--dash:28"/>
-          <rect class="draw-line" x="921" y="232" width="8" height="6" style="--dash:28"/>
-          <rect class="draw-line" x="891" y="246" width="8" height="6" style="--dash:28"/>
-          <rect class="draw-line" x="906" y="246" width="8" height="6" style="--dash:28"/>
-          <rect class="draw-line" x="921" y="246" width="8" height="6" style="--dash:28"/>
-          <rect class="draw-line" x="891" y="260" width="8" height="6" style="--dash:28"/>
-          <rect class="draw-line" x="906" y="260" width="8" height="6" style="--dash:28"/>
-          <rect class="draw-line" x="921" y="260" width="8" height="6" style="--dash:28"/>
-          <rect class="draw-line" x="891" y="274" width="8" height="6" style="--dash:28"/>
-          <rect class="draw-line" x="906" y="274" width="8" height="6" style="--dash:28"/>
-          <rect class="draw-line" x="921" y="274" width="8" height="6" style="--dash:28"/>
-          <rect class="draw-line" x="891" y="288" width="8" height="6" style="--dash:28"/>
-          <rect class="draw-line" x="906" y="288" width="8" height="6" style="--dash:28"/>
-          <rect class="draw-line" x="921" y="288" width="8" height="6" style="--dash:28"/>
-          <rect class="draw-line" x="891" y="302" width="8" height="6" style="--dash:28"/>
-          <rect class="draw-line" x="906" y="302" width="8" height="6" style="--dash:28"/>
-          <rect class="draw-line" x="921" y="302" width="8" height="6" style="--dash:28"/>
-          <rect class="draw-line" x="891" y="316" width="8" height="6" style="--dash:28"/>
-          <rect class="draw-line" x="906" y="316" width="8" height="6" style="--dash:28"/>
-          <rect class="draw-line" x="921" y="316" width="8" height="6" style="--dash:28"/>
-        </g>
-        <text x="910" y="172" font-family="IBM Plex Mono, monospace" font-size="7" fill="#5a7090" text-anchor="middle">+</text>
-        <text x="910" y="400" font-family="IBM Plex Mono, monospace" font-size="7" fill="#5a7090" text-anchor="middle">LVL 3</text>
-        <text x="910" y="410" font-family="IBM Plex Mono, monospace" font-size="6" fill="#4a90d9" text-anchor="middle">OFFICE TOWER</text>
-
-        <!-- LVL 4: Skyscraper -->
-        <line class="draw-line" x1="970" y1="355" x2="1070" y2="355" stroke="#4a90d9" stroke-width="1" style="--dash:100"/>
-        <rect class="draw-line" x="992" y="110" width="56" height="245" stroke="#4a90d9" stroke-width="1.6" fill="none" style="--dash:610"/>
-        <!-- Antenna -->
-        <line class="draw-line" x1="1020" y1="110" x2="1020" y2="80" stroke="#4a90d9" stroke-width="1.2" style="--dash:30"/>
-        <line class="draw-line" x1="1012" y1="110" x2="1020" y2="95" stroke="#4a90d9" stroke-width=".6" style="--dash:18"/>
-        <line class="draw-line" x1="1028" y1="110" x2="1020" y2="95" stroke="#4a90d9" stroke-width=".6" style="--dash:18"/>
-        <!-- Window grid 4 columns -->
-        <g stroke="#4a90d9" stroke-width=".4" fill="none">
-          <rect class="draw-line" x="998" y="120" width="7" height="5" style="--dash:24"/>
-          <rect class="draw-line" x="1010" y="120" width="7" height="5" style="--dash:24"/>
-          <rect class="draw-line" x="1022" y="120" width="7" height="5" style="--dash:24"/>
-          <rect class="draw-line" x="1034" y="120" width="7" height="5" style="--dash:24"/>
-          <rect class="draw-line" x="998" y="132" width="7" height="5" style="--dash:24"/>
-          <rect class="draw-line" x="1010" y="132" width="7" height="5" style="--dash:24"/>
-          <rect class="draw-line" x="1022" y="132" width="7" height="5" style="--dash:24"/>
-          <rect class="draw-line" x="1034" y="132" width="7" height="5" style="--dash:24"/>
-          <rect class="draw-line" x="998" y="144" width="7" height="5" style="--dash:24"/>
-          <rect class="draw-line" x="1010" y="144" width="7" height="5" style="--dash:24"/>
-          <rect class="draw-line" x="1022" y="144" width="7" height="5" style="--dash:24"/>
-          <rect class="draw-line" x="1034" y="144" width="7" height="5" style="--dash:24"/>
-          <rect class="draw-line" x="998" y="156" width="7" height="5" style="--dash:24"/>
-          <rect class="draw-line" x="1010" y="156" width="7" height="5" style="--dash:24"/>
-          <rect class="draw-line" x="1022" y="156" width="7" height="5" style="--dash:24"/>
-          <rect class="draw-line" x="1034" y="156" width="7" height="5" style="--dash:24"/>
-          <rect class="draw-line" x="998" y="168" width="7" height="5" style="--dash:24"/>
-          <rect class="draw-line" x="1010" y="168" width="7" height="5" style="--dash:24"/>
-          <rect class="draw-line" x="1022" y="168" width="7" height="5" style="--dash:24"/>
-          <rect class="draw-line" x="1034" y="168" width="7" height="5" style="--dash:24"/>
-          <rect class="draw-line" x="998" y="180" width="7" height="5" style="--dash:24"/>
-          <rect class="draw-line" x="1010" y="180" width="7" height="5" style="--dash:24"/>
-          <rect class="draw-line" x="1022" y="180" width="7" height="5" style="--dash:24"/>
-          <rect class="draw-line" x="1034" y="180" width="7" height="5" style="--dash:24"/>
-          <rect class="draw-line" x="998" y="192" width="7" height="5" style="--dash:24"/>
-          <rect class="draw-line" x="1010" y="192" width="7" height="5" style="--dash:24"/>
-          <rect class="draw-line" x="1022" y="192" width="7" height="5" style="--dash:24"/>
-          <rect class="draw-line" x="1034" y="192" width="7" height="5" style="--dash:24"/>
-          <rect class="draw-line" x="998" y="204" width="7" height="5" style="--dash:24"/>
-          <rect class="draw-line" x="1010" y="204" width="7" height="5" style="--dash:24"/>
-          <rect class="draw-line" x="1022" y="204" width="7" height="5" style="--dash:24"/>
-          <rect class="draw-line" x="1034" y="204" width="7" height="5" style="--dash:24"/>
-          <rect class="draw-line" x="998" y="216" width="7" height="5" style="--dash:24"/>
-          <rect class="draw-line" x="1010" y="216" width="7" height="5" style="--dash:24"/>
-          <rect class="draw-line" x="1022" y="216" width="7" height="5" style="--dash:24"/>
-          <rect class="draw-line" x="1034" y="216" width="7" height="5" style="--dash:24"/>
-          <rect class="draw-line" x="998" y="228" width="7" height="5" style="--dash:24"/>
-          <rect class="draw-line" x="1010" y="228" width="7" height="5" style="--dash:24"/>
-          <rect class="draw-line" x="1022" y="228" width="7" height="5" style="--dash:24"/>
-          <rect class="draw-line" x="1034" y="228" width="7" height="5" style="--dash:24"/>
-          <rect class="draw-line" x="998" y="240" width="7" height="5" style="--dash:24"/>
-          <rect class="draw-line" x="1010" y="240" width="7" height="5" style="--dash:24"/>
-          <rect class="draw-line" x="1022" y="240" width="7" height="5" style="--dash:24"/>
-          <rect class="draw-line" x="1034" y="240" width="7" height="5" style="--dash:24"/>
-          <rect class="draw-line" x="998" y="252" width="7" height="5" style="--dash:24"/>
-          <rect class="draw-line" x="1010" y="252" width="7" height="5" style="--dash:24"/>
-          <rect class="draw-line" x="1022" y="252" width="7" height="5" style="--dash:24"/>
-          <rect class="draw-line" x="1034" y="252" width="7" height="5" style="--dash:24"/>
-          <rect class="draw-line" x="998" y="264" width="7" height="5" style="--dash:24"/>
-          <rect class="draw-line" x="1010" y="264" width="7" height="5" style="--dash:24"/>
-          <rect class="draw-line" x="1022" y="264" width="7" height="5" style="--dash:24"/>
-          <rect class="draw-line" x="1034" y="264" width="7" height="5" style="--dash:24"/>
-          <rect class="draw-line" x="998" y="276" width="7" height="5" style="--dash:24"/>
-          <rect class="draw-line" x="1010" y="276" width="7" height="5" style="--dash:24"/>
-          <rect class="draw-line" x="1022" y="276" width="7" height="5" style="--dash:24"/>
-          <rect class="draw-line" x="1034" y="276" width="7" height="5" style="--dash:24"/>
-          <rect class="draw-line" x="998" y="288" width="7" height="5" style="--dash:24"/>
-          <rect class="draw-line" x="1010" y="288" width="7" height="5" style="--dash:24"/>
-          <rect class="draw-line" x="1022" y="288" width="7" height="5" style="--dash:24"/>
-          <rect class="draw-line" x="1034" y="288" width="7" height="5" style="--dash:24"/>
-          <rect class="draw-line" x="998" y="300" width="7" height="5" style="--dash:24"/>
-          <rect class="draw-line" x="1010" y="300" width="7" height="5" style="--dash:24"/>
-          <rect class="draw-line" x="1022" y="300" width="7" height="5" style="--dash:24"/>
-          <rect class="draw-line" x="1034" y="300" width="7" height="5" style="--dash:24"/>
-          <rect class="draw-line" x="998" y="312" width="7" height="5" style="--dash:24"/>
-          <rect class="draw-line" x="1010" y="312" width="7" height="5" style="--dash:24"/>
-          <rect class="draw-line" x="1022" y="312" width="7" height="5" style="--dash:24"/>
-          <rect class="draw-line" x="1034" y="312" width="7" height="5" style="--dash:24"/>
-          <rect class="draw-line" x="998" y="324" width="7" height="5" style="--dash:24"/>
-          <rect class="draw-line" x="1010" y="324" width="7" height="5" style="--dash:24"/>
-          <rect class="draw-line" x="1022" y="324" width="7" height="5" style="--dash:24"/>
-          <rect class="draw-line" x="1034" y="324" width="7" height="5" style="--dash:24"/>
-        </g>
-        <!-- Entrance -->
-        <rect class="draw-line" x="1010" y="340" width="20" height="15" stroke="#4a90d9" stroke-width=".6" fill="none" style="--dash:70"/>
-        <text x="1020" y="72" font-family="IBM Plex Mono, monospace" font-size="7" fill="#5a7090" text-anchor="middle">+</text>
-        <text x="1020" y="400" font-family="IBM Plex Mono, monospace" font-size="7" fill="#5a7090" text-anchor="middle">LVL 4</text>
-        <text x="1020" y="410" font-family="IBM Plex Mono, monospace" font-size="6" fill="#4a90d9" text-anchor="middle">SKYSCRAPER</text>
-
-        <!-- Height dimension arrows (right side) -->
-        <line class="draw-line" x1="1058" y1="355" x2="1058" y2="110" stroke="#5a7090" stroke-width=".5" stroke-dasharray="3,2" style="--dash:250"/>
-        <polygon points="1058,355 1055,349 1061,349" fill="#5a7090"/>
-        <polygon points="1058,110 1055,116 1061,116" fill="#5a7090"/>
-        <text x="1065" y="235" font-family="IBM Plex Mono, monospace" font-size="6" fill="#5a7090" transform="rotate(90 1065 235)" text-anchor="middle">245px</text>
-
-        <!-- Compass rose bottom-right -->
-        <g transform="translate(1060, 385)">
-          <circle class="draw-line" cx="0" cy="0" r="12" stroke="#2a5a8a" stroke-width=".6" fill="none" style="--dash:76"/>
-          <line class="draw-line" x1="0" y1="-10" x2="0" y2="10" stroke="#4a90d9" stroke-width=".6" style="--dash:20"/>
-          <line class="draw-line" x1="-10" y1="0" x2="10" y2="0" stroke="#4a90d9" stroke-width=".6" style="--dash:20"/>
-          <text x="0" y="-14" font-family="IBM Plex Mono, monospace" font-size="6" fill="#5a7090" text-anchor="middle">N</text>
-          <text x="14" y="2" font-family="IBM Plex Mono, monospace" font-size="5" fill="#5a7090" text-anchor="middle">E</text>
-          <text x="0" y="19" font-family="IBM Plex Mono, monospace" font-size="5" fill="#5a7090" text-anchor="middle">S</text>
-          <text x="-14" y="2" font-family="IBM Plex Mono, monospace" font-size="5" fill="#5a7090" text-anchor="middle">W</text>
-          <polygon points="0,-9 -2.5,-3 2.5,-3" fill="#4a90d9" opacity=".6"/>
-        </g>
-      </svg>
-    </div>
-
-    <div class="reveal">
-      <p class="hero-tagline">Your contributions grow into forests. Your commits build cities.</p>
-      <div class="beta-pill">PUBLIC BETA</div>
-      <p class="hero-sub">Shipping fast in the open. Expect new themes, UI changes, and rough edges.</p>
-      <div class="hero-actions">
-        <a href="https://github.com/jeanluciradukunda/contribution-lands" class="btn btn--primary">INSTALL FOR CHROME</a>
-        <a href="https://github.com/jeanluciradukunda/contribution-lands" class="btn btn--outline">VIEW SOURCE</a>
-      </div>
-      <p class="hero-meta">Chrome &middot; Free &middot; Open Source &middot; MIT License</p>
-    </div>
+<header class="top">
+  <div class="top-in">
+    <a class="word" href="./" aria-label="Contribution Lands home">
+      <svg viewBox="0 0 20 20" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-width="1" stroke-linejoin="round"><path d="M10 2.5 17 6.2 10 9.9 3 6.2Z"/><path d="M3 6.2V13.8L10 17.5 17 13.8V6.2M10 9.9V17.5"/></g></svg>
+      contribution lands
+    </a>
+    <span class="mono">v 0.1.0</span>
+    <nav aria-label="Primary">
+      <a class="wide" href="#figures">Figures</a>
+      <a class="wide" href="#readme">README card</a>
+      <a href="#install">Install</a>
+      <a href="https://github.com/jeanluciradukunda/contribution-lands">Source</a>
+    </nav>
   </div>
-</section>
+</header>
 
-<!-- ============================================================
-     SECTION 2: THEME GALLERY
-     ============================================================ -->
-<section id="drawings">
-  <div class="container">
-    <div class="section-label reveal">THE DRAWINGS</div>
+<div class="shell">
+  <aside class="side" aria-label="On this page">
+    <ol id="toc">
+      <li><a href="#top">Overview<span>01</span></a></li>
+      <li><a href="#source">Where lots come from<span>01</span></a></li>
+      <li class="rule" aria-hidden="true"></li>
+      <li><a href="#land">The land<span>3</span></a></li>
+      <li><a href="#streets">The streets<span>2</span></a></li>
+      <li><a href="#profile">On your profile<span>2</span></a></li>
+      <li><a href="#toolbar">In the toolbar<span>1</span></a></li>
+      <li><a href="#readme">In your README<span>1</span></a></li>
+      <li class="rule" aria-hidden="true"></li>
+      <li><a href="#install">Install<span>3</span></a></li>
+    </ol>
+  </aside>
 
-    <div class="tab-bar reveal" id="theme-tabs">
-      <button class="tab-btn active" data-tab="summer">SUMMER</button>
-      <button class="tab-btn" data-tab="autumn">AUTUMN</button>
-      <button class="tab-btn" data-tab="winter">WINTER</button>
-      <button class="tab-btn" data-tab="spring">SPRING</button>
-      <button class="tab-btn" data-tab="nyc">NYC</button>
-      <button class="tab-btn" data-tab="paris">PARIS</button>
-      <button class="tab-btn" data-tab="capetown">CAPE TOWN</button>
+<main id="main">
+  <section class="hero" id="top" aria-labelledby="hero-title">
+    <h1 id="hero-title">Your year, drawn first, then <em class="acc">built.</em></h1>
+    <p class="lede">Contribution Lands is a Chrome extension that rebuilds the contribution graph on GitHub profile pages as an isometric New York City. Every day is a lot. Quiet days stay low, busy days rise into towers, and today is a building site.</p>
+    <div class="actions">
+      <a class="btn dark" href="#install">Install the extension</a>
+      <a class="btn" href="https://github.com/jeanluciradukunda/contribution-lands">Source on GitHub</a>
     </div>
+    <p class="mono facts">Free and MIT licensed · Chrome 111 or later · Web Store listing coming soon</p>
 
-    <!-- SUMMER -->
-    <div class="drawing-card active" id="card-summer">
-      <div class="drawing-card__title">DRAWING No. I &mdash; SUMMER FOREST</div>
-      <div class="drawing-card__blueprint">
-        <svg viewBox="0 0 440 260" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <line class="draw-line" x1="0" y1="220" x2="440" y2="220" stroke="#2a5a8a" stroke-width="1" style="--dash:440"/>
-          <!-- Tree 0: grass -->
-          <line class="draw-line" x1="30" y1="220" x2="58" y2="220" stroke="#4ade80" stroke-width="1.5" style="--dash:28"/>
-          <circle class="draw-line" cx="44" cy="218" r="2" stroke="#4ade80" stroke-width=".7" fill="none" style="--dash:13"/>
-          <text x="44" y="242" font-family="IBM Plex Mono, monospace" font-size="7" fill="#5a7090" text-anchor="middle">LVL 0</text>
-          <!-- Tree 1 -->
-          <line class="draw-line" x1="100" y1="220" x2="100" y2="195" stroke="#4a90d9" stroke-width="1" style="--dash:25"/>
-          <polygon class="draw-line" points="100,180 89,200 111,200" stroke="#4ade80" stroke-width="1" fill="none" style="--dash:60"/>
-          <text x="100" y="242" font-family="IBM Plex Mono, monospace" font-size="7" fill="#5a7090" text-anchor="middle">LVL 1</text>
-          <!-- Tree 2 -->
-          <line class="draw-line" x1="176" y1="220" x2="176" y2="170" stroke="#4a90d9" stroke-width="1.2" style="--dash:50"/>
-          <polygon class="draw-line" points="176,148 160,180 192,180" stroke="#4ade80" stroke-width="1" fill="none" style="--dash:80"/>
-          <polygon class="draw-line" points="176,160 163,186 189,186" stroke="#4ade80" stroke-width=".7" fill="none" style="--dash:70"/>
-          <text x="176" y="242" font-family="IBM Plex Mono, monospace" font-size="7" fill="#5a7090" text-anchor="middle">LVL 2</text>
-          <!-- Tree 3 -->
-          <line class="draw-line" x1="266" y1="220" x2="266" y2="138" stroke="#4a90d9" stroke-width="1.4" style="--dash:82"/>
-          <polygon class="draw-line" points="266,105 244,150 288,150" stroke="#4ade80" stroke-width="1" fill="none" style="--dash:100"/>
-          <polygon class="draw-line" points="266,120 248,158 284,158" stroke="#4ade80" stroke-width=".8" fill="none" style="--dash:86"/>
-          <polygon class="draw-line" points="266,135 252,168 280,168" stroke="#4ade80" stroke-width=".6" fill="none" style="--dash:70"/>
-          <text x="266" y="242" font-family="IBM Plex Mono, monospace" font-size="7" fill="#5a7090" text-anchor="middle">LVL 3</text>
-          <!-- Tree 4 -->
-          <line class="draw-line" x1="370" y1="220" x2="370" y2="90" stroke="#4a90d9" stroke-width="1.8" style="--dash:130"/>
-          <polygon class="draw-line" points="370,50 340,110 400,110" stroke="#4ade80" stroke-width="1.2" fill="none" style="--dash:130"/>
-          <polygon class="draw-line" points="370,70 344,120 396,120" stroke="#4ade80" stroke-width=".9" fill="none" style="--dash:110"/>
-          <polygon class="draw-line" points="370,90 348,135 392,135" stroke="#4ade80" stroke-width=".7" fill="none" style="--dash:100"/>
-          <polygon class="draw-line" points="370,108 352,150 388,150" stroke="#4ade80" stroke-width=".5" fill="none" style="--dash:86"/>
-          <path class="draw-line" d="M360,220 Q350,228 338,232" stroke="#4a90d9" stroke-width=".6" fill="none" style="--dash:26"/>
-          <path class="draw-line" d="M380,220 Q390,228 402,232" stroke="#4a90d9" stroke-width=".6" fill="none" style="--dash:26"/>
-          <text x="370" y="242" font-family="IBM Plex Mono, monospace" font-size="7" fill="#5a7090" text-anchor="middle">LVL 4</text>
-          <!-- Sun detail -->
-          <circle class="draw-line" cx="410" cy="30" r="14" stroke="#ffcc73" stroke-width=".7" fill="none" style="--dash:88"/>
-          <line class="draw-line" x1="410" y1="10" x2="410" y2="6" stroke="#ffcc73" stroke-width=".5" style="--dash:4"/>
-          <line class="draw-line" x1="410" y1="50" x2="410" y2="54" stroke="#ffcc73" stroke-width=".5" style="--dash:4"/>
-          <line class="draw-line" x1="390" y1="30" x2="386" y2="30" stroke="#ffcc73" stroke-width=".5" style="--dash:4"/>
-          <line class="draw-line" x1="430" y1="30" x2="434" y2="30" stroke="#ffcc73" stroke-width=".5" style="--dash:4"/>
-        </svg>
+    <figure class="card hero-card" style="margin-inline:0;margin-bottom:0">
+      <div class="bar">
+        <span class="mono" id="hero-spec">fig. 01 · a real year · 1 lot = 1 day</span>
+        <button type="button" class="pill" id="build-all" aria-pressed="false">Show the city</button>
       </div>
-      <div class="drawing-card__levels">
-        <div class="level-box"><span class="level-num">LVL 0</span><span class="level-name">Grass Patch</span><span class="level-desc">No contributions</span></div>
-        <div class="level-box"><span class="level-num">LVL 1</span><span class="level-name">Sapling</span><span class="level-desc">1-3 contributions</span></div>
-        <div class="level-box"><span class="level-num">LVL 2</span><span class="level-name">Young Oak</span><span class="level-desc">4-6 contributions</span></div>
-        <div class="level-box"><span class="level-num">LVL 3</span><span class="level-name">Mature Tree</span><span class="level-desc">7-9 contributions</span></div>
-        <div class="level-box"><span class="level-num">LVL 4</span><span class="level-name">Ancient Redwood</span><span class="level-desc">10+ contributions</span></div>
+      <div class="hero-fig" id="hero-fig" tabindex="0" role="group" aria-roledescription="drawing" aria-label="A line drawing of a real contribution year, one lot per day. Move the pointer, or use the arrow keys, to build the lots near it as New York buildings." aria-describedby="hero-read">
+        <svg class="hl" id="hero-svg" aria-hidden="true"></svg>
+        <noscript><img src="card-example.png" alt="A contribution land rendered as an isometric New York City with stats panels." width="1200" height="761"></noscript>
       </div>
-    </div>
+      <figcaption class="hero-foot">
+        <span class="mono now" id="hero-read" aria-hidden="true">Move across the drawing to build it</span>
+        <span class="mono" id="hero-count" aria-hidden="true"></span>
+      </figcaption>
+      <p class="sr" id="hero-live" aria-live="polite"></p>
+    </figure>
+  </section>
 
-    <!-- AUTUMN -->
-    <div class="drawing-card" id="card-autumn">
-      <div class="drawing-card__title">DRAWING No. II &mdash; AUTUMN FOREST</div>
-      <div class="drawing-card__blueprint">
-        <svg viewBox="0 0 440 260" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <line class="draw-line" x1="0" y1="220" x2="440" y2="220" stroke="#2a5a8a" stroke-width="1" style="--dash:440"/>
-          <!-- Falling leaf accents -->
-          <path class="draw-line" d="M60,40 Q65,50 58,55" stroke="#ffcc73" stroke-width=".6" fill="none" style="--dash:20"/>
-          <path class="draw-line" d="M200,60 Q205,70 198,75" stroke="#ffcc73" stroke-width=".6" fill="none" style="--dash:20"/>
-          <path class="draw-line" d="M340,30 Q345,40 338,45" stroke="#ffcc73" stroke-width=".6" fill="none" style="--dash:20"/>
-          <!-- Tree 0 -->
-          <line class="draw-line" x1="30" y1="220" x2="58" y2="220" stroke="#ffcc73" stroke-width="1.5" style="--dash:28"/>
-          <text x="44" y="242" font-family="IBM Plex Mono, monospace" font-size="7" fill="#5a7090" text-anchor="middle">LVL 0</text>
-          <!-- Tree 1 -->
-          <line class="draw-line" x1="100" y1="220" x2="100" y2="195" stroke="#4a90d9" stroke-width="1" style="--dash:25"/>
-          <polygon class="draw-line" points="100,180 89,200 111,200" stroke="#ffcc73" stroke-width="1" fill="none" style="--dash:60"/>
-          <text x="100" y="242" font-family="IBM Plex Mono, monospace" font-size="7" fill="#5a7090" text-anchor="middle">LVL 1</text>
-          <!-- Tree 2 -->
-          <line class="draw-line" x1="176" y1="220" x2="176" y2="170" stroke="#4a90d9" stroke-width="1.2" style="--dash:50"/>
-          <circle class="draw-line" cx="176" cy="156" r="22" stroke="#ffcc73" stroke-width="1" fill="none" style="--dash:140"/>
-          <text x="176" y="242" font-family="IBM Plex Mono, monospace" font-size="7" fill="#5a7090" text-anchor="middle">LVL 2</text>
-          <!-- Tree 3 -->
-          <line class="draw-line" x1="266" y1="220" x2="266" y2="145" stroke="#4a90d9" stroke-width="1.4" style="--dash:75"/>
-          <circle class="draw-line" cx="266" cy="125" r="30" stroke="#ffcc73" stroke-width="1" fill="none" style="--dash:190"/>
-          <circle class="draw-line" cx="266" cy="125" r="20" stroke="#ffcc73" stroke-width=".6" fill="none" style="--dash:126"/>
-          <text x="266" y="242" font-family="IBM Plex Mono, monospace" font-size="7" fill="#5a7090" text-anchor="middle">LVL 3</text>
-          <!-- Tree 4 -->
-          <line class="draw-line" x1="370" y1="220" x2="370" y2="105" stroke="#4a90d9" stroke-width="1.8" style="--dash:115"/>
-          <circle class="draw-line" cx="370" cy="78" r="40" stroke="#ffcc73" stroke-width="1.2" fill="none" style="--dash:252"/>
-          <circle class="draw-line" cx="370" cy="78" r="28" stroke="#ffcc73" stroke-width=".8" fill="none" style="--dash:176"/>
-          <circle class="draw-line" cx="370" cy="78" r="16" stroke="#ffcc73" stroke-width=".5" fill="none" style="--dash:100"/>
-          <text x="370" y="242" font-family="IBM Plex Mono, monospace" font-size="7" fill="#5a7090" text-anchor="middle">LVL 4</text>
-        </svg>
-      </div>
-      <div class="drawing-card__levels">
-        <div class="level-box"><span class="level-num">LVL 0</span><span class="level-name">Fallen Leaves</span><span class="level-desc">No contributions</span></div>
-        <div class="level-box"><span class="level-num">LVL 1</span><span class="level-name">Golden Sapling</span><span class="level-desc">1-3 contributions</span></div>
-        <div class="level-box"><span class="level-num">LVL 2</span><span class="level-name">Amber Maple</span><span class="level-desc">4-6 contributions</span></div>
-        <div class="level-box"><span class="level-num">LVL 3</span><span class="level-name">Crimson Oak</span><span class="level-desc">7-9 contributions</span></div>
-        <div class="level-box"><span class="level-num">LVL 4</span><span class="level-name">Harvest Elder</span><span class="level-desc">10+ contributions</span></div>
-      </div>
-    </div>
-
-    <!-- WINTER -->
-    <div class="drawing-card" id="card-winter">
-      <div class="drawing-card__title">DRAWING No. III &mdash; WINTER FOREST</div>
-      <div class="drawing-card__blueprint">
-        <svg viewBox="0 0 440 260" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <line class="draw-line" x1="0" y1="220" x2="440" y2="220" stroke="#2a5a8a" stroke-width="1" style="--dash:440"/>
-          <!-- Snow drifts -->
-          <path class="draw-line" d="M0,220 Q40,214 80,220 Q120,226 160,220 Q200,214 240,220 Q280,226 320,220 Q360,214 400,220 Q420,226 440,220" stroke="#c8d8e8" stroke-width=".5" fill="none" style="--dash:480"/>
-          <!-- Snowflakes -->
-          <text x="50" y="50" font-family="IBM Plex Mono, monospace" font-size="7" fill="#5a7090">*</text>
-          <text x="150" y="30" font-family="IBM Plex Mono, monospace" font-size="6" fill="#5a7090">*</text>
-          <text x="300" y="55" font-family="IBM Plex Mono, monospace" font-size="8" fill="#5a7090">*</text>
-          <text x="400" y="40" font-family="IBM Plex Mono, monospace" font-size="5" fill="#5a7090">*</text>
-          <!-- Tree 0: snow mound -->
-          <path class="draw-line" d="M30,220 Q44,212 58,220" stroke="#c8d8e8" stroke-width="1" fill="none" style="--dash:34"/>
-          <text x="44" y="242" font-family="IBM Plex Mono, monospace" font-size="7" fill="#5a7090" text-anchor="middle">LVL 0</text>
-          <!-- Tree 1: bare stick -->
-          <line class="draw-line" x1="100" y1="220" x2="100" y2="195" stroke="#c8d8e8" stroke-width="1" style="--dash:25"/>
-          <line class="draw-line" x1="100" y1="200" x2="92" y2="194" stroke="#c8d8e8" stroke-width=".6" style="--dash:10"/>
-          <line class="draw-line" x1="100" y1="202" x2="108" y2="196" stroke="#c8d8e8" stroke-width=".6" style="--dash:10"/>
-          <text x="100" y="242" font-family="IBM Plex Mono, monospace" font-size="7" fill="#5a7090" text-anchor="middle">LVL 1</text>
-          <!-- Tree 2: evergreen -->
-          <line class="draw-line" x1="176" y1="220" x2="176" y2="170" stroke="#4a90d9" stroke-width="1.2" style="--dash:50"/>
-          <polygon class="draw-line" points="176,152 161,185 191,185" stroke="#c8d8e8" stroke-width="1" fill="none" style="--dash:86"/>
-          <polygon class="draw-line" points="176,163 165,190 187,190" stroke="#c8d8e8" stroke-width=".6" fill="none" style="--dash:66"/>
-          <text x="176" y="242" font-family="IBM Plex Mono, monospace" font-size="7" fill="#5a7090" text-anchor="middle">LVL 2</text>
-          <!-- Tree 3: snow pine -->
-          <line class="draw-line" x1="266" y1="220" x2="266" y2="130" stroke="#4a90d9" stroke-width="1.4" style="--dash:90"/>
-          <polygon class="draw-line" points="266,105 240,155 292,155" stroke="#c8d8e8" stroke-width="1" fill="none" style="--dash:114"/>
-          <polygon class="draw-line" points="266,122 245,165 287,165" stroke="#c8d8e8" stroke-width=".7" fill="none" style="--dash:96"/>
-          <polygon class="draw-line" points="266,140 250,178 282,178" stroke="#c8d8e8" stroke-width=".5" fill="none" style="--dash:78"/>
-          <text x="266" y="242" font-family="IBM Plex Mono, monospace" font-size="7" fill="#5a7090" text-anchor="middle">LVL 3</text>
-          <!-- Tree 4: grand frost pine -->
-          <line class="draw-line" x1="370" y1="220" x2="370" y2="80" stroke="#4a90d9" stroke-width="1.8" style="--dash:140"/>
-          <polygon class="draw-line" points="370,50 335,115 405,115" stroke="#c8d8e8" stroke-width="1.2" fill="none" style="--dash:140"/>
-          <polygon class="draw-line" points="370,72 340,130 400,130" stroke="#c8d8e8" stroke-width=".9" fill="none" style="--dash:120"/>
-          <polygon class="draw-line" points="370,92 345,148 395,148" stroke="#c8d8e8" stroke-width=".6" fill="none" style="--dash:100"/>
-          <polygon class="draw-line" points="370,112 350,165 390,165" stroke="#c8d8e8" stroke-width=".4" fill="none" style="--dash:86"/>
-          <text x="370" y="242" font-family="IBM Plex Mono, monospace" font-size="7" fill="#5a7090" text-anchor="middle">LVL 4</text>
-        </svg>
-      </div>
-      <div class="drawing-card__levels">
-        <div class="level-box"><span class="level-num">LVL 0</span><span class="level-name">Snow Drift</span><span class="level-desc">No contributions</span></div>
-        <div class="level-box"><span class="level-num">LVL 1</span><span class="level-name">Bare Branch</span><span class="level-desc">1-3 contributions</span></div>
-        <div class="level-box"><span class="level-num">LVL 2</span><span class="level-name">Frosted Pine</span><span class="level-desc">4-6 contributions</span></div>
-        <div class="level-box"><span class="level-num">LVL 3</span><span class="level-name">Snow Pine</span><span class="level-desc">7-9 contributions</span></div>
-        <div class="level-box"><span class="level-num">LVL 4</span><span class="level-name">Grand Frost Pine</span><span class="level-desc">10+ contributions</span></div>
-      </div>
-    </div>
-
-    <!-- SPRING -->
-    <div class="drawing-card" id="card-spring">
-      <div class="drawing-card__title">DRAWING No. IV &mdash; SPRING FOREST</div>
-      <div class="drawing-card__blueprint">
-        <svg viewBox="0 0 440 260" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <line class="draw-line" x1="0" y1="220" x2="440" y2="220" stroke="#2a5a8a" stroke-width="1" style="--dash:440"/>
-          <!-- Cherry blossom petals floating -->
-          <circle class="draw-line" cx="80" cy="40" r="2" stroke="#ffcc73" stroke-width=".5" fill="none" style="--dash:13"/>
-          <circle class="draw-line" cx="220" cy="55" r="1.5" stroke="#ffcc73" stroke-width=".5" fill="none" style="--dash:10"/>
-          <circle class="draw-line" cx="350" cy="35" r="2.5" stroke="#ffcc73" stroke-width=".5" fill="none" style="--dash:16"/>
-          <circle class="draw-line" cx="130" cy="70" r="1.5" stroke="#ffcc73" stroke-width=".5" fill="none" style="--dash:10"/>
-          <!-- Tree 0: flower patch -->
-          <line class="draw-line" x1="30" y1="220" x2="58" y2="220" stroke="#4ade80" stroke-width="1.5" style="--dash:28"/>
-          <circle class="draw-line" cx="38" cy="215" r="3" stroke="#ffcc73" stroke-width=".6" fill="none" style="--dash:19"/>
-          <circle class="draw-line" cx="50" cy="214" r="2.5" stroke="#ffcc73" stroke-width=".6" fill="none" style="--dash:16"/>
-          <text x="44" y="242" font-family="IBM Plex Mono, monospace" font-size="7" fill="#5a7090" text-anchor="middle">LVL 0</text>
-          <!-- Tree 1 -->
-          <line class="draw-line" x1="100" y1="220" x2="100" y2="195" stroke="#4a90d9" stroke-width="1" style="--dash:25"/>
-          <polygon class="draw-line" points="100,178 88,200 112,200" stroke="#4ade80" stroke-width="1" fill="none" style="--dash:62"/>
-          <circle class="draw-line" cx="97" cy="182" r="3" stroke="#ffcc73" stroke-width=".5" fill="none" style="--dash:19"/>
-          <text x="100" y="242" font-family="IBM Plex Mono, monospace" font-size="7" fill="#5a7090" text-anchor="middle">LVL 1</text>
-          <!-- Tree 2 -->
-          <line class="draw-line" x1="176" y1="220" x2="176" y2="168" stroke="#4a90d9" stroke-width="1.2" style="--dash:52"/>
-          <circle class="draw-line" cx="176" cy="152" r="24" stroke="#4ade80" stroke-width="1" fill="none" style="--dash:151"/>
-          <circle class="draw-line" cx="168" cy="145" r="4" stroke="#ffcc73" stroke-width=".6" fill="none" style="--dash:25"/>
-          <circle class="draw-line" cx="185" cy="150" r="3.5" stroke="#ffcc73" stroke-width=".6" fill="none" style="--dash:22"/>
-          <text x="176" y="242" font-family="IBM Plex Mono, monospace" font-size="7" fill="#5a7090" text-anchor="middle">LVL 2</text>
-          <!-- Tree 3 -->
-          <line class="draw-line" x1="266" y1="220" x2="266" y2="140" stroke="#4a90d9" stroke-width="1.4" style="--dash:80"/>
-          <circle class="draw-line" cx="266" cy="118" r="32" stroke="#4ade80" stroke-width="1" fill="none" style="--dash:200"/>
-          <circle class="draw-line" cx="266" cy="118" r="22" stroke="#4ade80" stroke-width=".6" fill="none" style="--dash:140"/>
-          <circle class="draw-line" cx="255" cy="108" r="5" stroke="#ffcc73" stroke-width=".6" fill="none" style="--dash:32"/>
-          <circle class="draw-line" cx="278" cy="112" r="4" stroke="#ffcc73" stroke-width=".6" fill="none" style="--dash:25"/>
-          <circle class="draw-line" cx="264" cy="125" r="3.5" stroke="#ffcc73" stroke-width=".6" fill="none" style="--dash:22"/>
-          <text x="266" y="242" font-family="IBM Plex Mono, monospace" font-size="7" fill="#5a7090" text-anchor="middle">LVL 3</text>
-          <!-- Tree 4 -->
-          <line class="draw-line" x1="370" y1="220" x2="370" y2="95" stroke="#4a90d9" stroke-width="1.8" style="--dash:125"/>
-          <circle class="draw-line" cx="370" cy="68" r="44" stroke="#4ade80" stroke-width="1.2" fill="none" style="--dash:277"/>
-          <circle class="draw-line" cx="370" cy="68" r="32" stroke="#4ade80" stroke-width=".8" fill="none" style="--dash:200"/>
-          <circle class="draw-line" cx="370" cy="68" r="20" stroke="#4ade80" stroke-width=".5" fill="none" style="--dash:126"/>
-          <circle class="draw-line" cx="356" cy="55" r="6" stroke="#ffcc73" stroke-width=".7" fill="none" style="--dash:38"/>
-          <circle class="draw-line" cx="385" cy="60" r="5" stroke="#ffcc73" stroke-width=".7" fill="none" style="--dash:32"/>
-          <circle class="draw-line" cx="368" cy="75" r="4.5" stroke="#ffcc73" stroke-width=".7" fill="none" style="--dash:28"/>
-          <circle class="draw-line" cx="380" cy="45" r="3.5" stroke="#ffcc73" stroke-width=".6" fill="none" style="--dash:22"/>
-          <text x="370" y="242" font-family="IBM Plex Mono, monospace" font-size="7" fill="#5a7090" text-anchor="middle">LVL 4</text>
-        </svg>
-      </div>
-      <div class="drawing-card__levels">
-        <div class="level-box"><span class="level-num">LVL 0</span><span class="level-name">Wildflowers</span><span class="level-desc">No contributions</span></div>
-        <div class="level-box"><span class="level-num">LVL 1</span><span class="level-name">Blossom Bud</span><span class="level-desc">1-3 contributions</span></div>
-        <div class="level-box"><span class="level-num">LVL 2</span><span class="level-name">Flowering Tree</span><span class="level-desc">4-6 contributions</span></div>
-        <div class="level-box"><span class="level-num">LVL 3</span><span class="level-name">Cherry Blossom</span><span class="level-desc">7-9 contributions</span></div>
-        <div class="level-box"><span class="level-num">LVL 4</span><span class="level-name">Sakura Grand</span><span class="level-desc">10+ contributions</span></div>
-      </div>
-    </div>
-
-    <!-- NYC -->
-    <div class="drawing-card" id="card-nyc">
-      <div class="drawing-card__title">DRAWING No. V &mdash; NEW YORK CITY</div>
-      <div class="drawing-card__blueprint">
-        <svg viewBox="0 0 440 260" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <line class="draw-line" x1="0" y1="220" x2="440" y2="220" stroke="#2a5a8a" stroke-width="1" style="--dash:440"/>
-          <!-- LVL 0: Sidewalk -->
-          <rect class="draw-line" x="25" y="213" width="38" height="7" stroke="#4a90d9" stroke-width=".8" fill="none" style="--dash:90"/>
-          <line class="draw-line" x1="38" y1="213" x2="38" y2="220" stroke="#4a90d9" stroke-width=".4" style="--dash:7"/>
-          <line class="draw-line" x1="50" y1="213" x2="50" y2="220" stroke="#4a90d9" stroke-width=".4" style="--dash:7"/>
-          <text x="44" y="242" font-family="IBM Plex Mono, monospace" font-size="7" fill="#5a7090" text-anchor="middle">LVL 0</text>
-          <!-- LVL 1: Bodega -->
-          <rect class="draw-line" x="82" y="180" width="36" height="40" stroke="#4a90d9" stroke-width="1" fill="none" style="--dash:152"/>
-          <rect class="draw-line" x="87" y="188" width="10" height="10" stroke="#4a90d9" stroke-width=".5" fill="none" style="--dash:40"/>
-          <rect class="draw-line" x="103" y="188" width="10" height="10" stroke="#4a90d9" stroke-width=".5" fill="none" style="--dash:40"/>
-          <rect class="draw-line" x="93" y="206" width="14" height="14" stroke="#4a90d9" stroke-width=".5" fill="none" style="--dash:56"/>
-          <line class="draw-line" x1="82" y1="180" x2="118" y2="180" stroke="#ffcc73" stroke-width=".6" style="--dash:36"/>
-          <text x="100" y="242" font-family="IBM Plex Mono, monospace" font-size="7" fill="#5a7090" text-anchor="middle">LVL 1</text>
-          <!-- LVL 2: Brownstone -->
-          <rect class="draw-line" x="144" y="140" width="44" height="80" stroke="#4a90d9" stroke-width="1.2" fill="none" style="--dash:250"/>
-          <g stroke="#4a90d9" stroke-width=".5" fill="none">
-            <rect class="draw-line" x="150" y="148" width="8" height="8" style="--dash:32"/>
-            <rect class="draw-line" x="164" y="148" width="8" height="8" style="--dash:32"/>
-            <rect class="draw-line" x="178" y="148" width="8" height="8" style="--dash:32"/>
-            <rect class="draw-line" x="150" y="164" width="8" height="8" style="--dash:32"/>
-            <rect class="draw-line" x="164" y="164" width="8" height="8" style="--dash:32"/>
-            <rect class="draw-line" x="178" y="164" width="8" height="8" style="--dash:32"/>
-            <rect class="draw-line" x="150" y="180" width="8" height="8" style="--dash:32"/>
-            <rect class="draw-line" x="164" y="180" width="8" height="8" style="--dash:32"/>
-            <rect class="draw-line" x="178" y="180" width="8" height="8" style="--dash:32"/>
-          </g>
-          <rect class="draw-line" x="160" y="200" width="12" height="20" stroke="#4a90d9" stroke-width=".5" fill="none" style="--dash:64"/>
-          <!-- Fire escape -->
-          <line class="draw-line" x1="144" y1="155" x2="138" y2="155" stroke="#4a90d9" stroke-width=".4" style="--dash:6"/>
-          <line class="draw-line" x1="138" y1="155" x2="138" y2="172" stroke="#4a90d9" stroke-width=".4" style="--dash:17"/>
-          <line class="draw-line" x1="144" y1="172" x2="138" y2="172" stroke="#4a90d9" stroke-width=".4" style="--dash:6"/>
-          <text x="166" y="242" font-family="IBM Plex Mono, monospace" font-size="7" fill="#5a7090" text-anchor="middle">LVL 2</text>
-          <!-- LVL 3: Mid-rise -->
-          <rect class="draw-line" x="220" y="90" width="52" height="130" stroke="#4a90d9" stroke-width="1.4" fill="none" style="--dash:366"/>
-          <g stroke="#4a90d9" stroke-width=".4" fill="none">
-            <rect class="draw-line" x="227" y="98" width="7" height="6" style="--dash:26"/>
-            <rect class="draw-line" x="239" y="98" width="7" height="6" style="--dash:26"/>
-            <rect class="draw-line" x="251" y="98" width="7" height="6" style="--dash:26"/>
-            <rect class="draw-line" x="263" y="98" width="7" height="6" style="--dash:26"/>
-            <rect class="draw-line" x="227" y="112" width="7" height="6" style="--dash:26"/>
-            <rect class="draw-line" x="239" y="112" width="7" height="6" style="--dash:26"/>
-            <rect class="draw-line" x="251" y="112" width="7" height="6" style="--dash:26"/>
-            <rect class="draw-line" x="263" y="112" width="7" height="6" style="--dash:26"/>
-            <rect class="draw-line" x="227" y="126" width="7" height="6" style="--dash:26"/>
-            <rect class="draw-line" x="239" y="126" width="7" height="6" style="--dash:26"/>
-            <rect class="draw-line" x="251" y="126" width="7" height="6" style="--dash:26"/>
-            <rect class="draw-line" x="263" y="126" width="7" height="6" style="--dash:26"/>
-            <rect class="draw-line" x="227" y="140" width="7" height="6" style="--dash:26"/>
-            <rect class="draw-line" x="239" y="140" width="7" height="6" style="--dash:26"/>
-            <rect class="draw-line" x="251" y="140" width="7" height="6" style="--dash:26"/>
-            <rect class="draw-line" x="263" y="140" width="7" height="6" style="--dash:26"/>
-            <rect class="draw-line" x="227" y="154" width="7" height="6" style="--dash:26"/>
-            <rect class="draw-line" x="239" y="154" width="7" height="6" style="--dash:26"/>
-            <rect class="draw-line" x="251" y="154" width="7" height="6" style="--dash:26"/>
-            <rect class="draw-line" x="263" y="154" width="7" height="6" style="--dash:26"/>
-            <rect class="draw-line" x="227" y="168" width="7" height="6" style="--dash:26"/>
-            <rect class="draw-line" x="239" y="168" width="7" height="6" style="--dash:26"/>
-            <rect class="draw-line" x="251" y="168" width="7" height="6" style="--dash:26"/>
-            <rect class="draw-line" x="263" y="168" width="7" height="6" style="--dash:26"/>
-            <rect class="draw-line" x="227" y="182" width="7" height="6" style="--dash:26"/>
-            <rect class="draw-line" x="239" y="182" width="7" height="6" style="--dash:26"/>
-            <rect class="draw-line" x="251" y="182" width="7" height="6" style="--dash:26"/>
-            <rect class="draw-line" x="263" y="182" width="7" height="6" style="--dash:26"/>
-          </g>
-          <!-- Water tank on roof -->
-          <rect class="draw-line" x="238" y="78" width="16" height="12" stroke="#4a90d9" stroke-width=".6" fill="none" style="--dash:56"/>
-          <line class="draw-line" x1="236" y1="90" x2="236" y2="78" stroke="#4a90d9" stroke-width=".4" style="--dash:12"/>
-          <line class="draw-line" x1="256" y1="90" x2="256" y2="78" stroke="#4a90d9" stroke-width=".4" style="--dash:12"/>
-          <text x="246" y="242" font-family="IBM Plex Mono, monospace" font-size="7" fill="#5a7090" text-anchor="middle">LVL 3</text>
-          <!-- LVL 4: Skyscraper -->
-          <rect class="draw-line" x="316" y="35" width="60" height="185" stroke="#4a90d9" stroke-width="1.6" fill="none" style="--dash:490"/>
-          <!-- Spire -->
-          <line class="draw-line" x1="346" y1="35" x2="346" y2="12" stroke="#4a90d9" stroke-width="1" style="--dash:23"/>
-          <polygon class="draw-line" points="346,8 342,20 350,20" stroke="#ffcc73" stroke-width=".6" fill="none" style="--dash:30"/>
-          <g stroke="#4a90d9" stroke-width=".35" fill="none">
-            <rect class="draw-line" x="323" y="44" width="6" height="5" style="--dash:22"/>
-            <rect class="draw-line" x="334" y="44" width="6" height="5" style="--dash:22"/>
-            <rect class="draw-line" x="345" y="44" width="6" height="5" style="--dash:22"/>
-            <rect class="draw-line" x="356" y="44" width="6" height="5" style="--dash:22"/>
-            <rect class="draw-line" x="367" y="44" width="6" height="5" style="--dash:22"/>
-            <rect class="draw-line" x="323" y="56" width="6" height="5" style="--dash:22"/>
-            <rect class="draw-line" x="334" y="56" width="6" height="5" style="--dash:22"/>
-            <rect class="draw-line" x="345" y="56" width="6" height="5" style="--dash:22"/>
-            <rect class="draw-line" x="356" y="56" width="6" height="5" style="--dash:22"/>
-            <rect class="draw-line" x="367" y="56" width="6" height="5" style="--dash:22"/>
-            <rect class="draw-line" x="323" y="68" width="6" height="5" style="--dash:22"/>
-            <rect class="draw-line" x="334" y="68" width="6" height="5" style="--dash:22"/>
-            <rect class="draw-line" x="345" y="68" width="6" height="5" style="--dash:22"/>
-            <rect class="draw-line" x="356" y="68" width="6" height="5" style="--dash:22"/>
-            <rect class="draw-line" x="367" y="68" width="6" height="5" style="--dash:22"/>
-            <rect class="draw-line" x="323" y="80" width="6" height="5" style="--dash:22"/>
-            <rect class="draw-line" x="334" y="80" width="6" height="5" style="--dash:22"/>
-            <rect class="draw-line" x="345" y="80" width="6" height="5" style="--dash:22"/>
-            <rect class="draw-line" x="356" y="80" width="6" height="5" style="--dash:22"/>
-            <rect class="draw-line" x="367" y="80" width="6" height="5" style="--dash:22"/>
-            <rect class="draw-line" x="323" y="92" width="6" height="5" style="--dash:22"/>
-            <rect class="draw-line" x="334" y="92" width="6" height="5" style="--dash:22"/>
-            <rect class="draw-line" x="345" y="92" width="6" height="5" style="--dash:22"/>
-            <rect class="draw-line" x="356" y="92" width="6" height="5" style="--dash:22"/>
-            <rect class="draw-line" x="367" y="92" width="6" height="5" style="--dash:22"/>
-            <rect class="draw-line" x="323" y="104" width="6" height="5" style="--dash:22"/>
-            <rect class="draw-line" x="334" y="104" width="6" height="5" style="--dash:22"/>
-            <rect class="draw-line" x="345" y="104" width="6" height="5" style="--dash:22"/>
-            <rect class="draw-line" x="356" y="104" width="6" height="5" style="--dash:22"/>
-            <rect class="draw-line" x="367" y="104" width="6" height="5" style="--dash:22"/>
-            <rect class="draw-line" x="323" y="116" width="6" height="5" style="--dash:22"/>
-            <rect class="draw-line" x="334" y="116" width="6" height="5" style="--dash:22"/>
-            <rect class="draw-line" x="345" y="116" width="6" height="5" style="--dash:22"/>
-            <rect class="draw-line" x="356" y="116" width="6" height="5" style="--dash:22"/>
-            <rect class="draw-line" x="367" y="116" width="6" height="5" style="--dash:22"/>
-            <rect class="draw-line" x="323" y="128" width="6" height="5" style="--dash:22"/>
-            <rect class="draw-line" x="334" y="128" width="6" height="5" style="--dash:22"/>
-            <rect class="draw-line" x="345" y="128" width="6" height="5" style="--dash:22"/>
-            <rect class="draw-line" x="356" y="128" width="6" height="5" style="--dash:22"/>
-            <rect class="draw-line" x="367" y="128" width="6" height="5" style="--dash:22"/>
-            <rect class="draw-line" x="323" y="140" width="6" height="5" style="--dash:22"/>
-            <rect class="draw-line" x="334" y="140" width="6" height="5" style="--dash:22"/>
-            <rect class="draw-line" x="345" y="140" width="6" height="5" style="--dash:22"/>
-            <rect class="draw-line" x="356" y="140" width="6" height="5" style="--dash:22"/>
-            <rect class="draw-line" x="367" y="140" width="6" height="5" style="--dash:22"/>
-            <rect class="draw-line" x="323" y="152" width="6" height="5" style="--dash:22"/>
-            <rect class="draw-line" x="334" y="152" width="6" height="5" style="--dash:22"/>
-            <rect class="draw-line" x="345" y="152" width="6" height="5" style="--dash:22"/>
-            <rect class="draw-line" x="356" y="152" width="6" height="5" style="--dash:22"/>
-            <rect class="draw-line" x="367" y="152" width="6" height="5" style="--dash:22"/>
-          </g>
-          <text x="346" y="242" font-family="IBM Plex Mono, monospace" font-size="7" fill="#5a7090" text-anchor="middle">LVL 4</text>
-        </svg>
-      </div>
-      <div class="drawing-card__levels">
-        <div class="level-box"><span class="level-num">LVL 0</span><span class="level-name">Sidewalk</span><span class="level-desc">No contributions</span></div>
-        <div class="level-box"><span class="level-num">LVL 1</span><span class="level-name">Bodega</span><span class="level-desc">1-3 contributions</span></div>
-        <div class="level-box"><span class="level-num">LVL 2</span><span class="level-name">Brownstone</span><span class="level-desc">4-6 contributions</span></div>
-        <div class="level-box"><span class="level-num">LVL 3</span><span class="level-name">Mid-Rise</span><span class="level-desc">7-9 contributions</span></div>
-        <div class="level-box"><span class="level-num">LVL 4</span><span class="level-name">Skyscraper</span><span class="level-desc">10+ contributions</span></div>
-      </div>
-    </div>
-
-    <!-- PARIS -->
-    <div class="drawing-card" id="card-paris">
-      <div class="drawing-card__title">DRAWING No. VI &mdash; PARIS</div>
-      <div class="drawing-card__blueprint">
-        <svg viewBox="0 0 440 260" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <line class="draw-line" x1="0" y1="220" x2="440" y2="220" stroke="#2a5a8a" stroke-width="1" style="--dash:440"/>
-          <!-- LVL 0: Cobblestones -->
-          <rect class="draw-line" x="25" y="214" width="10" height="6" stroke="#4a90d9" stroke-width=".5" fill="none" style="--dash:32"/>
-          <rect class="draw-line" x="38" y="214" width="10" height="6" stroke="#4a90d9" stroke-width=".5" fill="none" style="--dash:32"/>
-          <rect class="draw-line" x="51" y="214" width="10" height="6" stroke="#4a90d9" stroke-width=".5" fill="none" style="--dash:32"/>
-          <text x="44" y="242" font-family="IBM Plex Mono, monospace" font-size="7" fill="#5a7090" text-anchor="middle">LVL 0</text>
-          <!-- LVL 1: Cafe -->
-          <rect class="draw-line" x="82" y="188" width="36" height="32" stroke="#4a90d9" stroke-width="1" fill="none" style="--dash:136"/>
-          <rect class="draw-line" x="87" y="195" width="12" height="10" stroke="#4a90d9" stroke-width=".5" fill="none" style="--dash:44"/>
-          <rect class="draw-line" x="105" y="195" width="8" height="25" stroke="#4a90d9" stroke-width=".5" fill="none" style="--dash:66"/>
-          <!-- Awning -->
-          <path class="draw-line" d="M80,188 Q88,183 96,188 Q104,183 112,188 Q118,183 120,188" stroke="#ffcc73" stroke-width=".6" fill="none" style="--dash:50"/>
-          <text x="100" y="242" font-family="IBM Plex Mono, monospace" font-size="7" fill="#5a7090" text-anchor="middle">LVL 1</text>
-          <!-- LVL 2: Haussmann -->
-          <rect class="draw-line" x="144" y="145" width="48" height="75" stroke="#4a90d9" stroke-width="1.2" fill="none" style="--dash:246"/>
-          <!-- Mansard roof -->
-          <path class="draw-line" d="M144,145 L152,128 L180,128 L192,145" stroke="#4a90d9" stroke-width="1" fill="none" style="--dash:80"/>
-          <g stroke="#4a90d9" stroke-width=".5" fill="none">
-            <rect class="draw-line" x="150" y="155" width="8" height="10" style="--dash:36"/>
-            <rect class="draw-line" x="164" y="155" width="8" height="10" style="--dash:36"/>
-            <rect class="draw-line" x="178" y="155" width="8" height="10" style="--dash:36"/>
-            <rect class="draw-line" x="150" y="175" width="8" height="10" style="--dash:36"/>
-            <rect class="draw-line" x="164" y="175" width="8" height="10" style="--dash:36"/>
-            <rect class="draw-line" x="178" y="175" width="8" height="10" style="--dash:36"/>
-            <rect class="draw-line" x="150" y="195" width="8" height="10" style="--dash:36"/>
-            <rect class="draw-line" x="164" y="195" width="8" height="10" style="--dash:36"/>
-            <rect class="draw-line" x="178" y="195" width="8" height="10" style="--dash:36"/>
-          </g>
-          <!-- Balcony lines -->
-          <line class="draw-line" x1="144" y1="170" x2="192" y2="170" stroke="#4a90d9" stroke-width=".4" style="--dash:48"/>
-          <line class="draw-line" x1="144" y1="190" x2="192" y2="190" stroke="#4a90d9" stroke-width=".4" style="--dash:48"/>
-          <text x="168" y="242" font-family="IBM Plex Mono, monospace" font-size="7" fill="#5a7090" text-anchor="middle">LVL 2</text>
-          <!-- LVL 3: Grand Haussmann -->
-          <rect class="draw-line" x="222" y="100" width="56" height="120" stroke="#4a90d9" stroke-width="1.4" fill="none" style="--dash:352"/>
-          <path class="draw-line" d="M222,100 L232,78 L268,78 L278,100" stroke="#4a90d9" stroke-width="1" fill="none" style="--dash:80"/>
-          <!-- Dormer window -->
-          <rect class="draw-line" x="244" y="82" width="12" height="10" stroke="#4a90d9" stroke-width=".5" fill="none" style="--dash:44"/>
-          <g stroke="#4a90d9" stroke-width=".4" fill="none">
-            <rect class="draw-line" x="228" y="108" width="8" height="10" style="--dash:36"/>
-            <rect class="draw-line" x="242" y="108" width="8" height="10" style="--dash:36"/>
-            <rect class="draw-line" x="256" y="108" width="8" height="10" style="--dash:36"/>
-            <rect class="draw-line" x="270" y="108" width="8" height="10" style="--dash:36"/>
-            <rect class="draw-line" x="228" y="128" width="8" height="10" style="--dash:36"/>
-            <rect class="draw-line" x="242" y="128" width="8" height="10" style="--dash:36"/>
-            <rect class="draw-line" x="256" y="128" width="8" height="10" style="--dash:36"/>
-            <rect class="draw-line" x="270" y="128" width="8" height="10" style="--dash:36"/>
-            <rect class="draw-line" x="228" y="148" width="8" height="10" style="--dash:36"/>
-            <rect class="draw-line" x="242" y="148" width="8" height="10" style="--dash:36"/>
-            <rect class="draw-line" x="256" y="148" width="8" height="10" style="--dash:36"/>
-            <rect class="draw-line" x="270" y="148" width="8" height="10" style="--dash:36"/>
-            <rect class="draw-line" x="228" y="168" width="8" height="10" style="--dash:36"/>
-            <rect class="draw-line" x="242" y="168" width="8" height="10" style="--dash:36"/>
-            <rect class="draw-line" x="256" y="168" width="8" height="10" style="--dash:36"/>
-            <rect class="draw-line" x="270" y="168" width="8" height="10" style="--dash:36"/>
-          </g>
-          <line class="draw-line" x1="222" y1="123" x2="278" y2="123" stroke="#4a90d9" stroke-width=".3" style="--dash:56"/>
-          <line class="draw-line" x1="222" y1="143" x2="278" y2="143" stroke="#4a90d9" stroke-width=".3" style="--dash:56"/>
-          <line class="draw-line" x1="222" y1="163" x2="278" y2="163" stroke="#4a90d9" stroke-width=".3" style="--dash:56"/>
-          <text x="250" y="242" font-family="IBM Plex Mono, monospace" font-size="7" fill="#5a7090" text-anchor="middle">LVL 3</text>
-          <!-- LVL 4: Eiffel-inspired tower -->
-          <g transform="translate(370, 220)">
-            <path class="draw-line" d="M0,0 L-30,0 L-8,-140 L-4,-180 L4,-180 L8,-140 L30,0 Z" stroke="#4a90d9" stroke-width="1.4" fill="none" style="--dash:500"/>
-            <!-- Observation deck lines -->
-            <line class="draw-line" x1="-24" y1="-30" x2="24" y2="-30" stroke="#4a90d9" stroke-width=".6" style="--dash:48"/>
-            <line class="draw-line" x1="-16" y1="-80" x2="16" y2="-80" stroke="#4a90d9" stroke-width=".6" style="--dash:32"/>
-            <line class="draw-line" x1="-10" y1="-120" x2="10" y2="-120" stroke="#4a90d9" stroke-width=".6" style="--dash:20"/>
-            <!-- Antenna -->
-            <line class="draw-line" x1="0" y1="-180" x2="0" y2="-200" stroke="#ffcc73" stroke-width=".8" style="--dash:20"/>
-            <!-- Cross bracing -->
-            <line class="draw-line" x1="-22" y1="-40" x2="22" y2="-20" stroke="#4a90d9" stroke-width=".3" style="--dash:48"/>
-            <line class="draw-line" x1="22" y1="-40" x2="-22" y2="-20" stroke="#4a90d9" stroke-width=".3" style="--dash:48"/>
-            <line class="draw-line" x1="-14" y1="-95" x2="14" y2="-70" stroke="#4a90d9" stroke-width=".3" style="--dash:36"/>
-            <line class="draw-line" x1="14" y1="-95" x2="-14" y2="-70" stroke="#4a90d9" stroke-width=".3" style="--dash:36"/>
-          </g>
-          <text x="370" y="242" font-family="IBM Plex Mono, monospace" font-size="7" fill="#5a7090" text-anchor="middle">LVL 4</text>
-        </svg>
-      </div>
-      <div class="drawing-card__levels">
-        <div class="level-box"><span class="level-num">LVL 0</span><span class="level-name">Cobblestones</span><span class="level-desc">No contributions</span></div>
-        <div class="level-box"><span class="level-num">LVL 1</span><span class="level-name">Parisian Cafe</span><span class="level-desc">1-3 contributions</span></div>
-        <div class="level-box"><span class="level-num">LVL 2</span><span class="level-name">Haussmann Block</span><span class="level-desc">4-6 contributions</span></div>
-        <div class="level-box"><span class="level-num">LVL 3</span><span class="level-name">Grand Haussmann</span><span class="level-desc">7-9 contributions</span></div>
-        <div class="level-box"><span class="level-num">LVL 4</span><span class="level-name">Iron Tower</span><span class="level-desc">10+ contributions</span></div>
-      </div>
-    </div>
-
-    <!-- CAPE TOWN -->
-    <div class="drawing-card" id="card-capetown">
-      <div class="drawing-card__title">DRAWING No. VII &mdash; CAPE TOWN</div>
-      <div class="drawing-card__blueprint">
-        <svg viewBox="0 0 440 260" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <line class="draw-line" x1="0" y1="220" x2="440" y2="220" stroke="#2a5a8a" stroke-width="1" style="--dash:440"/>
-          <!-- Table Mountain silhouette in background -->
-          <path class="draw-line" d="M0,120 L40,120 L60,80 L160,80 L180,120 L440,120" stroke="#2a5a8a" stroke-width=".8" fill="none" style="--dash:500"/>
-          <!-- LVL 0: Beach sand -->
-          <path class="draw-line" d="M25,220 Q44,214 63,220" stroke="#ffcc73" stroke-width="1" fill="none" style="--dash:42"/>
-          <text x="44" y="242" font-family="IBM Plex Mono, monospace" font-size="7" fill="#5a7090" text-anchor="middle">LVL 0</text>
-          <!-- LVL 1: Beach hut -->
-          <rect class="draw-line" x="82" y="192" width="36" height="28" stroke="#4a90d9" stroke-width="1" fill="none" style="--dash:128"/>
-          <polygon class="draw-line" points="80,192 100,178 120,192" stroke="#ffcc73" stroke-width=".8" fill="none" style="--dash:56"/>
-          <rect class="draw-line" x="93" y="204" width="14" height="16" stroke="#4a90d9" stroke-width=".5" fill="none" style="--dash:60"/>
-          <text x="100" y="242" font-family="IBM Plex Mono, monospace" font-size="7" fill="#5a7090" text-anchor="middle">LVL 1</text>
-          <!-- LVL 2: Bo-Kaap house -->
-          <rect class="draw-line" x="146" y="155" width="42" height="65" stroke="#4a90d9" stroke-width="1.2" fill="none" style="--dash:214"/>
-          <polygon class="draw-line" points="144,155 167,135 190,155" stroke="#ffcc73" stroke-width=".8" fill="none" style="--dash:66"/>
-          <rect class="draw-line" x="152" y="165" width="10" height="12" stroke="#4a90d9" stroke-width=".5" fill="none" style="--dash:44"/>
-          <rect class="draw-line" x="170" y="165" width="10" height="12" stroke="#4a90d9" stroke-width=".5" fill="none" style="--dash:44"/>
-          <rect class="draw-line" x="158" y="196" width="18" height="24" stroke="#4a90d9" stroke-width=".5" fill="none" style="--dash:84"/>
-          <text x="167" y="242" font-family="IBM Plex Mono, monospace" font-size="7" fill="#5a7090" text-anchor="middle">LVL 2</text>
-          <!-- LVL 3: Victorian -->
-          <rect class="draw-line" x="222" y="110" width="52" height="110" stroke="#4a90d9" stroke-width="1.4" fill="none" style="--dash:324"/>
-          <polygon class="draw-line" points="220,110 248,82 280,110" stroke="#4a90d9" stroke-width="1" fill="none" style="--dash:80"/>
-          <!-- Veranda -->
-          <line class="draw-line" x1="222" y1="165" x2="274" y2="165" stroke="#4a90d9" stroke-width=".5" style="--dash:52"/>
-          <line class="draw-line" x1="228" y1="165" x2="228" y2="175" stroke="#4a90d9" stroke-width=".4" style="--dash:10"/>
-          <line class="draw-line" x1="248" y1="165" x2="248" y2="175" stroke="#4a90d9" stroke-width=".4" style="--dash:10"/>
-          <line class="draw-line" x1="268" y1="165" x2="268" y2="175" stroke="#4a90d9" stroke-width=".4" style="--dash:10"/>
-          <g stroke="#4a90d9" stroke-width=".4" fill="none">
-            <rect class="draw-line" x="228" y="120" width="8" height="10" style="--dash:36"/>
-            <rect class="draw-line" x="244" y="120" width="8" height="10" style="--dash:36"/>
-            <rect class="draw-line" x="260" y="120" width="8" height="10" style="--dash:36"/>
-            <rect class="draw-line" x="228" y="140" width="8" height="10" style="--dash:36"/>
-            <rect class="draw-line" x="244" y="140" width="8" height="10" style="--dash:36"/>
-            <rect class="draw-line" x="260" y="140" width="8" height="10" style="--dash:36"/>
-            <rect class="draw-line" x="228" y="180" width="8" height="10" style="--dash:36"/>
-            <rect class="draw-line" x="244" y="180" width="8" height="10" style="--dash:36"/>
-            <rect class="draw-line" x="260" y="180" width="8" height="10" style="--dash:36"/>
-          </g>
-          <text x="248" y="242" font-family="IBM Plex Mono, monospace" font-size="7" fill="#5a7090" text-anchor="middle">LVL 3</text>
-          <!-- LVL 4: Modern tower -->
-          <rect class="draw-line" x="330" y="40" width="60" height="180" stroke="#4a90d9" stroke-width="1.6" fill="none" style="--dash:480"/>
-          <!-- Glass curtain wall pattern -->
-          <g stroke="#4a90d9" stroke-width=".3" fill="none">
-            <line class="draw-line" x1="330" y1="60" x2="390" y2="60" stroke-width=".3" style="--dash:60"/>
-            <line class="draw-line" x1="330" y1="80" x2="390" y2="80" stroke-width=".3" style="--dash:60"/>
-            <line class="draw-line" x1="330" y1="100" x2="390" y2="100" stroke-width=".3" style="--dash:60"/>
-            <line class="draw-line" x1="330" y1="120" x2="390" y2="120" stroke-width=".3" style="--dash:60"/>
-            <line class="draw-line" x1="330" y1="140" x2="390" y2="140" stroke-width=".3" style="--dash:60"/>
-            <line class="draw-line" x1="330" y1="160" x2="390" y2="160" stroke-width=".3" style="--dash:60"/>
-            <line class="draw-line" x1="330" y1="180" x2="390" y2="180" stroke-width=".3" style="--dash:60"/>
-            <line class="draw-line" x1="330" y1="200" x2="390" y2="200" stroke-width=".3" style="--dash:60"/>
-            <line class="draw-line" x1="345" y1="40" x2="345" y2="220" stroke-width=".3" style="--dash:180"/>
-            <line class="draw-line" x1="360" y1="40" x2="360" y2="220" stroke-width=".3" style="--dash:180"/>
-            <line class="draw-line" x1="375" y1="40" x2="375" y2="220" stroke-width=".3" style="--dash:180"/>
-          </g>
-          <!-- Rooftop helipad -->
-          <circle class="draw-line" cx="360" cy="35" r="8" stroke="#ffcc73" stroke-width=".5" fill="none" style="--dash:50"/>
-          <text x="360" y="38" font-family="IBM Plex Mono, monospace" font-size="7" fill="#ffcc73" text-anchor="middle">H</text>
-          <text x="360" y="242" font-family="IBM Plex Mono, monospace" font-size="7" fill="#5a7090" text-anchor="middle">LVL 4</text>
-        </svg>
-      </div>
-      <div class="drawing-card__levels">
-        <div class="level-box"><span class="level-num">LVL 0</span><span class="level-name">Beach Sand</span><span class="level-desc">No contributions</span></div>
-        <div class="level-box"><span class="level-num">LVL 1</span><span class="level-name">Beach Hut</span><span class="level-desc">1-3 contributions</span></div>
-        <div class="level-box"><span class="level-num">LVL 2</span><span class="level-name">Bo-Kaap House</span><span class="level-desc">4-6 contributions</span></div>
-        <div class="level-box"><span class="level-num">LVL 3</span><span class="level-name">Victorian Manor</span><span class="level-desc">7-9 contributions</span></div>
-        <div class="level-box"><span class="level-num">LVL 4</span><span class="level-name">Waterfront Tower</span><span class="level-desc">10+ contributions</span></div>
-      </div>
-    </div>
-
-  </div>
-</section>
-
-<!-- ============================================================
-     SECTION 3: HOW IT WORKS
-     ============================================================ -->
-<section id="schematic">
-  <div class="container">
-    <div class="section-label reveal">OPERATION SCHEMATIC</div>
-
-    <div class="schematic-wrap reveal">
-      <svg class="schematic-svg" viewBox="0 0 860 160" fill="none" xmlns="http://www.w3.org/2000/svg" style="max-width:860px;">
-        <!-- Box 1: GitHub Profile -->
-        <rect class="draw-line" x="20" y="30" width="200" height="100" stroke="#4a90d9" stroke-width="1.2" fill="none" style="--dash:600"/>
-        <text x="120" y="62" font-family="IBM Plex Mono, monospace" font-size="11" fill="#c8d8e8" text-anchor="middle" letter-spacing="1">GITHUB PROFILE</text>
-        <!-- Small grid icon -->
-        <g transform="translate(95, 72)">
-          <rect class="draw-line" x="0" y="0" width="8" height="8" stroke="#4ade80" stroke-width=".8" fill="none" style="--dash:32"/>
-          <rect class="draw-line" x="11" y="0" width="8" height="8" stroke="#4a90d9" stroke-width=".8" fill="none" style="--dash:32"/>
-          <rect class="draw-line" x="22" y="0" width="8" height="8" stroke="#4ade80" stroke-width=".8" fill="none" style="--dash:32"/>
-          <rect class="draw-line" x="33" y="0" width="8" height="8" stroke="#4a90d9" stroke-width=".8" fill="none" style="--dash:32"/>
-          <rect class="draw-line" x="0" y="11" width="8" height="8" stroke="#4a90d9" stroke-width=".8" fill="none" style="--dash:32"/>
-          <rect class="draw-line" x="11" y="11" width="8" height="8" stroke="#4ade80" stroke-width=".8" fill="none" style="--dash:32"/>
-          <rect class="draw-line" x="22" y="11" width="8" height="8" stroke="#4a90d9" stroke-width=".8" fill="none" style="--dash:32"/>
-          <rect class="draw-line" x="33" y="11" width="8" height="8" stroke="#4ade80" stroke-width=".8" fill="none" style="--dash:32"/>
-        </g>
-
-        <!-- Arrow 1 -->
-        <line class="draw-line" x1="230" y1="80" x2="320" y2="80" stroke="#ffcc73" stroke-width="1" stroke-dasharray="6,4" style="--dash:100"/>
-        <polygon points="323,80 315,76 315,84" fill="#ffcc73"/>
-
-        <!-- Box 2: Contribution Lands -->
-        <rect class="draw-line" x="330" y="30" width="200" height="100" stroke="#ffcc73" stroke-width="1.2" fill="none" style="--dash:600"/>
-        <text x="430" y="62" font-family="IBM Plex Mono, monospace" font-size="10" fill="#ffcc73" text-anchor="middle" letter-spacing="1">CONTRIBUTION LANDS</text>
-        <!-- Gear icon -->
-        <g transform="translate(418, 72)">
-          <circle class="draw-line" cx="12" cy="12" r="10" stroke="#ffcc73" stroke-width=".8" fill="none" style="--dash:63"/>
-          <circle class="draw-line" cx="12" cy="12" r="4" stroke="#ffcc73" stroke-width=".8" fill="none" style="--dash:25"/>
-          <line class="draw-line" x1="12" y1="0" x2="12" y2="4" stroke="#ffcc73" stroke-width="1" style="--dash:4"/>
-          <line class="draw-line" x1="12" y1="20" x2="12" y2="24" stroke="#ffcc73" stroke-width="1" style="--dash:4"/>
-          <line class="draw-line" x1="0" y1="12" x2="4" y2="12" stroke="#ffcc73" stroke-width="1" style="--dash:4"/>
-          <line class="draw-line" x1="20" y1="12" x2="24" y2="12" stroke="#ffcc73" stroke-width="1" style="--dash:4"/>
-        </g>
-
-        <!-- Arrow 2 -->
-        <line class="draw-line" x1="540" y1="80" x2="630" y2="80" stroke="#ffcc73" stroke-width="1" stroke-dasharray="6,4" style="--dash:100"/>
-        <polygon points="633,80 625,76 625,84" fill="#ffcc73"/>
-
-        <!-- Box 3: Isometric World -->
-        <rect class="draw-line" x="640" y="30" width="200" height="100" stroke="#4ade80" stroke-width="1.2" fill="none" style="--dash:600"/>
-        <text x="740" y="62" font-family="IBM Plex Mono, monospace" font-size="11" fill="#4ade80" text-anchor="middle" letter-spacing="1">ISOMETRIC WORLD</text>
-        <!-- Isometric cube -->
-        <g transform="translate(722, 74)">
-          <path class="draw-line" d="M18,0 L36,10 L36,30 L18,40 L0,30 L0,10 Z" stroke="#4ade80" stroke-width=".8" fill="none" style="--dash:120"/>
-          <line class="draw-line" x1="18" y1="20" x2="36" y2="10" stroke="#4ade80" stroke-width=".5" style="--dash:22"/>
-          <line class="draw-line" x1="18" y1="20" x2="0" y2="10" stroke="#4ade80" stroke-width=".5" style="--dash:22"/>
-          <line class="draw-line" x1="18" y1="20" x2="18" y2="40" stroke="#4ade80" stroke-width=".5" style="--dash:20"/>
-        </g>
-      </svg>
-    </div>
-
-    <div class="schematic-annotations reveal">
-      <div class="schematic-anno"><strong>DETECT</strong> contribution graph via DOM</div>
-      <div class="schematic-anno"><strong>MAP</strong> levels 0-4 to theme sprites</div>
-      <div class="schematic-anno"><strong>RENDER</strong> isometric canvas overlay</div>
-    </div>
-  </div>
-</section>
-
-<!-- ============================================================
-     SECTION 4: FEATURES / SPECIFICATIONS
-     ============================================================ -->
-<section id="specs">
-  <div class="container">
-    <div class="section-label reveal">SPECIFICATIONS</div>
-
-    <div class="spec-grid">
-      <div class="spec-card bp-panel reveal">
-        <div class="spec-card__icon">
-          <svg viewBox="0 0 32 32" fill="none"><rect x="2" y="8" width="8" height="22" stroke="#4a90d9" stroke-width="1.2"/><rect x="12" y="14" width="8" height="16" stroke="#4ade80" stroke-width="1.2"/><rect x="22" y="4" width="8" height="26" stroke="#ffcc73" stroke-width="1.2"/></svg>
-        </div>
-        <div class="spec-card__title">7 Themed Environments</div>
-        <div class="spec-card__body">Forest x4 (seasonal), City x3 (geographic). Each biome features unique sprites across 5 contribution levels.</div>
-      </div>
-
-      <div class="spec-card bp-panel reveal">
-        <div class="spec-card__icon">
-          <svg viewBox="0 0 32 32" fill="none"><circle cx="8" cy="24" r="3" stroke="#4ade80" stroke-width="1.2"/><path d="M8,21 L8,12 Q8,8 12,8 L24,8" stroke="#4a90d9" stroke-width="1.2" fill="none"/><polygon points="24,5 28,8 24,11" stroke="#ffcc73" stroke-width="1.2" fill="none"/></svg>
-        </div>
-        <div class="spec-card__title">Ambient Animations</div>
-        <div class="spec-card__body">Deer wander through forests. Taxis drive in NYC. Cherry blossoms drift in spring. Snow falls in winter.</div>
-      </div>
-
-      <div class="spec-card bp-panel reveal">
-        <div class="spec-card__icon">
-          <svg viewBox="0 0 32 32" fill="none"><circle cx="16" cy="12" r="8" stroke="#ffcc73" stroke-width="1.2"/><path d="M10,24 L16,18 L22,24" stroke="#4a90d9" stroke-width="1.2" fill="none"/><line x1="16" y1="18" x2="16" y2="30" stroke="#4a90d9" stroke-width="1.2"/></svg>
-        </div>
-        <div class="spec-card__title">AI-Generated Sprites</div>
-        <div class="spec-card__body">Gemini API pipeline produces all 101 sprites for ~$3.76. Full validation suite ensures consistency across themes.</div>
-      </div>
-
-      <div class="spec-card bp-panel reveal">
-        <div class="spec-card__icon">
-          <svg viewBox="0 0 32 32" fill="none"><rect x="4" y="4" width="24" height="24" rx="2" stroke="#4a90d9" stroke-width="1.2"/><line x1="4" y1="16" x2="28" y2="16" stroke="#4a90d9" stroke-width=".8"/><line x1="16" y1="4" x2="16" y2="28" stroke="#4a90d9" stroke-width=".8"/><circle cx="10" cy="10" r="2" fill="#ffcc73"/><circle cx="22" cy="22" r="2" fill="#4ade80"/></svg>
-        </div>
-        <div class="spec-card__title">Extensible Theme System</div>
-        <div class="spec-card__body">JSON schema + prompt templates. Create entirely new biomes without touching rendering code.</div>
-      </div>
-
-      <div class="spec-card bp-panel reveal">
-        <div class="spec-card__icon">
-          <svg viewBox="0 0 32 32" fill="none"><rect x="4" y="20" width="8" height="8" stroke="#4a90d9" stroke-width="1.2"/><path d="M14,14 L18,10 L22,14 L26,10 L30,14 L30,28 L14,28 Z" stroke="#4ade80" stroke-width="1.2" fill="none"/><rect x="2" y="4" width="6" height="6" stroke="#ffcc73" stroke-width="1.2"/></svg>
-        </div>
-        <div class="spec-card__title">3 Rendering Modes</div>
-        <div class="spec-card__body">Squares (original GitHub style), Cubes (isometric), or Both overlaid. Toggle freely from the popup.</div>
-      </div>
-
-      <div class="spec-card bp-panel reveal">
-        <div class="spec-card__icon">
-          <svg viewBox="0 0 32 32" fill="none"><circle cx="16" cy="16" r="12" stroke="#4a90d9" stroke-width="1.2"/><path d="M16,8 L16,16 L22,20" stroke="#ffcc73" stroke-width="1.2" fill="none" stroke-linecap="round"/><circle cx="16" cy="16" r="2" fill="#4ade80"/></svg>
-        </div>
-        <div class="spec-card__title">Smart Page Detection</div>
-        <div class="spec-card__body">Handles GitHub's Turbo navigation and SPA routing. Works on any profile page, including your own.</div>
-      </div>
-    </div>
-  </div>
-</section>
-
-<!-- ============================================================
-     SECTION 5: INSTALLATION
-     ============================================================ -->
-<section id="install">
-  <div class="container">
-    <div class="section-label reveal">INSTALLATION PROCEDURE &mdash; REV 1.0</div>
-
-    <div class="install-steps">
-      <div class="install-step reveal">
-        <div class="step-num">01</div>
-        <div class="step-content">
-          <div class="step-title">Clone Repository</div>
-          <div class="step-cmd">$ git clone https://github.com/jeanluciradukunda/contribution-lands.git</div>
+  <section class="sec" id="source" aria-labelledby="source-title">
+    <h2 id="source-title">Drawn from your <em class="acc">contributions.</em></h2>
+    <article class="card source">
+      <div class="fig">
+        <div class="branches-box" id="branches" role="img" aria-label="A commit graph with a branch forking off main and merging back. The commit under the pointer rises with its history."></div>
+        <div class="bar" style="padding:2px 2px 0">
+          <span class="mono" id="branches-read">history</span>
+          <span class="credit">Figure from <a href="https://hairline.lucasmarkes.com">Hairline</a> by Lucas Marques, MIT</span>
         </div>
       </div>
-
-      <div class="install-step reveal">
-        <div class="step-num">02</div>
-        <div class="step-content">
-          <div class="step-title">Build Extension</div>
-          <div class="step-cmd">$ cd extension && pnpm install && pnpm build</div>
-        </div>
+      <div class="txt">
+        <p>Each lot is one day of your contribution graph. The commits, pull requests, reviews and issues GitHub already counts for that day set its shade, and the shade sets its height.</p>
+        <p>The extension reads the calendar on the profile you are viewing, and the public contributions page for earlier dates so streaks are complete. Nothing is sent anywhere else and nothing is stored but your settings. <a href="privacy.html">Privacy policy</a>.</p>
+        <p class="mono" style="margin:0">Works on any profile, yours or anyone's. The drawing above is the maker's own last 22 weeks, refreshed every night.</p>
       </div>
+    </article>
+  </section>
 
-      <div class="install-step reveal">
-        <div class="step-num">03</div>
-        <div class="step-content">
-          <div class="step-title">Load in Chrome</div>
-          <div class="step-cmd">Navigate to chrome://extensions
-Enable "Developer mode" toggle
-Click "Load unpacked" &rarr; select extension/dist/</div>
-        </div>
-      </div>
+  <section class="sec" id="figures" aria-labelledby="figures-title">
+    <h2 id="figures-title">Every detail, by what it <em class="acc">means.</em></h2>
+    <p class="intro">Eight figures, shelved by where you meet them. Each one answers the pointer.</p>
 
-      <div class="install-step reveal">
-        <div class="step-num">04</div>
-        <div class="step-content">
-          <div class="step-title">Verify</div>
-          <div class="step-cmd">Visit any GitHub profile
-The contribution graph transforms automatically</div>
-        </div>
+    <div class="shelf" id="land">
+      <div class="shelf-head"><h3>The land</h3><span class="mono">3 of 3 drawn</span></div>
+      <div class="grid">
+        <article class="card shades">
+          <div class="fig" id="shades-fig">
+            <svg class="hl" id="shades-svg" role="img" aria-label="Five lots in a row, from an empty lot to a skyscraper, one for each shade of the contribution graph."></svg>
+            <div class="sw-row" role="group" aria-label="Shades">
+              <button type="button" style="background:var(--g0)" data-l="0" aria-pressed="false" aria-label="No contributions"></button>
+              <button type="button" style="background:var(--g1)" data-l="1" aria-pressed="false" aria-label="Lightest shade"></button>
+              <button type="button" style="background:var(--g2)" data-l="2" aria-pressed="false" aria-label="Second shade"></button>
+              <button type="button" style="background:var(--g3)" data-l="3" aria-pressed="false" aria-label="Third shade"></button>
+              <button type="button" style="background:var(--g4)" data-l="4" aria-pressed="false" aria-label="Darkest shade"></button>
+            </div>
+          </div>
+          <div class="cap"><h3>Five shades, five heights</h3><span class="mono ro" id="shades-read" aria-live="polite">hover a shade</span></div>
+          <p>Each of GitHub's five shades is built at its own height, so a busy month reads as skyline.</p>
+        </article>
+
+        <article class="card today">
+          <div class="fig" id="today-fig" tabindex="0" role="slider" aria-label="Today's construction stage" aria-valuemin="0" aria-valuemax="4" aria-valuenow="2" aria-valuetext="Frame">
+            <svg class="hl" id="today-svg" aria-hidden="true"></svg>
+            <ol class="ruler" id="ruler" aria-hidden="true">
+              <li>4 topping out</li><li>3 cladding</li><li class="on">2 frame</li><li>1 groundwork</li><li>0 nothing yet</li>
+            </ol>
+          </div>
+          <div class="cap"><h3>Today is a building site</h3><span class="mono ro" id="today-read">stage 2 · frame</span></div>
+          <p>Today's lot climbs a stage each time today's shade deepens. Tomorrow it is built like any other day.</p>
+        </article>
+
+        <article class="card landmark">
+          <div class="fig" id="lm-fig" tabindex="0" aria-label="A block of low lots with one tall drawing. Hover or focus it to reveal your best days as landmarks.">
+            <svg class="hl" id="lm-svg" aria-hidden="true"></svg>
+            <div class="tip" id="lm-tip" aria-hidden="true"></div>
+          </div>
+          <div class="cap"><h3>Your best days are landmarks</h3><span class="mono ro" id="lm-read">hover the tall one</span></div>
+          <p>Your sixteen busiest days are built as real New York buildings, ranked from your best day down.</p>
+          <details class="lm-list">
+            <summary>The sixteen, from your best day down</summary>
+            <ol>
+              <li>Empire State Building</li><li>Chrysler Building</li><li>One World Trade Center</li><li>Statue of Liberty</li><li>Flatiron Building</li><li>30 Rockefeller Plaza</li><li>One Vanderbilt</li><li>30 Hudson Yards and the Edge</li><li>56 Leonard Street</li><li>Hearst Tower</li><li>40 Wall Street</li><li>Bank of America Tower</li><li>8 Spruce Street</li><li>Central Park Tower</li><li>Woolworth Building</li><li>The Vessel</li>
+            </ol>
+          </details>
+        </article>
       </div>
     </div>
-  </div>
-</section>
 
-<!-- ============================================================
-     SECTION 6: BETA BANNER
-     ============================================================ -->
-<section id="status">
-  <div class="container">
-    <div class="section-label reveal">PROJECT STATUS</div>
+    <div class="shelf" id="streets">
+      <div class="shelf-head"><h3>The streets</h3><span class="mono">2 of 2 drawn</span></div>
+      <div class="grid">
+        <article class="card rail">
+          <div class="fig" id="rail-fig" tabindex="0" role="slider" aria-label="Train position along your longest streak" aria-valuemin="1" aria-valuemax="9" aria-valuenow="1">
+            <svg class="hl" id="rail-svg" aria-hidden="true"></svg>
+          </div>
+          <div class="cap"><h3>Streaks run on rails</h3><span class="mono ro" id="rail-read">9-day streak</span></div>
+          <p>Your longest streak is an elevated railway along the front street, with a train running its length.</p>
+        </article>
 
-    <div class="beta-banner reveal">
-      <div class="beta-banner__title">PUBLIC BETA &mdash; DRAWING IN PROGRESS</div>
-      <p class="beta-banner__sub">Help us draft the next biome. Contribute a theme, report a bug, or just install and enjoy.</p>
-      <div class="beta-banner__actions">
-        <a href="https://github.com/jeanluciradukunda/contribution-lands" class="btn btn--primary btn--small">INSTALL</a>
-        <a href="https://github.com/jeanluciradukunda/contribution-lands/blob/develop/docs/creating-themes.md" class="btn btn--outline btn--small">CONTRIBUTE</a>
-        <a href="https://github.com/jeanluciradukunda/contribution-lands/issues/new" class="btn btn--outline btn--small">REPORT ISSUE</a>
+        <article class="card span2 blocks">
+          <div class="fig" id="blocks-fig" style="aspect-ratio:auto;min-height:280px">
+            <svg class="hl" id="blocks-svg" role="img" aria-label="Three six-week blocks of lots with streets between them and taxis driving the grid."></svg>
+          </div>
+          <div class="cap"><h3>Blocks, streets and taxis</h3><span class="mono ro" id="blocks-read">3 blocks · 18 weeks</span></div>
+          <p>Weeks are grouped into six-week blocks with streets between them, and taxis work the grid. Motion can be switched off in the popup.</p>
+        </article>
       </div>
     </div>
-  </div>
-</section>
 
-<!-- ============================================================
-     SECTION 7: FOOTER
-     ============================================================ -->
-<footer>
-  <div class="container">
-    <div class="footer-block reveal">
-      <div class="fb-title">CONTRIBUTION LANDS v0.1.0</div>
-      <hr class="fb-divider">
-      <div class="fb-row"><span class="fb-label">TYPE</span><span class="fb-val">Chrome Extension (Manifest V3)</span></div>
-      <div class="fb-row"><span class="fb-label">DRAWN</span><span class="fb-val">Jean Luc Iradukunda</span></div>
-      <div class="fb-row"><span class="fb-label">SCALE</span><span class="fb-val">1 commit = 1 tree</span></div>
-      <div class="fb-row"><span class="fb-label">LICENSE</span><span class="fb-val">MIT</span></div>
-      <hr class="fb-divider">
-      <div style="color:var(--line)">github.com/jeanluciradukunda/contribution-lands</div>
+    <div class="shelf" id="profile">
+      <div class="shelf-head"><h3>On your profile</h3><span class="mono">2 of 2 drawn</span></div>
+      <div class="grid">
+        <article class="card span2 stats">
+          <div class="fig">
+            <div class="gh" id="gh"></div>
+            <svg class="hl stats-plan" id="stats-svg" role="img" aria-label="The sample year as a flat plan of lots. Hover a stat to see which days it counts."></svg>
+          </div>
+          <div class="cap"><h3>Stats in GitHub's own style</h3><span class="mono" id="stats-read">hover a stat</span></div>
+          <p>Contributions and Streaks panels sit over the land, styled like GitHub's own headings.</p>
+        </article>
+
+        <article class="card click">
+          <div class="fig">
+            <svg class="hl" id="click-svg" role="group" aria-label="This week's buildings. Choose one to filter the activity to that day."></svg>
+            <div class="feed" id="feed" aria-live="polite"></div>
+          </div>
+          <div class="cap"><h3>Click a building, see that day</h3><span class="mono ro" id="click-read">click a building</span></div>
+          <p>Clicking a lot does what clicking a square does: GitHub filters the activity below to that day.</p>
+        </article>
+      </div>
     </div>
 
-    <div class="footer-links">
-      <a href="https://github.com/jeanluciradukunda/contribution-lands">GitHub</a>
-      <a href="https://github.com/jeanluciradukunda/contribution-lands/releases">Releases</a>
+    <div class="shelf" id="toolbar">
+      <div class="shelf-head"><h3>In the toolbar</h3><span class="mono">1 of 1 drawn</span></div>
+      <article class="card toolbar">
+        <div class="fig">
+          <div class="pop" id="pop">
+            <div class="pop-head"><img src="assets/icon-32.png" alt="" width="32" height="32"><div><b>Contribution Lands</b><span>Your contribution graph, built as a world.</span></div></div>
+            <b class="pop-h2">World</b>
+            <button type="button" class="pop-theme" aria-pressed="true">
+              <span class="pop-sky" aria-hidden="true"><span class="pop-ground"></span><span class="pop-row-img"><img src="assets/sprites/level-1-a.webp" alt="" width="128" height="211" loading="lazy"><img src="assets/sprites/level-3-a.webp" alt="" width="128" height="429" loading="lazy"><img src="assets/sprites/level-4-c.webp" alt="" width="128" height="620" loading="lazy"><img src="assets/sprites/level-2-a.webp" alt="" width="128" height="253" loading="lazy"></span></span>
+              <span class="pop-name">NYC Skyline</span>
+            </button>
+            <b class="pop-h2">Display</b>
+            <div class="pop-seg" role="radiogroup" aria-label="Graph view" id="pop-seg">
+              <button type="button" role="radio" aria-checked="false" data-v="2D">2D</button>
+              <button type="button" role="radio" aria-checked="true" data-v="Lands" tabindex="0">Lands</button>
+              <button type="button" role="radio" aria-checked="false" data-v="Both">Both</button>
+            </div>
+            <label class="pop-tog"><span><b>Stats</b><i>Totals and streaks over the land</i></span><input type="checkbox" role="switch" id="pop-stats" checked></label>
+            <label class="pop-tog"><span><b>Motion</b><i>Taxis in the streets and a train on your streak</i></span><input type="checkbox" role="switch" id="pop-motion" checked></label>
+            <div class="pop-foot">Changes apply instantly to open GitHub profiles.</div>
+          </div>
+        </div>
+        <div class="spec">
+          <div class="cap" style="padding:0"><h3>One popup, four settings</h3><span class="mono" id="pop-read">Lands · stats on · motion on</span></div>
+          <dl>
+            <div><dt>World</dt><dd>NYC Skyline, the one world that ships today. More worlds later.</dd></div>
+            <div><dt>2D, Lands, Both</dt><dd>Keep GitHub's squares, swap them for the city, or show the two together.</dd></div>
+            <div><dt>Stats</dt><dd>Show or hide the Contributions and Streaks panels.</dd></div>
+            <div><dt>Motion</dt><dd>Taxis and the train move, or the city holds still.</dd></div>
+          </dl>
+          <p class="mono" style="margin:auto 0 0;padding-top:14px">Light and dark follow your GitHub theme.</p>
+        </div>
+      </article>
+    </div>
+
+    <div class="shelf" id="readme">
+      <div class="shelf-head"><h3>In your README</h3><span class="mono">1 of 1 drawn</span></div>
+      <article class="card readme">
+        <div class="fig">
+          <img src="card-example.png" decoding="async" width="1200" height="761" alt="A rendered contribution land: an isometric strip of New York with brownstones, parks and towers, beside Contributions and Streaks panels.">
+          <span class="mono">A real render from the Action, light version.</span>
+        </div>
+        <div class="side-txt">
+          <div class="cap" style="padding:0 0 4px"><h3>Your city, rendered every night</h3><span class="mono">.webp · light and dark</span></div>
+          <ol>
+            <li>Add this workflow to your profile repository, the one named after your username.</li>
+            <li>Run it once from the Actions tab. It then renders nightly.</li>
+            <li>Show <code>images/contribution-land-light.webp</code> in your README, with <code>contribution-land-dark.webp</code> in a <code>&lt;picture&gt;</code> source for dark mode.</li>
+          </ol>
+<pre><code><span class="c"># .github/workflows/contribution-land.yml</span>
+<span class="k">name:</span> Contribution land
+<span class="k">on:</span>
+  <span class="k">schedule:</span>
+    - <span class="k">cron:</span> <span class="s">"0 3 * * *"</span>
+  <span class="k">workflow_dispatch:</span>
+<span class="k">permissions:</span>
+  <span class="k">contents:</span> write
+<span class="k">jobs:</span>
+  <span class="k">render:</span>
+    <span class="k">runs-on:</span> ubuntu-latest
+    <span class="k">steps:</span>
+      - <span class="k">uses:</span> actions/checkout@v4
+      - <span class="k">uses:</span> jeanluciradukunda/contribution-lands@main
+        <span class="k">with:</span>
+          <span class="k">theme:</span> city-nyc
+          <span class="k">output-dir:</span> images
+      - <span class="k">run:</span> |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add images
+          git commit -m "Update contribution land" || exit 0
+          git push</code></pre>
+          <p class="mono" style="margin:12px 0 0"><a href="https://github.com/jeanluciradukunda/contribution-lands#put-your-land-in-your-profile-readme">Full instructions in the README</a></p>
+        </div>
+      </article>
+    </div>
+  </section>
+
+  <section class="sec" id="install" aria-labelledby="install-title">
+    <div class="sec-head" style="margin:0">
+      <h2 id="install-title">Install it, <em class="acc">for now</em> by hand.</h2>
+      <span class="mono">3 steps · Chrome 111 or later</span>
+    </div>
+    <p class="intro">The Chrome Web Store listing is coming soon. Until then, take a packaged build from <a href="https://github.com/jeanluciradukunda/contribution-lands/releases">GitHub Releases</a> when one is published, or build it from source.</p>
+    <ol class="steps">
+      <li><div><b>Clone and build</b>
+<pre><code>git clone https://github.com/jeanluciradukunda/contribution-lands.git
+cd contribution-lands/extension
+pnpm install &amp;&amp; pnpm build</code></pre></div></li>
+      <li><div><b>Load it in Chrome</b><p>Open <code>chrome://extensions</code>, turn on Developer mode, choose Load unpacked and pick <code>extension/dist</code>.</p></div></li>
+      <li><div><b>Open a profile</b><p>Visit any GitHub profile. The graph is drawn and built as soon as the page loads.</p></div></li>
+    </ol>
+  </section>
+</main>
+</div>
+
+<footer class="foot">
+  <div class="foot-in">
+    <div>
+      <p>Inspired by Jason Long's <a href="https://github.com/jasonlong/isometric-contributions">Isometric Contributions</a>.</p>
+      <p>Works on GitHub profile pages. Not affiliated with or endorsed by GitHub, Inc.</p>
+    </div>
+    <nav aria-label="Footer">
+      <a href="https://github.com/jeanluciradukunda/contribution-lands">Source</a>
+      <a href="privacy.html">Privacy policy</a>
       <a href="https://github.com/jeanluciradukunda/contribution-lands/issues">Issues</a>
-      <a href="https://github.com/jeanluciradukunda/contribution-lands/blob/develop/docs/creating-themes.md">Contributing</a>
-    </div>
+      <a href="https://github.com/jeanluciradukunda/contribution-lands/blob/main/LICENSE">MIT licence</a>
+    </nav>
   </div>
 </footer>
 
-<!-- ============================================================
-     JAVASCRIPT
-     ============================================================ -->
+<script src="data/year.js"></script>
 <script>
-(function() {
+(function () {
   'use strict';
+  var NS = 'http://www.w3.org/2000/svg';
+  var SPR = 'assets/sprites/';
+  var RM = window.matchMedia('(prefers-reduced-motion: reduce)');
+  var HEIGHTS = {
+    'level-0-a': 81, 'level-0-c': 134, 'level-0-d': 103, 'level-0-f': 66, 'level-0-h': 131, 'level-0-k': 81, 'level-0-l': 150, 'level-0-s': 92, 'level-0-v': 73,
+    'level-1-a': 211, 'level-1-b': 156, 'level-1-d': 158, 'level-1-g': 161, 'level-1-h': 175,
+    'level-2-a': 253, 'level-2-c': 217, 'level-2-e': 244,
+    'level-3-a': 429, 'level-3-c': 310, 'level-3-e': 254,
+    'level-4-c': 620, 'level-4-e': 603, 'level-4-f': 667, 'level-4-i': 638,
+    'special-today-0': 118, 'special-today-1': 116, 'special-today-2': 206, 'special-today-3': 308, 'special-today-4': 465
+  };
+  var POOLS = {
+    lot: ['level-0-a', 'level-0-k', 'level-0-l', 'level-0-c'],
+    park: ['level-0-d', 'level-0-h', 'level-0-s', 'level-0-v', 'level-0-f'],
+    1: ['level-1-a', 'level-1-b', 'level-1-d', 'level-1-g', 'level-1-h'],
+    2: ['level-2-a', 'level-2-c', 'level-2-e'],
+    3: ['level-3-a', 'level-3-c', 'level-3-e'],
+    4: ['level-4-c', 'level-4-e', 'level-4-f']
+  };
 
-  // ── Scroll reveal with IntersectionObserver ──
-  const revealObserver = new IntersectionObserver(function(entries) {
-    entries.forEach(function(entry) {
-      if (entry.isIntersecting) {
-        entry.target.classList.add('visible');
-        // Animate SVG lines inside revealed elements
-        const lines = entry.target.querySelectorAll('.draw-line:not(.drawn)');
-        lines.forEach(function(line, i) {
-          setTimeout(function() {
-            line.classList.add('drawn');
-          }, i * 15);
-        });
-        revealObserver.unobserve(entry.target);
+  function S(tag, attrs, parent) {
+    var n = document.createElementNS(NS, tag);
+    for (var k in attrs) n.setAttribute(k, attrs[k]);
+    if (parent) parent.appendChild(n);
+    return n;
+  }
+  function P(gx, gy, z) { return [(gx - gy) * 10, (gx + gy) * 5 - (z || 0)]; }
+  function r2(v) { return Math.round(v * 100) / 100; }
+  function pts(a) { return a.map(function (p) { return r2(p[0]) + ',' + r2(p[1]); }).join(' '); }
+  function path() {
+    var out = '';
+    for (var i = 0; i < arguments.length; i++) out += 'M' + arguments[i].map(function (p) { return r2(p[0]) + ' ' + r2(p[1]); }).join('L');
+    return out;
+  }
+  function diamond(x0, y0, x1, y1, z) { return [P(x0, y0, z), P(x1, y0, z), P(x1, y1, z), P(x0, y1, z)]; }
+  function closed(a) { return a.concat([a[0]]); }
+
+  function box(g, x0, y0, x1, y1, H, o) {
+    o = o || {};
+    var z0 = o.z0 || 0, top = z0 + H;
+    var sil = [P(x0, y0, top), P(x1, y0, top), P(x1, y0, z0), P(x1, y1, z0), P(x0, y1, z0), P(x0, y1, top)];
+    var inner = [[P(x0, y1, top), P(x1, y1, top), P(x1, y0, top)], [P(x1, y1, top), P(x1, y1, z0)]];
+    var d = o.dash ? ' dash' : '';
+    S('polygon', { points: pts(sil), class: 'pl ' + (o.cls || 'e') + d }, g);
+    S('path', { d: path.apply(null, inner), class: (o.inner || 'm') + d }, g);
+    var step = o.step || 6;
+    if (o.floors !== false && H > step + 3) {
+      var runs = [];
+      for (var z = z0 + step; z < top - 3; z += step) runs.push([P(x0, y1, z), P(x1, y1, z), P(x1, y0, z)]);
+      S('path', { d: path.apply(null, runs), class: 'l' }, g);
+    }
+    return { sil: sil, ink: path(closed(sil)) + path.apply(null, inner) };
+  }
+  function sprite(g, gx, gy, name, f) {
+    f = f || .95;
+    var w = 20 * f, h = w * HEIGHTS[name] / 128, c = P(gx + .5, gy + .5), bottom = c[1] + 5 * f;
+    return S('image', { href: SPR + name + '.webp', x: r2(c[0] - w / 2), y: r2(bottom - h), width: r2(w), height: r2(h), class: 'spr', preserveAspectRatio: 'xMidYMax meet' }, g);
+  }
+  function spriteH(name) { return Math.max(0, (19 * HEIGHTS[name] / 128 - 4.75 - 3.6) * .9); }
+  function fitView(svg, pad) {
+    var b = svg.getBBox(), p = pad == null ? 4 : pad;
+    svg.setAttribute('viewBox', [b.x - p, b.y - p, b.width + p * 2, b.height + p * 2].map(r2).join(' '));
+  }
+  function inside(pt, poly) {
+    var x = pt[0], y = pt[1], hit = false;
+    for (var i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+      var xi = poly[i][0], yi = poly[i][1], xj = poly[j][0], yj = poly[j][1];
+      if (((yi > y) !== (yj > y)) && (x < (xj - xi) * (y - yi) / (yj - yi) + xi)) hit = !hit;
+    }
+    return hit;
+  }
+  function svgPoint(svg, e) {
+    var m = svg.getScreenCTM();
+    if (!m) return null;
+    var p = new DOMPoint(e.clientX, e.clientY).matrixTransform(m.inverse());
+    return [p.x, p.y];
+  }
+  function rng(seed) {
+    return function () {
+      seed |= 0; seed = seed + 0x6D2B79F5 | 0;
+      var t = Math.imul(seed ^ seed >>> 15, 1 | seed);
+      t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+      return ((t ^ t >>> 14) >>> 0) / 4294967296;
+    };
+  }
+  function onVisible(el, cb) {
+    if (!('IntersectionObserver' in window)) { cb(true); return; }
+    new IntersectionObserver(function (es) { cb(es[0].isIntersecting); }, { rootMargin: '80px' }).observe(el);
+  }
+
+  /* Sample year */
+  var REAL = window.CL_YEAR && window.CL_YEAR.days && window.CL_YEAR.days.length >= 7 ? window.CL_YEAR : null;
+  var now = new Date();
+  var TODAY = REAL ? new Date(REAL.days[REAL.days.length - 1][0] + 'T00:00:00Z') : new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate()));
+  var DOW = TODAY.getUTCDay();
+  var WEEKS = 22;
+  var dayFmt = new Intl.DateTimeFormat('en-GB', { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'UTC' });
+  var shortFmt = new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', timeZone: 'UTC' });
+  var longFmt = new Intl.DateTimeFormat('en-GB', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' });
+  var monthFmt = new Intl.DateTimeFormat('en-GB', { month: 'short', timeZone: 'UTC' });
+  function levelOf(c) { return c === 0 ? 0 : c <= 3 ? 1 : c <= 7 ? 2 : c <= 12 ? 3 : 4; }
+  function countText(c) { return c === 0 ? 'no contributions' : c + ' contribution' + (c === 1 ? '' : 's'); }
+
+  function realDays() {
+    var r = rng(4021), first = new Date(REAL.days[0][0] + 'T00:00:00Z').getTime();
+    return REAL.days.map(function (row) {
+      var date = new Date(row[0] + 'T00:00:00Z'), idx = Math.round((date.getTime() - first) / 864e5);
+      var w = Math.floor(idx / 7), d = date.getUTCDay(), c = row[1], level = row[2], weekend = d === 0 || d === 6;
+      var today = date.getTime() === TODAY.getTime(), name;
+      if (today) name = 'special-today-' + level;
+      else if (level === 0) { var pool = weekend ? POOLS.park : POOLS.lot; name = pool[Math.floor(r() * pool.length)]; }
+      else name = POOLS[level][Math.floor(r() * POOLS[level].length)];
+      return { w: w, d: d, date: date, count: c, level: level, weekend: weekend, today: today, name: name };
+    }).filter(function (d) { return d.w < WEEKS; });
+  }
+
+  var DAYS = REAL ? realDays() : (function () {
+    var r = rng(4021), out = [];
+    for (var w = 0; w < WEEKS; w++) {
+      for (var d = 0; d < 7; d++) {
+        if (w === WEEKS - 1 && d > DOW) continue;
+        var back = (WEEKS - 1 - w) * 7 + (DOW - d);
+        var weekend = d === 0 || d === 6, x = r(), c;
+        if (weekend) c = x < .5 ? 0 : 1 + Math.floor(r() * 5);
+        else c = x < .08 ? 0 : x < .9 ? 2 + Math.floor(r() * 9) : 13 + Math.floor(r() * 22);
+        if (w === 7) c = weekend || r() < .5 ? 0 : 1;
+        if (w >= 12 && w <= 14 && c === 0) c = 1 + Math.floor(r() * 3);
+        if ((w === 11 && d === 6) || (w === 15 && d === 0)) c = 0;
+        if (w === 16 && d === 4) c = 41;
+        if (back === 0) c = 6;
+        var level = levelOf(c), name;
+        if (back === 0) name = 'special-today-' + level;
+        else if (level === 0) { var pool = weekend ? POOLS.park : POOLS.lot; name = pool[Math.floor(r() * pool.length)]; }
+        else name = POOLS[level][Math.floor(r() * POOLS[level].length)];
+        out.push({ w: w, d: d, date: new Date(TODAY.getTime() - back * 864e5), count: c, level: level, weekend: weekend, today: back === 0, name: name });
       }
+    }
+    return out;
+  })();
+  var STATS = (function () {
+    var total = 0, best = DAYS[0], run = 0, runStart = 0, longest = { len: 0, from: 0, to: 0 };
+    DAYS.forEach(function (d, i) {
+      total += d.count;
+      if (d.count > best.count) best = d;
+      if (d.count > 0) { if (run === 0) runStart = i; run++; if (run > longest.len) longest = { len: run, from: runStart, to: i }; } else run = 0;
     });
-  }, { threshold: 0.1, rootMargin: '0px 0px -40px 0px' });
+    var cur = { len: run, from: run ? DAYS.length - run : -1, to: DAYS.length - 1 };
+    var week = DAYS.filter(function (d) { return d.w === WEEKS - 1; });
+    var weekTotal = week.reduce(function (a, d) { return a + d.count; }, 0);
+    return { total: total, best: best, longest: longest, current: cur, week: week, weekTotal: weekTotal, average: Math.round(total / DAYS.length * 10) / 10 };
+  })();
+  function range(a, b) { return shortFmt.format(a) + ' → ' + shortFmt.format(b); }
 
-  document.querySelectorAll('.reveal').forEach(function(el) {
-    revealObserver.observe(el);
-  });
+  /* Hero */
+  (function hero() {
+    var fig = document.getElementById('hero-fig');
+    var svg = document.getElementById('hero-svg');
+    var readEl = document.getElementById('hero-read');
+    var countEl = document.getElementById('hero-count');
+    var live = document.getElementById('hero-live');
+    var allBtn = document.getElementById('build-all');
+    var spec = document.getElementById('hero-spec');
+    var lots = [], weeks = 0, X = 0, ink, cursor = null, lastInput = -1e9, buildAll = false, visible = true, raf = 0, base = new Set(), labels = [];
+    var GAP = .6, M = .7, T = 4;
+    function gxOf(w) { return w + Math.floor(w / 6) * GAP; }
 
-  // ── Hero SVG draw-in on load ──
-  window.addEventListener('load', function() {
-    const hero = document.getElementById('hero-blueprint');
-    if (hero) {
-      const lines = hero.querySelectorAll('.draw-line');
-      lines.forEach(function(line, i) {
-        setTimeout(function() {
-          line.classList.add('drawn');
-        }, 80 + i * 12);
+    function build() {
+      weeks = fig.clientWidth < 620 ? 12 : WEEKS;
+      while (svg.firstChild) svg.removeChild(svg.firstChild);
+      lots = []; labels = [];
+      var days = DAYS.filter(function (d) { return d.w >= WEEKS - weeks; });
+      var W0 = WEEKS - weeks;
+      X = gxOf(weeks - 1) + 1;
+      var Y = 7;
+      var root = S('g', {}, svg);
+      var ground = S('g', {}, root);
+      S('polygon', { points: pts([P(-M, Y + M), P(X + M, Y + M), P(X + M, Y + M, -T), P(-M, Y + M, -T)]), class: 'pl e' }, ground);
+      S('polygon', { points: pts([P(X + M, -M), P(X + M, Y + M), P(X + M, Y + M, -T), P(X + M, -M, -T)]), class: 'pl e' }, ground);
+      S('polygon', { points: pts(diamond(-M, -M, X + M, Y + M)), class: 'pl e' }, ground);
+      var av = [];
+      for (var b = 6; b < weeks; b += 6) {
+        var ax = gxOf(b) - GAP / 2;
+        av.push([P(ax, -M), P(ax, Y + M)]);
+      }
+      av.push([P(-M / 2, Y + M / 2), P(X + M / 2, Y + M / 2)]);
+      S('path', { d: path.apply(null, av), class: 'm dash' }, ground);
+
+      var notes = S('g', {}, root);
+      function note(txt, at, rot, anchor, px) {
+        var t = S('text', { x: r2(at[0]), y: r2(at[1]), 'text-anchor': anchor || 'start', transform: rot ? 'rotate(' + rot + ' ' + r2(at[0]) + ' ' + r2(at[1]) + ')' : '' }, notes);
+        t.textContent = txt;
+        labels.push({ el: t, px: px || 11 });
+      }
+      var off = Y + M + 1.4, ticks = [[P(-M, off), P(X + M, off)], [P(-M, off - .3), P(-M, off + .3)], [P(X + M, off - .3), P(X + M, off + .3)]];
+      days.forEach(function (d) {
+        if (d.d !== 0 || d.date.getUTCDate() > 7) return;
+        var gx = gxOf(d.w - W0);
+        ticks.push([P(gx, off - .3), P(gx, off + .3)]);
+        note(monthFmt.format(d.date), P(gx + .1, off + .75), 26.565);
+      });
+      S('path', { d: path.apply(null, ticks), class: 'm' }, notes);
+      var offx = X + M + 1.4, side = [[P(offx, -M), P(offx, Y + M)], [P(offx - .3, -M), P(offx + .3, -M)], [P(offx - .3, Y + M), P(offx + .3, Y + M)]];
+      ['Mon', 'Wed', 'Fri'].forEach(function (n, i) {
+        var gy = 2 * i + 1.5;
+        side.push([P(offx - .2, gy), P(offx + .2, gy)]);
+        note(n, P(offx + .7, gy + .25), -26.565);
+      });
+      S('path', { d: path.apply(null, side), class: 'm' }, notes);
+
+      var layer = S('g', {}, root);
+      days.forEach(function (d) {
+        var gx = gxOf(d.w - W0), gy = d.d;
+        var g = S('g', { class: 'lot' }, layer);
+        var lotPoly = diamond(gx, gy, gx + 1, gy + 1);
+        S('polygon', { points: pts(lotPoly), class: 'l' }, g);
+        var wire = S('g', { class: 'wire' }, g);
+        var H = d.level === 0 ? 0 : spriteH(d.name), shape;
+        if (d.today) {
+          shape = box(wire, gx + .12, gy + .12, gx + .88, gy + .88, Math.max(spriteH(d.name), 12), { dash: true });
+        } else if (H > 0) {
+          shape = box(wire, gx + .14, gy + .14, gx + .86, gy + .86, H);
+        } else {
+          var inset = diamond(gx + .22, gy + .22, gx + .78, gy + .78);
+          if (d.weekend) {
+            var trees = [];
+            [[.35, .4], [.62, .3], [.55, .66], [.3, .7]].forEach(function (t) {
+              var c = P(gx + t[0], gy + t[1]);
+              S('ellipse', { cx: r2(c[0]), cy: r2(c[1] - 2.2), rx: 1.6, ry: 1.6, class: 'pl e' }, wire);
+              trees.push([c, [c[0], c[1] - .6]]);
+            });
+            S('path', { d: path.apply(null, trees), class: 'm' }, wire);
+          } else S('polygon', { points: pts(inset), class: 'm dash' }, wire);
+          shape = { sil: lotPoly, ink: path(closed(lotPoly)) };
+        }
+        var img = sprite(g, gx, gy, d.name);
+        lots.push({ d: d, g: g, img: img, sil: shape.sil, ink: shape.ink, c: [gx + .5, gy + .5], on: false });
+      });
+      lots.sort(function (p, q) { return (p.c[0] + p.c[1]) - (q.c[0] + q.c[1]); });
+      lots.forEach(function (l) { layer.appendChild(l.g); });
+      ink = S('path', { class: 'k', d: '' }, root);
+
+      var minX = P(-M - 2.4, Y + M)[0], maxX = P(offx + 2.2, -M)[0];
+      var minY = P(-M, -M)[1] - 10, maxY = P(X + M, off + 1.4)[1] + 8;
+      lots.forEach(function (l) { var y = l.sil[0][1] - (l.d.level ? 2 : 0); if (+l.img.getAttribute('y') < minY) minY = +l.img.getAttribute('y'); if (y < minY) minY = y; });
+      svg.setAttribute('viewBox', [minX, minY - 4, maxX - minX, maxY - minY + 4].map(r2).join(' '));
+      base = new Set();
+      if (RM.matches) lots.forEach(function (l) { if (l.d.w - W0 >= weeks / 2) base.add(l); });
+      spec.textContent = REAL ? 'fig. 01 · @' + REAL.user + ', the last ' + weeks + ' weeks' : 'fig. 01 · a sample year, ' + weeks + ' weeks';
+      sizeText();
+      apply();
+    }
+    function sizeText() {
+      var vb = svg.viewBox.baseVal;
+      if (!vb || !vb.width) return;
+      var s = svg.clientWidth / vb.width;
+      labels.forEach(function (l) { l.el.setAttribute('font-size', r2(l.px / s)); });
+    }
+    function near(gx, gy) {
+      var best = null, bd = 1e9;
+      lots.forEach(function (l) { var dx = l.c[0] - gx, dy = l.c[1] - gy, dd = dx * dx + dy * dy; if (dd < bd) { bd = dd; best = l; } });
+      return bd < 2.2 ? best : null;
+    }
+    function pick(pt) {
+      for (var i = lots.length - 1; i >= 0; i--) if (inside(pt, lots[i].sil)) return lots[i];
+      var gx = (pt[0] / 10 + pt[1] / 5) / 2, gy = (pt[1] / 5 - pt[0] / 10) / 2;
+      return near(gx, gy);
+    }
+    function apply() {
+      var R = weeks < WEEKS ? 1.7 : 2.3, n = 0;
+      lots.forEach(function (l) {
+        var want = buildAll || base.has(l);
+        if (!want && cursor) { var dx = l.c[0] - cursor.c[0], dy = (l.c[1] - cursor.c[1]) * 1.15; want = dx * dx + dy * dy <= R * R; }
+        if (want !== l.on) { l.on = want; l.g.classList.toggle('on', want); }
+        if (want) n++;
+      });
+      countEl.textContent = n + ' of ' + lots.length + ' built';
+      ink.setAttribute('d', cursor ? cursor.ink : '');
+      if (cursor) {
+        var d = cursor.d;
+        readEl.textContent = (d.today ? 'Today' : dayFmt.format(d.date)) + ' · ' + countText(d.count) + ' · ' + (d.today ? 'under construction' : cursor.on ? 'built' : 'drawn');
+      } else {
+        readEl.textContent = buildAll ? 'The whole year, built' : 'Move across the drawing to build it';
+      }
+    }
+    function setCursor(l) { if (l !== cursor) { cursor = l; apply(); } }
+
+    fig.addEventListener('pointermove', function (e) {
+      lastInput = performance.now();
+      var pt = svgPoint(svg, e);
+      if (pt) setCursor(pick(pt));
+    });
+    fig.addEventListener('pointerdown', function (e) {
+      lastInput = performance.now();
+      var pt = svgPoint(svg, e);
+      if (pt) setCursor(pick(pt));
+    });
+    fig.addEventListener('pointerleave', function (e) { if (e.pointerType === 'touch') return; lastInput = performance.now(); setCursor(null); });
+    fig.addEventListener('keydown', function (e) {
+      var k = e.key, dw = 0, dd = 0;
+      if (k === 'ArrowRight') dw = 1; else if (k === 'ArrowLeft') dw = -1; else if (k === 'ArrowDown') dd = 1; else if (k === 'ArrowUp') dd = -1; else return;
+      e.preventDefault();
+      lastInput = performance.now() + 1e9;
+      var cur = cursor || lots.filter(function (l) { return l.d.today; })[0];
+      var tw = cur.d.w + dw, td = cur.d.d + dd;
+      var next = lots.filter(function (l) { return l.d.w === tw && l.d.d === td; })[0];
+      if (!cursor) next = cur;
+      if (next) { setCursor(next); live.textContent = readEl.textContent; }
+    });
+    fig.addEventListener('focus', function () {
+      if (!cursor) { lastInput = performance.now() + 1e9; setCursor(lots.filter(function (l) { return l.d.today; })[0]); live.textContent = readEl.textContent; }
+    });
+    fig.addEventListener('blur', function () { lastInput = performance.now(); setCursor(null); });
+    allBtn.addEventListener('click', function () {
+      buildAll = !buildAll;
+      allBtn.setAttribute('aria-pressed', String(buildAll));
+      allBtn.textContent = buildAll ? 'Show the drawing' : 'Show the city';
+      apply();
+    });
+
+    function tick(t) {
+      raf = 0;
+      if (!visible || document.hidden || RM.matches) return;
+      if (!buildAll && t - lastInput > 2600) {
+        var ph = t * .00028;
+        var gx = (X - 1) * (.5 - .5 * Math.cos(ph)) + .5, gy = 3.5 + 2.6 * Math.sin(ph * 2.7);
+        var l = near(gx, gy) || cursor;
+        if (l !== cursor) setCursor(l);
+      }
+      raf = requestAnimationFrame(tick);
+    }
+    function start() { if (!raf && visible && !RM.matches) raf = requestAnimationFrame(tick); }
+    onVisible(fig, function (v) { visible = v; start(); });
+    document.addEventListener('visibilitychange', start);
+
+    build();
+    lastInput = performance.now() - 2000;
+    start();
+    var rt, lastW = fig.clientWidth;
+    window.addEventListener('resize', function () {
+      clearTimeout(rt);
+      rt = setTimeout(function () {
+        var w = fig.clientWidth;
+        if ((w < 620) !== (lastW < 620)) { cursor = null; build(); } else sizeText();
+        lastW = w;
+      }, 120);
+    });
+  })();
+
+  /* Five shades */
+  (function shades() {
+    var svg = document.getElementById('shades-svg');
+    var read = document.getElementById('shades-read');
+    var btns = Array.prototype.slice.call(document.querySelectorAll('.sw-row button'));
+    var names = ['level-0-a', 'level-1-a', 'level-2-a', 'level-3-a', 'level-4-c'];
+    var words = ['no contributions · an empty lot', 'shade 1 · brownstones', 'shade 2 · walk-ups', 'shade 3 · apartment towers', 'shade 4 · skyscrapers'];
+    var root = S('g', {}, svg), items = [];
+    for (var L = 4; L >= 0; L--) {
+      var gy = (4 - L) * 1.55, g = S('g', { class: 'lot' }, root);
+      S('polygon', { points: pts(diamond(0, gy, 1, gy + 1)), class: 'm' }, g);
+      var wire = S('g', { class: 'wire' }, g), shape;
+      if (L === 0) { var p = diamond(.22, gy + .22, .78, gy + .78); S('polygon', { points: pts(p), class: 'm dash' }, wire); shape = { ink: path(closed(diamond(0, gy, 1, gy + 1))) }; }
+      else shape = box(wire, .14, gy + .14, .86, gy + .86, spriteH(names[L]));
+      sprite(g, 0, gy, names[L]);
+      items[L] = { g: g, ink: shape.ink, x: P(.5, gy + .5)[0] };
+    }
+    var inkP = S('path', { class: 'k', d: '' }, root);
+    fitView(svg, 3);
+    var active = -1;
+    function set(L) {
+      if (L === active) return;
+      active = L;
+      items.forEach(function (it, i) { it.g.classList.toggle('on', i === L); });
+      inkP.setAttribute('d', L >= 0 ? items[L].ink : '');
+      btns.forEach(function (b, i) { b.setAttribute('aria-pressed', String(i === L)); });
+      read.textContent = L >= 0 ? words[L] : 'hover a shade';
+    }
+    svg.addEventListener('pointermove', function (e) {
+      var pt = svgPoint(svg, e); if (!pt) return;
+      var best = 0, bd = 1e9;
+      items.forEach(function (it, i) { var dd = Math.abs(it.x - pt[0]); if (dd < bd) { bd = dd; best = i; } });
+      set(best);
+    });
+    svg.addEventListener('pointerleave', function (e) { if (e.pointerType === 'touch') return; set(-1); });
+    btns.forEach(function (b, i) {
+      b.addEventListener('pointerenter', function () { set(i); });
+      b.addEventListener('focus', function () { set(i); });
+      b.addEventListener('click', function () { set(i); });
+      b.addEventListener('pointerleave', function (e) { if (e.pointerType === 'touch') return; if (document.activeElement !== b) set(-1); });
+      b.addEventListener('blur', function () { set(-1); });
+    });
+  })();
+
+  /* Today */
+  (function today() {
+    var fig = document.getElementById('today-fig');
+    var svg = document.getElementById('today-svg');
+    var read = document.getElementById('today-read');
+    var rows = Array.prototype.slice.call(document.querySelectorAll('#ruler li')).reverse();
+    var words = ['nothing yet', 'groundwork', 'frame', 'cladding', 'topping out'];
+    var root = S('g', {}, svg), stages = [];
+    S('polygon', { points: pts(diamond(-.15, -.15, 1.15, 1.15)), class: 'm dash' }, root);
+    S('polygon', { points: pts(diamond(0, 0, 1, 1)), class: 'm' }, root);
+    var env = S('g', { class: 'wire' }, root);
+    box(env, .12, .12, .88, .88, spriteH('special-today-4'), { dash: true, cls: 'l', inner: 'l', floors: false });
+    for (var i = 0; i < 5; i++) { var g = S('g', { class: 'lot' }, root); sprite(g, 0, 0, 'special-today-' + i); stages.push(g); }
+    fitView(svg, 2);
+    var stage = -1;
+    function set(s) {
+      s = Math.max(0, Math.min(4, s));
+      if (s === stage) return;
+      stage = s;
+      stages.forEach(function (g, i) { g.classList.toggle('on', i === s); });
+      rows.forEach(function (r, i) { r.classList.toggle('on', i === s); });
+      read.textContent = 'stage ' + s + ' · ' + words[s];
+      fig.setAttribute('aria-valuenow', s);
+      fig.setAttribute('aria-valuetext', words[s]);
+    }
+    set(2);
+    fig.addEventListener('pointermove', function (e) {
+      var r = fig.getBoundingClientRect();
+      set(Math.floor((1 - (e.clientY - r.top) / r.height) * 5));
+    });
+    fig.addEventListener('pointerleave', function (e) { if (e.pointerType === 'touch') return; set(2); });
+    fig.addEventListener('keydown', function (e) {
+      if (e.key === 'ArrowUp' || e.key === 'ArrowRight') { set(stage + 1); e.preventDefault(); }
+      else if (e.key === 'ArrowDown' || e.key === 'ArrowLeft') { set(stage - 1); e.preventDefault(); }
+    });
+  })();
+
+  /* Landmark */
+  (function landmark() {
+    var fig = document.getElementById('lm-fig');
+    var svg = document.getElementById('lm-svg');
+    var tip = document.getElementById('lm-tip');
+    var read = document.getElementById('lm-read');
+    var root = S('g', {}, svg), lots = [];
+    var r = rng(9);
+    var cells = [[0, 0], [1.2, 0], [2.4, 0], [0, 1.2], [1.2, 1.2], [2.4, 1.2], [0, 2.4], [1.2, 2.4], [2.4, 2.4]];
+    var best = STATS.best, dates = DAYS.filter(function (d) { return d.count > 0 && d !== best; });
+    cells.forEach(function (c, i) {
+      var g = S('g', { class: 'lot' }, root);
+      S('polygon', { points: pts(diamond(c[0], c[1], c[0] + 1, c[1] + 1)), class: 'l' }, g);
+      var wire = S('g', { class: 'wire' }, g);
+      var tall = i === 4, H = tall ? spriteH('level-4-i') : 6 + Math.floor(r() * 16);
+      var shape = box(wire, c[0] + .14, c[1] + .14, c[0] + .86, c[1] + .86, H, tall ? { cls: 'e' } : { cls: 'm', inner: 'l', floors: false });
+      var d = tall ? best : dates[Math.floor(r() * dates.length)];
+      if (tall) sprite(g, c[0], c[1], 'level-4-i');
+      lots.push({ g: g, sil: shape.sil, ink: shape.ink, tall: tall, d: d, top: shape.sil[0] });
+    });
+    var inkP = S('path', { class: 'k', d: '' }, root);
+    fitView(svg, 3);
+    var cur = null;
+    function set(l) {
+      if (l === cur) return;
+      cur = l;
+      lots.forEach(function (x) { x.g.classList.toggle('on', x === l && x.tall); });
+      inkP.setAttribute('d', l ? l.ink : '');
+      if (!l) { tip.classList.remove('on'); read.textContent = 'hover the tall one'; return; }
+      var c = l.d.count;
+      tip.textContent = c + ' contribution' + (c === 1 ? '' : 's') + ' on ' + longFmt.format(l.d.date).replace(/^(\w+) /, '$1, ');
+      if (l.tall) { var b = document.createElement('b'); b.textContent = 'Flatiron Building · your 5th best day'; tip.appendChild(b); }
+      read.textContent = l.tall ? 'a landmark' : 'an ordinary day';
+      var m = svg.getScreenCTM(), fr = fig.getBoundingClientRect();
+      var top = l.tall ? [l.top[0], +l.g.querySelector('image').getAttribute('y')] : l.top;
+      var p = new DOMPoint(top[0], top[1]).matrixTransform(m);
+      tip.style.left = Math.max(110, Math.min(fr.width - 110, p.x - fr.left)) + 'px';
+      tip.style.top = Math.max(64, p.y - fr.top) + 'px';
+      tip.classList.add('on');
+    }
+    svg.addEventListener('pointermove', function (e) {
+      var pt = svgPoint(svg, e), hit = null;
+      if (pt) for (var i = lots.length - 1; i >= 0; i--) if (inside(pt, lots[i].sil)) { hit = lots[i]; break; }
+      set(hit);
+    });
+    svg.addEventListener('pointerleave', function (e) { if (e.pointerType === 'touch') return; set(null); });
+    fig.addEventListener('focus', function () { set(lots[4]); });
+    fig.addEventListener('blur', function () { set(null); });
+  })();
+
+  /* Railway */
+  (function railway() {
+    var fig = document.getElementById('rail-fig');
+    var svg = document.getElementById('rail-svg');
+    var read = document.getElementById('rail-read');
+    var root = S('g', {}, svg), r = rng(31);
+    var N = 13, A = 2, B = 11, F = 1.45, HR = 16;
+    for (var i = 0; i < N; i++) {
+      S('polygon', { points: pts(diamond(i, 0, i + 1, 1)), class: i >= A && i < B ? 'm' : 'l' }, root);
+      box(root, i + .14, .14, i + .86, .86, 6 + Math.floor(r() * 18), { cls: 'e', floors: false });
+    }
+    S('path', { d: path([P(-.3, F), P(N + .3, F)]), class: 'l dash' }, root);
+    var run = S('g', {}, root);
+    var piers = S('g', {}, run);
+    for (var k = A; k <= B; k += 1) {
+      var p0 = P(k, F + .2);
+      S('line', { x1: r2(p0[0]), y1: r2(p0[1]), x2: r2(p0[0]), y2: r2(p0[1] - HR), class: 'pier e' }, piers);
+    }
+    var deck = S('g', { class: 'deck' }, run);
+    box(deck, A, F, B, F + .4, 1.4, { floors: false });
+    var train = S('g', { class: 'train' }, deck);
+    box(train, A + .1, F + .08, A + .9, F + .32, 3, { z0: 1.4, floors: false, cls: 'k', inner: 'm' });
+    box(train, A + 1, F + .08, A + 1.8, F + .32, 3, { z0: 1.4, floors: false, cls: 'k', inner: 'm' });
+    fitView(svg, 3);
+    var vb = svg.viewBox.baseVal;
+    svg.setAttribute('viewBox', [vb.x, vb.y - HR, vb.width, vb.height + HR].join(' '));
+    var len = B - A, span = len - 1.8, days = len;
+    function place(t) {
+      t = Math.max(0, Math.min(1, t));
+      var dx = t * span, d = Math.round(t * (days - 1)) + 1;
+      train.style.transform = 'translate(' + r2(dx * 10) + 'px, ' + r2(dx * 5) + 'px)';
+      read.textContent = 'day ' + d + ' of ' + days;
+      fig.setAttribute('aria-valuenow', d);
+      return t;
+    }
+    var pos = 0;
+    function up(on) {
+      run.classList.toggle('up', on);
+      deck.style.transform = on ? 'translateY(-' + HR + 'px)' : '';
+      if (!on) read.textContent = days + '-day streak';
+    }
+    fig.setAttribute('aria-valuemax', days);
+    fig.addEventListener('pointermove', function (e) {
+      var pt = svgPoint(svg, e); if (!pt) return;
+      var a = P(A, F)[0], b = P(B, F)[0];
+      up(true);
+      pos = place((pt[0] - a) / (b - a));
+    });
+    fig.addEventListener('pointerleave', function (e) { if (e.pointerType === 'touch') return; up(false); });
+    fig.addEventListener('focus', function () { up(true); place(pos); });
+    fig.addEventListener('blur', function () { up(false); });
+    fig.addEventListener('keydown', function (e) {
+      if (e.key === 'ArrowRight' || e.key === 'ArrowUp') pos = place(pos + 1 / (days - 1));
+      else if (e.key === 'ArrowLeft' || e.key === 'ArrowDown') pos = place(pos - 1 / (days - 1));
+      else return;
+      e.preventDefault();
+    });
+    read.textContent = days + '-day streak';
+  })();
+
+  /* Blocks and taxis */
+  (function blocks() {
+    var svg = document.getElementById('blocks-svg');
+    var read = document.getElementById('blocks-read');
+    var root = S('g', {}, svg), GAP = .9, M = .8, Y = 7, blocks = [];
+    function gxOf(w) { return w + Math.floor(w / 6) * GAP; }
+    var X = gxOf(17) + 1;
+    S('polygon', { points: pts(diamond(-M, -M, X + M, Y + M)), class: 'pl e' }, root);
+    for (var b = 0; b < 3; b++) {
+      var runs = [], x0 = gxOf(b * 6), x1 = x0 + 6;
+      for (var w = 0; w < 6; w++) for (var d = 0; d < 7; d++) runs.push(closed(diamond(x0 + w + .08, d + .08, x0 + w + .92, d + .92)));
+      S('path', { d: path.apply(null, runs), class: 'l' }, root);
+      var per = diamond(x0, 0, x1, Y);
+      blocks.push({ poly: per, ink: path.apply(null, [closed(per)].concat(runs)), x0: x0, x1: x1 });
+    }
+    var streets = [];
+    [1, 2].forEach(function (k) { var ax = gxOf(k * 6) - GAP / 2; streets.push([P(ax, -M + .2), P(ax, Y + M - .2)]); });
+    streets.push([P(-M + .2, Y + M / 2), P(X + M - .2, Y + M / 2)]);
+    streets.push([P(-M + .2, -M / 2), P(X + M - .2, -M / 2)]);
+    S('path', { d: path.apply(null, streets), class: 'm dash' }, root);
+    var inkP = S('path', { class: 'k', d: '' }, root);
+    var taxis = [];
+    function taxi(alongX, line, from, to, speed, phase) {
+      var g = S('g', {}, root), L = .34, Wd = .17, H = 2.6;
+      function Q(dx, dy, z) { return alongX ? P(dx, line + dy, z) : P(line + dy, dx, z); }
+      var top = [Q(-L, -Wd, H), Q(L, -Wd, H), Q(L, Wd, H), Q(-L, Wd, H)];
+      var side = alongX ? [Q(-L, Wd, 0), Q(L, Wd, 0), Q(L, Wd, H), Q(-L, Wd, H)] : [Q(L, -Wd, 0), Q(L, Wd, 0), Q(L, Wd, H), Q(L, -Wd, H)];
+      var end = alongX ? [Q(L, -Wd, 0), Q(L, Wd, 0), Q(L, Wd, H), Q(L, -Wd, H)] : [Q(-L, Wd, 0), Q(L, Wd, 0), Q(L, Wd, H), Q(-L, Wd, H)];
+      S('polygon', { points: pts(end), style: 'fill:var(--taxi-end);stroke:none' }, g);
+      S('polygon', { points: pts(side), style: 'fill:var(--taxi-side);stroke:none' }, g);
+      S('polygon', { points: pts(top), style: 'fill:var(--taxi);stroke:none' }, g);
+      taxis.push({ g: g, alongX: alongX, from: from, to: to, speed: speed, t: phase });
+    }
+    taxi(true, Y + M / 2 + .14, -M + .4, X + M - .4, .045, .1);
+    taxi(true, -M / 2 - .14, -M + .4, X + M - .4, .035, .6);
+    taxi(false, gxOf(6) - GAP / 2 + .14, -M + .4, Y + M - .4, .09, .3);
+    taxi(false, gxOf(12) - GAP / 2 - .14, -M + .4, Y + M - .4, .07, .75);
+    function placeTaxis() {
+      taxis.forEach(function (t) {
+        var v = t.from + (t.to - t.from) * t.t;
+        var p = t.alongX ? [v * 10, v * 5] : [-v * 10, v * 5];
+        t.g.setAttribute('transform', 'translate(' + r2(p[0]) + ' ' + r2(p[1]) + ')');
       });
     }
-  });
-
-  // ── Theme gallery tab switching ──
-  var tabContainer = document.getElementById('theme-tabs');
-  if (tabContainer) {
-    tabContainer.addEventListener('click', function(e) {
-      var btn = e.target.closest('.tab-btn');
-      if (!btn) return;
-
-      var tab = btn.getAttribute('data-tab');
-
-      // Update active tab button
-      tabContainer.querySelectorAll('.tab-btn').forEach(function(b) {
-        b.classList.remove('active');
-      });
-      btn.classList.add('active');
-
-      // Switch drawing cards
-      document.querySelectorAll('.drawing-card').forEach(function(card) {
-        card.classList.remove('active');
-        card.style.opacity = '0';
-      });
-
-      var targetCard = document.getElementById('card-' + tab);
-      if (targetCard) {
-        targetCard.classList.add('active');
-
-        // Reset SVG lines for animation
-        var lines = targetCard.querySelectorAll('.draw-line');
-        lines.forEach(function(line) {
-          line.classList.remove('drawn');
-        });
-
-        // Fade in
-        requestAnimationFrame(function() {
-          targetCard.style.opacity = '1';
-          targetCard.style.transition = 'opacity .35s ease';
-          // Animate lines drawing in
-          lines.forEach(function(line, i) {
-            setTimeout(function() {
-              line.classList.add('drawn');
-            }, 40 + i * 10);
-          });
-        });
-      }
+    placeTaxis();
+    fitView(svg, 3);
+    var raf = 0, last = 0, vis = false;
+    function tick(ts) {
+      raf = 0;
+      if (!vis || document.hidden || RM.matches) return;
+      var dt = last ? Math.min(.05, (ts - last) / 1000) : 0; last = ts;
+      taxis.forEach(function (t) { t.t = (t.t + dt * t.speed) % 1; });
+      placeTaxis();
+      raf = requestAnimationFrame(tick);
+    }
+    onVisible(svg, function (v) { vis = v; last = 0; if (v && !raf) raf = requestAnimationFrame(tick); });
+    document.addEventListener('visibilitychange', function () { last = 0; if (!raf) raf = requestAnimationFrame(tick); });
+    var cur = -1;
+    svg.addEventListener('pointermove', function (e) {
+      var pt = svgPoint(svg, e), hit = -1;
+      if (pt) blocks.forEach(function (b, i) { if (inside(pt, b.poly)) hit = i; });
+      if (hit === cur) return;
+      cur = hit;
+      inkP.setAttribute('d', hit >= 0 ? blocks[hit].ink : '');
+      read.textContent = hit >= 0 ? 'block ' + (hit + 1) + ' · weeks ' + (hit * 6 + 1) + ' to ' + (hit * 6 + 6) : '3 blocks · 18 weeks';
     });
-  }
+    svg.addEventListener('pointerleave', function (e) { if (e.pointerType === 'touch') return; cur = -1; inkP.setAttribute('d', ''); read.textContent = '3 blocks · 18 weeks'; });
+  })();
 
-  // ── Subtle parallax on hero SVG ──
-  var heroBlueprint = document.getElementById('hero-blueprint');
-  if (heroBlueprint && window.matchMedia('(min-width: 768px)').matches) {
-    document.addEventListener('mousemove', function(e) {
-      var x = (e.clientX / window.innerWidth - 0.5) * 2;
-      var y = (e.clientY / window.innerHeight - 0.5) * 2;
-      heroBlueprint.style.transform = 'translate(' + (x * 4) + 'px, ' + (y * 3) + 'px)';
-      heroBlueprint.style.transition = 'transform .15s ease-out';
+  /* Stats */
+  (function stats() {
+    var gh = document.getElementById('gh');
+    var svg = document.getElementById('stats-svg');
+    var read = document.getElementById('stats-read');
+    var first = DAYS[0], last = DAYS[DAYS.length - 1], s = STATS;
+    function stat(key, value, unit, label, detail) {
+      return '<div class="gh-stat" tabindex="0" data-k="' + key + '"><span class="gh-v">' + value + (unit ? ' <small>' + unit + '</small>' : '') + '</span><span class="gh-l">' + label + '</span><span class="gh-d">' + detail + '</span></div>';
+    }
+    var lg = s.longest, cu = s.current;
+    gh.innerHTML =
+      '<div class="gh-panel"><h4>Contributions</h4><div class="gh-box">' +
+      stat('total', s.total.toLocaleString('en-GB'), '', 'Total', range(first.date, last.date)) +
+      stat('week', s.weekTotal, '', 'This week', range(s.week[0].date, last.date)) +
+      stat('best', s.best.count, '', 'Best day', shortFmt.format(s.best.date)) +
+      '</div><p class="gh-note">Average: <strong>' + s.average + '</strong> <span>/ day</span></p></div>' +
+      '<div class="gh-panel"><h4>Streaks</h4><div class="gh-box">' +
+      stat('longest', lg.len, 'days', 'Longest', range(DAYS[lg.from].date, DAYS[lg.to].date)) +
+      stat('current', cu.len, 'days', 'Current', cu.len ? range(DAYS[cu.from].date, DAYS[cu.to].date) : 'No current streak') +
+      '</div></div>';
+    var root = S('g', {}, svg), on = [], off = [], idx = [];
+    DAYS.forEach(function (d) {
+      var gx = d.w + Math.floor(d.w / 6) * .5, poly = closed(diamond(gx + .1, d.d + .1, gx + .9, d.d + .9));
+      idx.push(poly);
+      (d.count ? on : off).push(poly);
     });
-  }
+    S('path', { d: path.apply(null, off), class: 'l' }, root);
+    S('path', { d: path.apply(null, on), class: 'e' }, root);
+    var inkP = S('path', { class: 'k', d: '' }, root);
+    fitView(svg, 2);
+    function sel(k) {
+      var list = [], label = 'hover a stat';
+      DAYS.forEach(function (d, i) {
+        var take = k === 'total' ? d.count > 0
+          : k === 'week' ? d.w === WEEKS - 1
+          : k === 'best' ? d === s.best
+          : k === 'longest' ? i >= lg.from && i <= lg.to
+          : k === 'current' ? cu.len && i >= cu.from : false;
+        if (take) list.push(idx[i]);
+      });
+      if (k === 'total') label = s.total + ' contributions over ' + list.length + ' days';
+      if (k === 'week') label = 'this week · ' + list.length + ' days';
+      if (k === 'best') label = 'best day · ' + dayFmt.format(s.best.date);
+      if (k === 'longest') label = 'longest streak · ' + lg.len + ' days';
+      if (k === 'current') label = 'current streak · ' + cu.len + ' days';
+      inkP.setAttribute('d', list.length ? path.apply(null, list) : '');
+      read.textContent = label;
+      gh.querySelectorAll('.gh-stat').forEach(function (n) { n.classList.toggle('on', n.dataset.k === k); });
+    }
+    gh.querySelectorAll('.gh-stat').forEach(function (n) {
+      n.addEventListener('pointerenter', function () { sel(n.dataset.k); });
+      n.addEventListener('focus', function () { sel(n.dataset.k); });
+      n.addEventListener('pointerleave', function (e) { if (e.pointerType === 'touch') return; if (document.activeElement !== n) sel(null); });
+      n.addEventListener('blur', function () { sel(null); });
+    });
+  })();
 
+  /* Click a building */
+  (function clicker() {
+    var svg = document.getElementById('click-svg');
+    var feed = document.getElementById('feed');
+    var read = document.getElementById('click-read');
+    var root = S('g', {}, svg);
+    var week = DAYS.filter(function (d) { return d.count > 0 && !d.today; }).slice(-5);
+    var repos = ['contribution-lands', 'dotfiles', 'notes', 'site', 'scripts'];
+    var picks = [];
+    week.forEach(function (d, i) {
+      var gx = i * 1.25;
+      var g = S('g', { class: 'pick lot on', tabindex: '0', role: 'button', 'aria-pressed': 'false', 'aria-label': longFmt.format(d.date) + ', ' + countText(d.count) }, root);
+      S('polygon', { points: pts(diamond(gx, 0, gx + 1, 1)), class: 'm lotline' }, g);
+      var hit = box(S('g', {}, g), gx + .14, .14, gx + .86, .86, spriteH(d.name), { cls: 'l', inner: 'l', floors: false });
+      sprite(g, gx, 0, d.name);
+      picks.push({ g: g, d: d, ink: hit.ink });
+    });
+    var inkP = S('path', { class: 'k', d: '' }, root);
+    fitView(svg, 3);
+    var cur = null;
+    function idle() {
+      feed.innerHTML = '<b>Contribution activity</b><p>Choose a building to see that day.</p>';
+    }
+    function set(p) {
+      if (cur === p) p = null;
+      cur = p;
+      svg.classList.toggle('has-sel', !!p);
+      picks.forEach(function (x) { x.g.classList.toggle('sel', x === p); x.g.setAttribute('aria-pressed', String(x === p)); });
+      inkP.setAttribute('d', p ? p.ink : '');
+      if (!p) { idle(); read.textContent = 'click a building'; return; }
+      var n = p.d.count, rc = Math.min(3, 1 + (n % 3));
+      feed.innerHTML = '<b>Activity on ' + new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'long', timeZone: 'UTC' }).format(p.d.date) + '</b>' +
+        '<p>Created ' + n + ' commit' + (n === 1 ? '' : 's') + ' in ' + rc + ' repositor' + (rc === 1 ? 'y' : 'ies') + '</p>' +
+        '<p class="mono">' + repos.slice(0, rc).join(' · ') + '</p>';
+      read.textContent = 'filtered to ' + dayFmt.format(p.d.date);
+    }
+    picks.forEach(function (p) {
+      p.g.addEventListener('click', function () { set(p); });
+      p.g.addEventListener('keydown', function (e) { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); set(p); } });
+    });
+    idle();
+  })();
+
+  /* Popup */
+  (function popup() {
+    var seg = document.getElementById('pop-seg');
+    var st = document.getElementById('pop-stats'), mo = document.getElementById('pop-motion');
+    var read = document.getElementById('pop-read');
+    var view = 'Lands';
+    function show() { read.textContent = view + ' · stats ' + (st.checked ? 'on' : 'off') + ' · motion ' + (mo.checked ? 'on' : 'off'); }
+    var bs = Array.prototype.slice.call(seg.querySelectorAll('button'));
+    function choose(b) {
+      view = b.dataset.v;
+      bs.forEach(function (x) { x.setAttribute('aria-checked', String(x === b)); x.tabIndex = x === b ? 0 : -1; });
+      show();
+    }
+    bs.forEach(function (b) { b.tabIndex = b.getAttribute('aria-checked') === 'true' ? 0 : -1; b.addEventListener('click', function () { choose(b); }); });
+    seg.addEventListener('keydown', function (e) {
+      var i = bs.indexOf(document.activeElement);
+      if (i < 0) return;
+      if (e.key === 'ArrowRight' || e.key === 'ArrowDown') i = (i + 1) % 3; else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') i = (i + 2) % 3; else return;
+      e.preventDefault(); bs[i].focus(); choose(bs[i]);
+    });
+    st.addEventListener('change', show); mo.addEventListener('change', show);
+    show();
+  })();
+
+  document.addEventListener('pointerdown', function (e) {
+    if (e.pointerType === 'mouse' || !e.isTrusted) return;
+    e.target.dispatchEvent(new PointerEvent('pointermove', { bubbles: true, clientX: e.clientX, clientY: e.clientY, pointerType: e.pointerType }));
+  }, true);
+
+  /* Side list */
+  (function toc() {
+    var links = Array.prototype.slice.call(document.querySelectorAll('#toc a'));
+    var targets = links.map(function (a) { return document.querySelector(a.getAttribute('href')); });
+    if (!('IntersectionObserver' in window)) return;
+    var seen = new Map();
+    var io = new IntersectionObserver(function (es) {
+      es.forEach(function (e) { seen.set(e.target, e.isIntersecting); });
+      var first = targets.filter(function (t) { return seen.get(t); })[0];
+      links.forEach(function (a, i) { a.setAttribute('aria-current', String(targets[i] === first)); });
+    }, { rootMargin: '-20% 0px -60% 0px' });
+    targets.forEach(function (t) { if (t) io.observe(t); });
+  })();
 })();
+</script>
+<script type="module">
+const box = document.getElementById('branches');
+const read = document.getElementById('branches-read');
+const io = new IntersectionObserver(async (es) => {
+  if (!es[0].isIntersecting) return;
+  io.disconnect();
+  try {
+    const { branches } = await import('https://esm.sh/@lucasmarkes/hairline@0.2.0');
+    branches(box, { intensity: .6, onRead: (t) => { read.textContent = t; } });
+  } catch (err) {
+    read.textContent = 'figure unavailable offline';
+  }
+}, { rootMargin: '200px' });
+io.observe(box);
 </script>
 </body>
 </html>
