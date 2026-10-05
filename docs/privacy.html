@@ -77,12 +77,13 @@ em.acc { font-family: var(--serif); font-style: italic; font-weight: 400; font-s
 /* Top bar */
 .top { border-bottom: 1px solid var(--line); }
 .top-in { max-width: 1280px; margin: 0 auto; padding: 0 24px; height: 56px; display: flex; align-items: center; gap: 12px; }
-.word { display: inline-flex; align-items: center; gap: 9px; text-decoration: none; font-weight: 500; font-size: 15px; letter-spacing: -.01em; }
+.word { display: inline-flex; align-items: center; gap: 9px; white-space: nowrap; text-decoration: none; font-weight: 500; font-size: 15px; letter-spacing: -.01em; }
 .word svg { width: 20px; height: 20px; }
 .top nav { margin-left: auto; display: flex; gap: 22px; font-size: 14px; }
 .top nav a { text-decoration: none; color: var(--muted); }
 .top nav a:hover { color: var(--text); }
 @media (max-width: 640px) { .top-in { padding: 0 16px; } .top nav { gap: 16px; } .top nav .wide { display: none; } }
+@media (max-width: 440px) { .top-in > .mono { display: none; } }
 
 
 .page { max-width: 760px; margin: 0 auto; padding: 56px 24px 0; }
@@ -127,6 +128,7 @@ code { font-family: var(--mono); font-size: 13px; background: var(--soft); borde
     <span class="mono">v 0.1.0</span>
     <nav aria-label="Primary">
       <a class="wide" href="./#figures">Figures</a>
+      <a href="library.html">Library</a>
       <a class="wide" href="./#readme">README card</a>
       <a href="./#install">Install</a>
       <a href="https://github.com/jeanluciradukunda/contribution-lands">Source</a>
