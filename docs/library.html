@@ -21,7 +21,7 @@
 <link rel="apple-touch-icon" href="assets/icon-128.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500&family=Instrument+Serif:ital@1&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
 :root {
   --bg: #ffffff;
@@ -35,9 +35,8 @@
   --muted: #6b6b73;
   --soft: #f6f6f7;
   --taxi: #f2c12e;
-  --sans: 'Geist', system-ui, -apple-system, 'Segoe UI', sans-serif;
-  --mono: 'Geist Mono', ui-monospace, 'SF Mono', Menlo, monospace;
-  --serif: 'Instrument Serif', Georgia, serif;
+  --sans: 'IBM Plex Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --mono: 'IBM Plex Mono', ui-monospace, 'SF Mono', Menlo, monospace;
   --sw: .9;
 }
 @media (prefers-color-scheme: dark) {
@@ -68,7 +67,9 @@ button { font: inherit; color: inherit; }
 .skip { position: absolute; left: -9999px; }
 .skip:focus { left: 16px; top: 12px; z-index: 20; background: var(--ink); color: var(--bg); padding: .4rem .7rem; border-radius: 6px; }
 .mono { font-family: var(--mono); font-size: 12px; letter-spacing: 0; color: var(--muted); }
-em.acc { font-family: var(--serif); font-style: italic; font-weight: 400; font-size: 1.12em; letter-spacing: 0; }
+.mk { text-decoration: underline; text-decoration-color: var(--taxi); text-decoration-thickness: .14em; text-underline-offset: .14em; text-decoration-skip-ink: none; }
+.sht { display: inline-block; font: 500 10.5px/1 var(--mono); letter-spacing: .06em; color: var(--text); padding: 3px 5px 2px; border: 1px solid var(--mid); border-radius: 4px; white-space: nowrap; vertical-align: 1px; }
+.caps { font-family: var(--mono); font-size: 11px; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
 
 /* Top bar */
 .top { border-bottom: 1px solid var(--line); }
@@ -84,7 +85,7 @@ em.acc { font-family: var(--serif); font-style: italic; font-weight: 400; font-s
 /* Shell */
 .shell { max-width: 1280px; margin: 0 auto; padding: 0 24px; display: grid; grid-template-columns: 188px minmax(0, 1fr); gap: 56px; }
 .side { position: sticky; top: 0; align-self: start; padding: 44px 0 24px; }
-.side .mono { display: block; margin-bottom: 8px; }
+.side .caps { display: block; margin-bottom: 8px; }
 .side ol { list-style: none; margin: 0; padding: 0; }
 .side .f { display: flex; justify-content: space-between; gap: 8px; width: calc(100% + 20px); padding: 5px 10px; margin: 0 -10px; border: 0; border-radius: 7px; background: none; text-align: left; color: var(--muted); font-size: 14px; cursor: pointer; }
 .side .f:hover { color: var(--text); }
@@ -107,7 +108,7 @@ main { min-width: 0; padding-bottom: 40px; }
 /* Hero */
 .hero { padding: 56px 0 28px; }
 .kick { display: block; margin-bottom: 14px; }
-h1 { font-weight: 500; font-size: clamp(2rem, 4.4vw, 3.15rem); line-height: 1.08; letter-spacing: -.028em; margin: 0 0 18px; max-width: 18ch; text-wrap: balance; }
+h1 { font-weight: 500; font-size: clamp(2rem, 4.4vw, 3.15rem); line-height: 1.08; letter-spacing: -.02em; margin: 0 0 18px; max-width: 18ch; text-wrap: balance; }
 .lede { font-size: 17px; color: var(--muted); max-width: 60ch; margin: 0 0 18px; }
 .facts { margin: 0; max-width: 72ch; }
 
@@ -133,6 +134,17 @@ h1 { font-weight: 500; font-size: clamp(2rem, 4.4vw, 3.15rem); line-height: 1.08
 .hl text { font-family: var(--mono); fill: var(--muted); }
 
 /* Section drawing */
+.tb { position: absolute; left: 20px; bottom: 14px; z-index: 1; display: flex; border: 1px solid var(--mid); border-radius: 6px; overflow: hidden; background: var(--card); font: 10.5px/1.3 var(--mono); color: var(--text); pointer-events: none; }
+.tb dl { margin: 0; }
+.tb dl div { display: grid; grid-template-columns: 64px auto; gap: 8px; padding: 3px 9px; border-bottom: 1px solid var(--line); }
+.tb dl div:last-child { border-bottom: 0; }
+.tb dt { color: var(--muted); text-transform: uppercase; letter-spacing: .08em; font-size: 9.5px; line-height: 1.4; }
+.tb dd { margin: 0; white-space: nowrap; }
+.tb .no { display: flex; flex-direction: column; justify-content: center; padding: 4px 12px; border-left: 1px solid var(--line); }
+.tb .no span { font-size: 9.5px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.tb .no b { font: 600 17px/1.2 var(--sans); letter-spacing: .02em; }
+#section .tb { left: 104px; top: 62px; bottom: auto; }
+@media (max-width: 980px) { #section .tb { display: none; } }
 .sect-fig { overflow-x: auto; overscroll-behavior-x: contain; padding: 8px 16px 6px; border-top: 1px solid var(--line); scrollbar-width: thin; }
 #strip { width: 100%; min-width: 860px; height: auto; }
 #strip image { cursor: pointer; transition: opacity .2s; }
@@ -143,7 +155,7 @@ h1 { font-weight: 500; font-size: clamp(2rem, 4.4vw, 3.15rem); line-height: 1.08
 
 /* Sections */
 .sec { padding: 64px 0 0; scroll-margin-top: 16px; }
-h2 { font-weight: 500; font-size: clamp(1.55rem, 2.6vw, 2rem); line-height: 1.15; letter-spacing: -.022em; margin: 0 0 10px; text-wrap: balance; }
+h2 { font-weight: 500; font-size: clamp(1.55rem, 2.6vw, 2rem); line-height: 1.15; letter-spacing: -.015em; margin: 0 0 10px; text-wrap: balance; }
 .intro { color: var(--muted); max-width: 60ch; margin: 0 0 8px; }
 .shelf { padding-top: 40px; scroll-margin-top: 64px; }
 .shelf[hidden] { display: none; }
@@ -216,7 +228,7 @@ noscript p { color: var(--muted); }
       <svg viewBox="0 0 20 20" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-width="1" stroke-linejoin="round"><path d="M10 2.5 17 6.2 10 9.9 3 6.2Z"/><path d="M3 6.2V13.8L10 17.5 17 13.8V6.2M10 9.9V17.5"/></g></svg>
       contribution lands
     </a>
-    <span class="mono">v 0.1.0</span>
+    <span class="mono">rev 0.1.0</span>
     <nav aria-label="Primary">
       <a class="wide" href="./#figures">Figures</a>
       <a href="library.html" aria-current="page">Library</a>
@@ -229,7 +241,7 @@ noscript p { color: var(--muted); }
 
 <div class="shell">
   <aside class="side" aria-label="Filter the library">
-    <span class="mono">shelves</span>
+    <span class="caps">shelves</span>
     <ol id="filters"></ol>
     <div class="rule" aria-hidden="true"></div>
     <a href="#section">The section drawing</a>
@@ -238,17 +250,18 @@ noscript p { color: var(--muted); }
 
 <main id="main">
   <section class="hero" id="top" aria-labelledby="lib-title">
-    <span class="mono kick" id="kick">library · NYC Skyline</span>
-    <h1 id="lib-title">Every building, by what it <em class="acc">takes.</em></h1>
+    <span class="caps kick" id="kick">library · NYC Skyline</span>
+    <h1 id="lib-title">Every building, by what it <span class="mk">takes</span>.</h1>
     <p class="lede" id="lede">Every sprite the extension can draw on a New York lot. A day's height comes from its count, on one scale for everyone: 1 to 4 contributions is a brownstone or a shop, 5 to 14 a walk-up, 15 to 39 a tower and 40 or more a skyscraper. Landmarks are earned: they go to your best days in order, and only to a day at least as tall as the landmark itself.</p>
     <p class="mono facts" id="facts"></p>
   </section>
 
   <figure class="card sect" id="section" style="margin:0">
     <div class="bar">
-      <span class="mono">fig. 01 · a section through the library · true relative height</span>
+      <span class="mono"><span class="sht">L-101</span> a section through the library · true relative height</span>
       <span class="mono" id="strip-read" aria-live="polite">hover a building</span>
     </div>
+    <div class="tb" aria-hidden="true"><dl><div><dt>set</dt><dd>NYC Skyline</dd></div><div><dt>scale</dt><dd>true relative height</dd></div><div><dt>datum</dt><dd>one baseline</dd></div></dl><div class="no"><span>sheet</span><b>L-101</b></div></div>
     <div class="sect-fig">
       <svg class="hl" id="strip" role="img" aria-labelledby="strip-t"><title id="strip-t">Every level sprite standing on one baseline at true relative height, grouped by level from empty lots to skyscrapers, with the contributions each level takes marked underneath.</title></svg>
     </div>
@@ -260,7 +273,7 @@ noscript p { color: var(--muted); }
   </figure>
 
   <section class="sec" id="shelves" aria-labelledby="shelves-title">
-    <h2 id="shelves-title">The shelves, from bare lots to <em class="acc">landmarks.</em></h2>
+    <h2 id="shelves-title">The shelves, from bare lots to <span class="mk">landmarks</span>.</h2>
     <p class="intro">Within a shelf every tile is drawn at the same scale, so heights compare honestly. Hover or focus a tile to see when it gets built.</p>
     <div class="chips" id="chips" role="group" aria-label="Filter the library"></div>
     <div id="lib"></div>
@@ -424,14 +437,14 @@ noscript p { color: var(--muted); }
       ]));
     });
     return h('article', { class: 'card' }, [
-      h('div', { class: 'bar' }, [h('span', { class: 'mono', text: 'fig. 02 · today’s lot climbs a stage each time today’s shade deepens' }), h('span', { class: 'mono', text: 'tomorrow it is built like any other day' })]),
+      h('div', { class: 'bar' }, [h('span', { class: 'mono', text: 'today’s lot climbs a stage each time today’s shade deepens' }), h('span', { class: 'mono', text: 'tomorrow it is built like any other day' })]),
       row
     ]);
   }
 
-  GROUPS.forEach(function (g) {
+  GROUPS.forEach(function (g, i) {
     var w = spriteWidth(g);
-    var count = g.items.length + ' drawn · ' + g.note;
+    var count = g.items.length + ' ' + (g.id === 'today' ? 'stages' : g.items.length === 1 ? 'lot' : 'lots') + ' · ' + g.note;
     var body;
     if (g.id === 'today') body = todayCard(g);
     else {
@@ -439,7 +452,7 @@ noscript p { color: var(--muted); }
       g.items.forEach(function (sp) { body.appendChild(tile(sp, g)); });
     }
     var shelf = h('div', { class: 'shelf', id: g.id, 'aria-labelledby': 'sh-' + g.id, role: 'region' }, [
-      h('div', { class: 'shelf-head' }, [h('h3', { id: 'sh-' + g.id, text: g.title }), h('span', { class: 'mono', text: count })]),
+      h('div', { class: 'shelf-head' }, [h('h3', { id: 'sh-' + g.id, text: g.title }), h('span', { class: 'mono' }, [h('span', { class: 'sht', text: 'L-1' + String(i + 2).padStart(2, '0') }), document.createTextNode(' ' + count)])]),
       body
     ]);
     shelves[g.id] = shelf;
