@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="en-GB">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Privacy policy · Contribution Lands</title>
+<meta name="description" content="What the Contribution Lands extension reads and stores: the contribution calendar on github.com, kept in your browser.">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#09090b" media="(prefers-color-scheme: dark)">
+<meta property="og:title" content="Contribution Lands">
+<meta property="og:description" content="Your contribution year, drawn as a city plan and built as New York.">
+<meta property="og:image" content="https://jeanluciradukunda.github.io/contribution-lands/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="A line drawing of a contribution year, partly built into New York towers">
+<meta property="og:url" content="https://jeanluciradukunda.github.io/contribution-lands/privacy.html">
+<meta property="og:type" content="website">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="icon" type="image/png" sizes="32x32" href="assets/icon-32.png">
+<link rel="apple-touch-icon" href="assets/icon-128.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500&family=Instrument+Serif:ital@1&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #ffffff;
+  --card: #ffffff;
+  --line: #ebebee;
+  --lo: #e0e0e4;
+  --mid: #c3c3c9;
+  --edge: #a4a4ac;
+  --ink: #232327;
+  --text: #232327;
+  --muted: #6b6b73;
+  --soft: #f6f6f7;
+  --taxi: #f2c12e;
+  --taxi-side: #d6a619;
+  --taxi-end: #b88b0f;
+  --g0: #ebedf0; --g1: #9be9a8; --g2: #40c463; --g3: #30a14e; --g4: #216e39;
+  --sans: 'Geist', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --mono: 'Geist Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+  --serif: 'Instrument Serif', Georgia, serif;
+  --sw: .9;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #09090b;
+    --card: #0f0f12;
+    --line: #202024;
+    --lo: #29292e;
+    --mid: #4c4c54;
+    --edge: #8e8e97;
+    --ink: #fafafa;
+    --text: #ececee;
+    --muted: #a1a1aa;
+    --soft: #16161a;
+    --g0: #151b23; --g1: #033a16; --g2: #196c2e; --g3: #2ea043; --g4: #56d364;
+  }
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; scroll-behavior: smooth; }
+@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+body { margin: 0; background: var(--bg); color: var(--text); font: 400 15px/1.6 var(--sans); overflow-x: hidden; }
+img { max-width: 100%; height: auto; display: block; }
+a { color: inherit; text-decoration: underline; text-decoration-color: var(--mid); text-decoration-thickness: 1px; text-underline-offset: .22em; }
+a:hover { text-decoration-color: var(--ink); }
+:focus-visible { outline: 1.5px solid var(--ink); outline-offset: 3px; border-radius: 4px; }
+button { font: inherit; color: inherit; }
+.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.skip { position: absolute; left: -9999px; }
+.skip:focus { left: 16px; top: 12px; z-index: 20; background: var(--ink); color: var(--bg); padding: .4rem .7rem; border-radius: 6px; }
+.mono { font-family: var(--mono); font-size: 12px; letter-spacing: 0; color: var(--muted); }
+em.acc { font-family: var(--serif); font-style: italic; font-weight: 400; font-size: 1.12em; letter-spacing: 0; }
+
+/* Top bar */
+.top { border-bottom: 1px solid var(--line); }
+.top-in { max-width: 1280px; margin: 0 auto; padding: 0 24px; height: 56px; display: flex; align-items: center; gap: 12px; }
+.word { display: inline-flex; align-items: center; gap: 9px; text-decoration: none; font-weight: 500; font-size: 15px; letter-spacing: -.01em; }
+.word svg { width: 20px; height: 20px; }
+.top nav { margin-left: auto; display: flex; gap: 22px; font-size: 14px; }
+.top nav a { text-decoration: none; color: var(--muted); }
+.top nav a:hover { color: var(--text); }
+@media (max-width: 640px) { .top-in { padding: 0 16px; } .top nav { gap: 16px; } .top nav .wide { display: none; } }
+
+
+.page { max-width: 760px; margin: 0 auto; padding: 56px 24px 0; }
+.kick { display: flex; justify-content: space-between; gap: 12px; margin-bottom: 18px; }
+h1 { font-weight: 600; font-size: clamp(30px, 5vw, 44px); line-height: 1.08; letter-spacing: -.03em; margin: 0 0 16px; }
+.lede { font-size: 17px; color: var(--muted); margin: 0 0 36px; max-width: 60ch; }
+.fig { border: 1px solid var(--line); border-radius: 14px; background: var(--card); overflow: hidden; margin-bottom: 36px; }
+.fig-top, .fig-bot { display: flex; justify-content: space-between; gap: 12px; padding: 12px 16px; }
+.fig-top { border-bottom: 1px solid var(--line); }
+.fig-bot { border-top: 1px solid var(--line); }
+.fig svg { display: block; width: 100%; height: auto; }
+.fig .hl path, .fig .hl polygon, .fig .hl line, .fig .hl rect { vector-effect: non-scaling-stroke; }
+.cards { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin-bottom: 36px; }
+.card { border: 1px solid var(--line); border-radius: 12px; padding: 16px 16px 14px; background: var(--card); }
+.card h2 { font-size: 15px; font-weight: 600; margin: 8px 0 6px; letter-spacing: -.01em; }
+.card p { margin: 0; color: var(--muted); font-size: 14px; }
+.card .mono { display: block; }
+section h2 { font-size: 20px; font-weight: 600; letter-spacing: -.02em; margin: 34px 0 8px; }
+section p, section li { color: var(--text); }
+section ul { padding-left: 1.1em; margin: 8px 0 0; }
+section li { margin: 4px 0; }
+code { font-family: var(--mono); font-size: 13px; background: var(--soft); border: 1px solid var(--line); border-radius: 5px; padding: 1px 5px; }
+.statement { border-left: 2px solid var(--ink); padding: 6px 0 6px 16px; margin: 20px 0 0; font-size: 15px; }
+@media (max-width: 680px) { .cards { grid-template-columns: 1fr; } .page { padding-top: 40px; } }
+@media (max-width: 560px) { .fig { display: none; } }
+.foot { border-top: 1px solid var(--line); margin-top: 80px; }
+.foot-in { max-width: 1280px; margin: 0 auto; padding: 28px 24px 44px; display: flex; flex-wrap: wrap; justify-content: space-between; gap: 18px 40px; font-size: 13.5px; color: var(--muted); }
+.foot-in nav { display: flex; flex-wrap: wrap; gap: 6px 20px; }
+.foot-in p { margin: 0 0 4px; }
+@media (max-width: 640px) { .foot-in { padding: 24px 16px 36px; } }
+
+</style>
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<header class="top">
+  <div class="top-in">
+    <a class="word" href="./" aria-label="Contribution Lands home">
+      <svg viewBox="0 0 20 20" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-width="1" stroke-linejoin="round"><path d="M10 2.5 17 6.2 10 9.9 3 6.2Z"/><path d="M3 6.2V13.8L10 17.5 17 13.8V6.2M10 9.9V17.5"/></g></svg>
+      contribution lands
+    </a>
+    <span class="mono">v 0.1.0</span>
+    <nav aria-label="Primary">
+      <a class="wide" href="./#figures">Figures</a>
+      <a class="wide" href="./#readme">README card</a>
+      <a href="./#install">Install</a>
+      <a href="https://github.com/jeanluciradukunda/contribution-lands">Source</a>
+    </nav>
+  </div>
+</header>
+<main id="main" class="page">
+  <div class="kick"><span class="mono">privacy policy</span><span class="mono">last updated 5 Oct 2026</span></div>
+  <h1>Everything stays in your <em class="acc">browser.</em></h1>
+  <p class="lede">Contribution Lands redraws the contribution calendar on GitHub profile pages as an illustrated city. Here is exactly what it touches.</p>
+
+  <figure class="fig">
+    <div class="fig-top"><span class="mono">fig. 01 · how data moves</span><span class="mono">one site, no servers of ours</span></div>
+    <svg viewBox="0 0 760 300" preserveAspectRatio="xMidYMid meet" role="img" aria-labelledby="flow-t flow-d">
+  <title id="flow-t">How data moves</title>
+  <desc id="flow-d">The extension reads the contribution calendar from a github.com profile page, may fetch earlier calendars from github.com, draws the city on the same page and keeps four settings in Chrome storage. No other server is contacted.</desc>
+  <g class="hl" fill="none" stroke-linejoin="round" stroke-linecap="round" font-family="Geist Mono, ui-monospace, monospace" font-size="11">
+    <!-- github page -->
+    <g transform="translate(36,64)">
+      <path d="M0 0h200v150H0Z" stroke="var(--edge)" stroke-width="1"/>
+      <path d="M0 22h200" stroke="var(--lo)"/>
+      <circle cx="12" cy="11" r="3" stroke="var(--mid)"/><circle cx="24" cy="11" r="3" stroke="var(--mid)"/><circle cx="36" cy="11" r="3" stroke="var(--mid)"/>
+      <g stroke="var(--mid)">
+        <rect x="14" y="48" width="9" height="9" rx="2"/><rect x="14" y="61" width="9" height="9" rx="2"/><rect x="14" y="74" width="9" height="9" rx="2"/><rect x="14" y="87" width="9" height="9" rx="2"/><rect x="14" y="100" width="9" height="9" rx="2"/><rect x="14" y="113" width="9" height="9" rx="2"/><rect x="14" y="126" width="9" height="9" rx="2"/><rect x="27" y="48" width="9" height="9" rx="2"/><rect x="27" y="61" width="9" height="9" rx="2"/><rect x="27" y="74" width="9" height="9" rx="2"/><rect x="27" y="87" width="9" height="9" rx="2"/><rect x="27" y="100" width="9" height="9" rx="2"/><rect x="27" y="113" width="9" height="9" rx="2"/><rect x="27" y="126" width="9" height="9" rx="2"/><rect x="40" y="48" width="9" height="9" rx="2"/><rect x="40" y="61" width="9" height="9" rx="2"/><rect x="40" y="74" width="9" height="9" rx="2"/><rect x="40" y="87" width="9" height="9" rx="2"/><rect x="40" y="100" width="9" height="9" rx="2"/><rect x="40" y="113" width="9" height="9" rx="2"/><rect x="40" y="126" width="9" height="9" rx="2"/><rect x="53" y="48" width="9" height="9" rx="2"/><rect x="53" y="61" width="9" height="9" rx="2"/><rect x="53" y="74" width="9" height="9" rx="2"/><rect x="53" y="87" width="9" height="9" rx="2"/><rect x="53" y="100" width="9" height="9" rx="2"/><rect x="53" y="113" width="9" height="9" rx="2"/><rect x="53" y="126" width="9" height="9" rx="2"/><rect x="66" y="48" width="9" height="9" rx="2"/><rect x="66" y="61" width="9" height="9" rx="2"/><rect x="66" y="74" width="9" height="9" rx="2"/><rect x="66" y="87" width="9" height="9" rx="2"/><rect x="66" y="100" width="9" height="9" rx="2"/><rect x="66" y="113" width="9" height="9" rx="2"/><rect x="66" y="126" width="9" height="9" rx="2"/><rect x="79" y="48" width="9" height="9" rx="2"/><rect x="79" y="61" width="9" height="9" rx="2"/><rect x="79" y="74" width="9" height="9" rx="2"/><rect x="79" y="87" width="9" height="9" rx="2"/><rect x="79" y="100" width="9" height="9" rx="2"/><rect x="79" y="113" width="9" height="9" rx="2"/><rect x="79" y="126" width="9" height="9" rx="2"/><rect x="92" y="48" width="9" height="9" rx="2"/><rect x="92" y="61" width="9" height="9" rx="2"/><rect x="92" y="74" width="9" height="9" rx="2"/><rect x="92" y="87" width="9" height="9" rx="2"/><rect x="92" y="100" width="9" height="9" rx="2"/><rect x="92" y="113" width="9" height="9" rx="2"/><rect x="92" y="126" width="9" height="9" rx="2"/><rect x="105" y="48" width="9" height="9" rx="2"/><rect x="105" y="61" width="9" height="9" rx="2"/><rect x="105" y="74" width="9" height="9" rx="2"/><rect x="105" y="87" width="9" height="9" rx="2"/><rect x="105" y="100" width="9" height="9" rx="2"/><rect x="105" y="113" width="9" height="9" rx="2"/><rect x="105" y="126" width="9" height="9" rx="2"/><rect x="118" y="48" width="9" height="9" rx="2"/><rect x="118" y="61" width="9" height="9" rx="2"/><rect x="118" y="74" width="9" height="9" rx="2"/><rect x="118" y="87" width="9" height="9" rx="2"/><rect x="118" y="100" width="9" height="9" rx="2"/><rect x="118" y="113" width="9" height="9" rx="2"/><rect x="118" y="126" width="9" height="9" rx="2"/><rect x="131" y="48" width="9" height="9" rx="2"/><rect x="131" y="61" width="9" height="9" rx="2"/><rect x="131" y="74" width="9" height="9" rx="2"/><rect x="131" y="87" width="9" height="9" rx="2"/><rect x="131" y="100" width="9" height="9" rx="2"/><rect x="131" y="113" width="9" height="9" rx="2"/><rect x="131" y="126" width="9" height="9" rx="2"/><rect x="144" y="48" width="9" height="9" rx="2"/><rect x="144" y="61" width="9" height="9" rx="2"/><rect x="144" y="74" width="9" height="9" rx="2"/><rect x="144" y="87" width="9" height="9" rx="2"/><rect x="144" y="100" width="9" height="9" rx="2"/><rect x="144" y="113" width="9" height="9" rx="2"/><rect x="144" y="126" width="9" height="9" rx="2"/><rect x="157" y="48" width="9" height="9" rx="2"/><rect x="157" y="61" width="9" height="9" rx="2"/><rect x="157" y="74" width="9" height="9" rx="2"/><rect x="157" y="87" width="9" height="9" rx="2"/><rect x="157" y="100" width="9" height="9" rx="2"/><rect x="157" y="113" width="9" height="9" rx="2"/><rect x="157" y="126" width="9" height="9" rx="2"/><rect x="170" y="48" width="9" height="9" rx="2"/><rect x="170" y="61" width="9" height="9" rx="2"/><rect x="170" y="74" width="9" height="9" rx="2"/><rect x="170" y="87" width="9" height="9" rx="2"/><rect x="170" y="100" width="9" height="9" rx="2"/><rect x="170" y="113" width="9" height="9" rx="2"/><rect x="170" y="126" width="9" height="9" rx="2"/>
+      </g>
+      <text x="0" y="172" fill="var(--muted)" stroke="none">github.com profile page</text>
+    </g>
+    <!-- arrow read -->
+    <path d="M250 120h96" stroke="var(--ink)"/><path d="M340 115l6 5-6 5" stroke="var(--ink)"/>
+    <text x="252" y="108" fill="var(--muted)" stroke="none">reads the calendar</text>
+    <path d="M346 168h-96" stroke="var(--mid)"/><path d="M256 163l-6 5 6 5" stroke="var(--mid)"/>
+    <text x="252" y="190" fill="var(--muted)" stroke="none">draws the city here</text>
+    <!-- extension: isometric box -->
+    <g transform="translate(410,70)">
+      <path d="M60 0l60 30-60 30L0 30Z" stroke="var(--ink)" stroke-width="1.2"/>
+      <path d="M0 30v64l60 30 60-30V30M60 60v64" stroke="var(--ink)" stroke-width="1.2"/>
+      <path d="M78 78l26-13M78 92l26-13M78 106l26-13" stroke="var(--taxi)" stroke-width="1.6"/>
+      <text x="-6" y="150" fill="var(--text)" stroke="none">the extension, in your browser</text>
+    </g>
+    <!-- earlier years fetch -->
+    <path d="M470 54c0-30 -170-30-230-4" stroke="var(--mid)" stroke-dasharray="3 4"/><path d="M248 44l-9 7 11 2" stroke="var(--mid)"/>
+    <text x="300" y="20" fill="var(--muted)" stroke="none">earlier years, same site</text>
+    <!-- storage -->
+    <g transform="translate(368,256)">
+      <path d="M0 0h204v28H0Z" stroke="var(--edge)"/>
+      <text x="10" y="18" fill="var(--muted)" stroke="none">chrome.storage · 4 settings</text>
+    </g>
+    <path d="M470 230v26" stroke="var(--mid)"/>
+    <!-- nowhere else -->
+    <path d="M540 132h120" stroke="var(--mid)" stroke-dasharray="3 4"/>
+    <g transform="translate(672,112)">
+      <circle cx="20" cy="20" r="19" stroke="var(--edge)"/>
+      <path d="M6 34L34 6" stroke="var(--edge)"/>
+    </g>
+    <text x="606" y="186" fill="var(--muted)" stroke="none">any other server:</text>
+    <text x="606" y="202" fill="var(--text)" stroke="none">never contacted</text>
+  </g>
+</svg>
+    <div class="fig-bot"><span class="mono">reads github.com, writes nothing elsewhere</span><span class="mono">4 settings stored</span></div>
+  </figure>
+
+  <div class="cards">
+    <div class="card"><span class="mono">01 · reads</span><h2>The calendar on the page</h2><p>Dates, contribution counts and the yearly total on github.com profile pages.</p></div>
+    <div class="card"><span class="mono">02 · stores</span><h2>Four display settings</h2><p>Your chosen world, view mode, stats panel and motion, in Chrome storage.</p></div>
+    <div class="card"><span class="mono">03 · never</span><h2>Sends data anywhere</h2><p>No analytics, advertising or tracking. Nothing is sold or shared.</p></div>
+  </div>
+
+  <section>
+    <h2>What it reads</h2>
+    <p>On github.com profile pages it reads the dates and contribution counts in the contribution calendar and the yearly total in its heading. To complete streaks and the yearly total, it requests the public contributions page for that profile (<code>github.com/users/&lt;name&gt;/contributions</code>) for earlier dates. Your browser makes these requests to github.com in the same way it does when you browse GitHub.</p>
+
+    <h2>What it stores</h2>
+    <ul>
+      <li>Your chosen world, in Chrome sync storage, so Chrome may sync it across browsers where you are signed in.</li>
+      <li>Three display settings (view mode, stats panel and motion), in Chrome local storage.</li>
+    </ul>
+    <p>Contribution data is processed in memory to draw the page and is not stored.</p>
+
+    <h2>What it does not do</h2>
+    <p>It sends no data to the developer or to any third party. It has no analytics, advertising or tracking, and it does not sell or share data. Removing the extension removes its settings.</p>
+
+    <h2>Chrome Web Store User Data Policy</h2>
+    <p class="statement">The use of information received by this extension adheres to the Chrome Web Store User Data Policy, including the Limited Use requirements.</p>
+
+    <h2>Contact</h2>
+    <p>Questions or concerns: open an issue at <a href="https://github.com/jeanluciradukunda/contribution-lands/issues">github.com/jeanluciradukunda/contribution-lands/issues</a>. Source code: <a href="https://github.com/jeanluciradukunda/contribution-lands">github.com/jeanluciradukunda/contribution-lands</a>.</p>
+  </section>
+</main>
+<footer class="foot">
+  <div class="foot-in">
+    <div>
+      <p>Inspired by Jason Long's <a href="https://github.com/jasonlong/isometric-contributions">Isometric Contributions</a>.</p>
+      <p>Works on GitHub profile pages. Not affiliated with or endorsed by GitHub, Inc.</p>
+    </div>
+    <nav aria-label="Footer">
+      <a href="https://github.com/jeanluciradukunda/contribution-lands">Source</a>
+      <a href="privacy.html">Privacy policy</a>
+      <a href="https://github.com/jeanluciradukunda/contribution-lands/issues">Issues</a>
+      <a href="https://github.com/jeanluciradukunda/contribution-lands/blob/main/LICENSE">MIT licence</a>
+    </nav>
+  </div>
+</footer>
+</body>
+</html>
