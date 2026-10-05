@@ -573,12 +573,12 @@ export class IsoRenderer {
     const ctx = this.ctx;
     const y = this.frontStreet;
     const h = this.isCity ? VIADUCT_HEIGHT : 3;
-    const steel = this.isCity ? '#55705f' : '#8a6a45';
+    const steel = this.isCity ? '#3e6650' : '#8a6a45';
     const half = 0.22;
-    const up = (z: number) => z * this.scale;
+    const lw = (k: number) => Math.max(0.5, k * this.scale);
     const pt = (gx: number, gy: number, z: number) => {
       const s = this.toScreen(gx, gy);
-      return { x: s.x, y: s.y - up(z) };
+      return { x: s.x, y: s.y - z * this.scale };
     };
     const poly = (pts: Array<{ x: number; y: number }>, fill: string) => {
       ctx.beginPath();
@@ -588,49 +588,244 @@ export class IsoRenderer {
       ctx.fillStyle = fill;
       ctx.fill();
     };
+    const line = (a: { x: number; y: number }, b: { x: number; y: number }, colour: string, width: number) => {
+      ctx.beginPath();
+      ctx.moveTo(a.x, a.y);
+      ctx.lineTo(b.x, b.y);
+      ctx.strokeStyle = colour;
+      ctx.lineWidth = width;
+      ctx.stroke();
+    };
 
     ctx.save();
-    if (this.isCity) {
-      for (let x = path.x0 + 0.4; x < path.x1; x += 1) {
-        poly([pt(x - 0.05, y + half, 0), pt(x + 0.05, y + half, 0), pt(x + 0.05, y + half, h), pt(x - 0.05, y + half, h)], shade(steel, 0.7));
-      }
-    }
-    const deckBottom = h - 1.4;
-    poly([pt(path.x0, y + half, deckBottom), pt(path.x1, y + half, deckBottom), pt(path.x1, y + half, h), pt(path.x0, y + half, h)], shade(steel, 0.8));
-    poly([pt(path.x1, y - half, deckBottom), pt(path.x1, y + half, deckBottom), pt(path.x1, y + half, h), pt(path.x1, y - half, h)], shade(steel, 0.6));
-    poly([pt(path.x0, y - half, h), pt(path.x1, y - half, h), pt(path.x1, y + half, h), pt(path.x0, y + half, h)], steel);
-    const accent = this.theme.ui_accent ?? '#ffcc73';
-    poly([pt(path.x0, y + half, h - 0.9), pt(path.x1, y + half, h - 0.9), pt(path.x1, y + half, h - 0.3), pt(path.x0, y + half, h - 0.3)], accent);
+    ctx.lineCap = 'round';
+    const deckBottom = h - 1.6;
 
     if (this.isCity) {
-      const span = path.x1 - path.x0;
-      const carLength = Math.min(0.75, span / 3);
-      const head = path.x0 + carLength * 2 + Math.max(0, Math.min(1, this.trainPos)) * (span - carLength * 2);
-      for (let i = 0; i < 2; i++) {
-        const x1 = head - i * (carLength + 0.04);
-        const x0 = x1 - carLength;
-        const top = h + 2.4;
-        poly([pt(x0, y + 0.11, h), pt(x1, y + 0.11, h), pt(x1, y + 0.11, top), pt(x0, y + 0.11, top)], '#c9ced4');
-        poly([pt(x1, y - 0.11, h), pt(x1, y + 0.11, h), pt(x1, y + 0.11, top), pt(x1, y - 0.11, top)], '#9aa1a8');
-        poly([pt(x0, y - 0.11, top), pt(x1, y - 0.11, top), pt(x1, y + 0.11, top), pt(x0, y + 0.11, top)], '#e3e6ea');
-        ctx.strokeStyle = this.theme.ui_accent ?? '#ffcc73';
-        ctx.lineWidth = Math.max(0.6, 0.3 * this.scale);
-        const w0 = pt(x0 + 0.06, y + 0.11, h + 1.5);
-        const w1 = pt(x1 - 0.06, y + 0.11, h + 1.5);
-        ctx.beginPath();
-        ctx.moveTo(w0.x, w0.y);
-        ctx.lineTo(w1.x, w1.y);
-        ctx.stroke();
+      // Paired columns with a cross beam and knee braces, like the elevated lines.
+      const bents: number[] = [];
+      for (let x = path.x0 + 0.35; x < path.x1 - 0.1; x += 1.4) bents.push(x);
+      for (const x of bents) {
+        poly([pt(x - 0.05, y - half, 0), pt(x + 0.05, y - half, 0), pt(x + 0.05, y - half, deckBottom), pt(x - 0.05, y - half, deckBottom)], shade(steel, 0.5));
+      }
+      for (const x of bents) {
+        poly([pt(x - 0.06, y + half, 0), pt(x + 0.06, y + half, 0), pt(x + 0.06, y + half, deckBottom), pt(x - 0.06, y + half, deckBottom)], shade(steel, 0.78));
+        poly([pt(x + 0.06, y + half - 0.06, 0), pt(x + 0.06, y + half, 0), pt(x + 0.06, y + half, deckBottom), pt(x + 0.06, y + half - 0.06, deckBottom)], shade(steel, 0.6));
+        line(pt(x, y + half, deckBottom - 2.2), pt(x - 0.45, y + half, deckBottom), shade(steel, 0.7), lw(0.22));
+        line(pt(x, y + half, deckBottom - 2.2), pt(x + 0.45, y + half, deckBottom), shade(steel, 0.7), lw(0.22));
+        line(pt(x, y - half, deckBottom - 0.3), pt(x, y + half, deckBottom - 0.3), shade(steel, 0.55), lw(0.3));
       }
     }
+
+    // Girder deck: solid face, then a lattice of diagonals and a top and bottom chord.
+    poly([pt(path.x0, y + half, deckBottom), pt(path.x1, y + half, deckBottom), pt(path.x1, y + half, h), pt(path.x0, y + half, h)], shade(steel, 0.72));
+    poly([pt(path.x1, y - half, deckBottom), pt(path.x1, y + half, deckBottom), pt(path.x1, y + half, h), pt(path.x1, y - half, h)], shade(steel, 0.55));
+    if (this.isCity) {
+      const lattice = shade(steel, 1.45);
+      for (let x = path.x0, up = true; x < path.x1 - 0.01; x += 0.3, up = !up) {
+        const x2 = Math.min(path.x1, x + 0.3);
+        line(pt(x, y + half, up ? deckBottom + 0.15 : h - 0.15), pt(x2, y + half, up ? h - 0.15 : deckBottom + 0.15), lattice, lw(0.16));
+      }
+      line(pt(path.x0, y + half, h - 0.08), pt(path.x1, y + half, h - 0.08), shade(steel, 1.25), lw(0.18));
+      line(pt(path.x0, y + half, deckBottom + 0.05), pt(path.x1, y + half, deckBottom + 0.05), shade(steel, 0.5), lw(0.18));
+    }
+    poly([pt(path.x0, y - half, h), pt(path.x1, y - half, h), pt(path.x1, y + half, h), pt(path.x0, y + half, h)], shade(steel, 0.9));
+
+    // Sleepers and rails.
+    for (let x = path.x0 + 0.08; x < path.x1; x += 0.16) {
+      line(pt(x, y - half * 0.8, h + 0.05), pt(x, y + half * 0.8, h + 0.05), '#4a3a2c', lw(0.13));
+    }
+    for (const r of [-0.09, 0.09]) line(pt(path.x0, y + r, h + 0.18), pt(path.x1, y + r, h + 0.18), '#b8bec4', lw(0.12));
+
+    if (this.isCity) this.drawSubway(path, y, h, pt, poly, line);
     ctx.restore();
 
     const hit = new Path2D();
-    const q = [pt(path.x0, y - half, h + 3), pt(path.x1, y - half, h + 3), pt(path.x1, y + half, 0), pt(path.x0, y + half, 0)];
+    const q = [pt(path.x0, y - half, h + 6), pt(path.x1, y - half, h + 6), pt(path.x1, y + half, 0), pt(path.x0, y + half, 0)];
     hit.moveTo(q[0].x, q[0].y);
     for (const p of q.slice(1)) hit.lineTo(p.x, p.y);
     hit.closePath();
     this.hitPaths.set(path, hit);
+  }
+
+  private readonly carTextures = new Map<number, HTMLCanvasElement>();
+
+  /** One car side, painted once: ribbed steel, windows and doors, and a seeded graffiti piece. */
+  private carTexture(seed: number): HTMLCanvasElement {
+    const cached = this.carTextures.get(seed);
+    if (cached) return cached;
+    const W = 320;
+    const H = 80;
+    const cv = document.createElement('canvas');
+    cv.width = W;
+    cv.height = H;
+    const g = cv.getContext('2d')!;
+    const rng = mulberry32(seed);
+    const pick = <T,>(xs: T[]) => xs[Math.floor(rng() * xs.length)];
+    const palette = ['#ff3d8b', '#ffd23f', '#2ec4ff', '#7cf05a', '#ff7a2f', '#b56bff', '#ff2f2f', '#00e0b8'];
+
+    const steel = g.createLinearGradient(0, 0, 0, H);
+    steel.addColorStop(0, '#d9dde1');
+    steel.addColorStop(1, '#a9b0b7');
+    g.fillStyle = steel;
+    g.fillRect(0, 0, W, H);
+    g.strokeStyle = 'rgba(255,255,255,0.35)';
+    g.lineWidth = 1;
+    for (let x = 4; x < W; x += 6) {
+      g.beginPath();
+      g.moveTo(x, 0);
+      g.lineTo(x, H);
+      g.stroke();
+    }
+
+    const windowsTop = 8;
+    const windowsBottom = 30;
+    const wholeCar = rng() < 0.4;
+    for (let i = 0; i < 6; i++) {
+      const x = 14 + i * 50;
+      g.fillStyle = rng() < 0.75 ? '#ffd88a' : '#3b4148';
+      g.fillRect(x, windowsTop, 30, windowsBottom - windowsTop);
+      g.strokeStyle = 'rgba(0,0,0,0.35)';
+      g.strokeRect(x + 0.5, windowsTop + 0.5, 29, windowsBottom - windowsTop - 1);
+    }
+    g.strokeStyle = 'rgba(40,40,40,0.5)';
+    for (const x of [66, 214]) {
+      g.strokeRect(x, 6, 26, H - 8);
+    }
+
+    // The piece: a backdrop, extruded bubble letters with gradient fills, outlines and highlights.
+    const top = wholeCar ? 4 : windowsBottom + 2;
+    const words = ['LANDS', 'SHIP', 'PUSH', 'MERGE', 'NYC', 'STREAK', 'COMMIT', 'FORK', 'DIFF', 'BUILD'];
+    const word = pick(words);
+    const a = pick(palette);
+    let b = pick(palette);
+    if (b === a) b = palette[(palette.indexOf(a) + 3) % palette.length];
+    const back = pick(palette);
+    g.fillStyle = back + '55';
+    g.beginPath();
+    g.ellipse(W / 2, top + (H - top) / 2, W * 0.47, (H - top) * 0.55, 0, 0, Math.PI * 2);
+    g.fill();
+
+    const size = Math.min((H - top) * 1.05, (W * 0.9) / word.length * 1.45);
+    g.font = `900 ${size}px "Arial Black", "Helvetica Neue", Impact, sans-serif`;
+    g.textBaseline = 'middle';
+    g.lineJoin = 'round';
+    const total = g.measureText(word).width;
+    let x = (W - total) / 2;
+    const midY = top + (H - top) / 2 + 2;
+    for (const ch of word) {
+      const cw = g.measureText(ch).width;
+      const tilt = (rng() - 0.5) * 0.35;
+      const lift = (rng() - 0.5) * size * 0.18;
+      g.save();
+      g.translate(x + cw / 2, midY + lift);
+      g.rotate(tilt);
+      for (let d = 5; d > 0; d--) {
+        g.fillStyle = '#1a1a1a';
+        g.fillText(ch, -cw / 2 + d, d);
+      }
+      g.strokeStyle = '#111111';
+      g.lineWidth = size * 0.16;
+      g.strokeText(ch, -cw / 2, 0);
+      const fill = g.createLinearGradient(0, -size / 2, 0, size / 2);
+      fill.addColorStop(0, a);
+      fill.addColorStop(1, b);
+      g.fillStyle = fill;
+      g.fillText(ch, -cw / 2, 0);
+      g.strokeStyle = 'rgba(255,255,255,0.75)';
+      g.lineWidth = Math.max(1, size * 0.03);
+      g.strokeText(ch, -cw / 2 - 1, -1);
+      g.restore();
+      x += cw * 0.92;
+    }
+    for (let i = 0; i < 6; i++) {
+      const dx = 20 + rng() * (W - 40);
+      g.strokeStyle = pick([a, b, '#111111']);
+      g.lineWidth = 2;
+      g.beginPath();
+      g.moveTo(dx, H - 14 - rng() * 10);
+      g.lineTo(dx, H - 2);
+      g.stroke();
+    }
+    g.strokeStyle = '#111111';
+    g.lineWidth = 1.5;
+    for (let t = 0; t < 2; t++) {
+      g.beginPath();
+      let tx = 10 + rng() * (W - 80);
+      const ty = wholeCar ? H - 8 : windowsBottom - 4 + rng() * 2;
+      g.moveTo(tx, ty);
+      for (let k = 0; k < 8; k++) {
+        tx += 4 + rng() * 4;
+        g.lineTo(tx, ty + (rng() - 0.5) * 7);
+      }
+      g.stroke();
+    }
+
+    this.carTextures.set(seed, cv);
+    return cv;
+  }
+
+  /** Silver subway cars covered in graffiti; each car's piece is seeded so it never flickers. */
+  private drawSubway(
+    path: StreakPath,
+    y: number,
+    h: number,
+    pt: (gx: number, gy: number, z: number) => { x: number; y: number },
+    poly: (pts: Array<{ x: number; y: number }>, fill: string) => void,
+    line: (a: { x: number; y: number }, b: { x: number; y: number }, colour: string, width: number) => void,
+  ) {
+    const ctx = this.ctx;
+    const span = path.x1 - path.x0;
+    const carLength = 1.9;
+    const gap = 0.07;
+    const cars = Math.max(1, Math.min(4, Math.floor((span - 0.4) / (carLength + gap))));
+    const trainLength = cars * carLength + (cars - 1) * gap;
+    if (trainLength > span) return;
+    const tail = path.x0 + 0.2 + Math.max(0, Math.min(1, this.trainPos)) * (span - trainLength - 0.4);
+    const w = 0.13;
+    const zb = h + 0.35;
+    const zt = zb + 3.6;
+    const lw = (k: number) => Math.max(0.5, k * this.scale);
+
+    for (let c = 0; c < cars; c++) {
+      const x0 = tail + c * (carLength + gap);
+      const x1 = x0 + carLength;
+      const at = (u: number, v: number) => pt(x0 + u * carLength, y + w, zb + v * (zt - zb));
+      const side = [at(0, 0), at(1, 0), at(1, 1), at(0, 1)];
+
+      poly([pt(x0, y - w, zt), pt(x1, y - w, zt), pt(x1, y + w, zt), pt(x0, y + w, zt)], '#9ea5ad');
+      line(pt(x0 + 0.05, y, zt + 0.12), pt(x1 - 0.05, y, zt + 0.12), '#7d848c', lw(0.2));
+      poly([pt(x1, y - w, zb), pt(x1, y + w, zb), pt(x1, y + w, zt), pt(x1, y - w, zt)], '#8c939b');
+      const tex = this.carTexture(path.span.length * 101 + c * 7919 + 17);
+      const p0 = side[0], p1 = side[1], p3 = side[3];
+      ctx.save();
+      ctx.transform(
+        (p1.x - p0.x) / tex.width, (p1.y - p0.y) / tex.width,
+        (p0.x - p3.x) / tex.height, (p0.y - p3.y) / tex.height,
+        p3.x, p3.y,
+      );
+      ctx.drawImage(tex, 0, 0);
+      ctx.restore();
+
+      line(side[0], side[1], '#2a2d31', lw(0.14));
+    }
+
+    const leadX = this.trainDir === 1 ? tail + trainLength : tail;
+    const trailX = this.trainDir === 1 ? tail : tail + trainLength;
+    const glow = (gx: number, colour: string, r: number) => {
+      const p = pt(gx, y + w, zb + 0.9);
+      ctx.fillStyle = colour;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, Math.max(0.8, r * this.scale), 0, Math.PI * 2);
+      ctx.fill();
+    };
+    glow(leadX, '#fff3c4', 0.32);
+    glow(trailX, '#ff4a3d', 0.24);
+    const bullet = pt(tail + trainLength - 0.001, y, zt - 0.8);
+    ctx.fillStyle = '#a626aa';
+    ctx.beginPath();
+    ctx.arc(bullet.x, bullet.y, Math.max(0.8, 0.35 * this.scale), 0, Math.PI * 2);
+    ctx.fill();
   }
 
   private drawRoadMarkings(ctx: CanvasRenderingContext2D) {
