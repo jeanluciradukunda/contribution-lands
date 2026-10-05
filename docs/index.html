@@ -446,7 +446,7 @@ pre code { background: none; border: 0; padding: 0; font-size: inherit; }
         </div>
       </div>
       <div class="txt">
-        <p>Each lot is one day of your contribution graph. The commits, pull requests, reviews and issues GitHub already counts for that day set its shade, and the shade sets its height.</p>
+        <p>Each lot is one day of your contribution graph. The commits, pull requests, reviews and issues GitHub already counts for that day set its height, on one scale for everyone.</p>
         <p>The extension reads the calendar on the profile you are viewing, and the public contributions page for earlier dates so streaks are complete. Nothing is sent anywhere else and nothing is stored but your settings. <a href="privacy.html">Privacy policy</a>.</p>
         <p class="mono" style="margin:0">Works on any profile, yours or anyone's. The drawing above is the maker's own last 22 weeks, refreshed every night.</p>
       </div>
@@ -471,8 +471,8 @@ pre code { background: none; border: 0; padding: 0; font-size: inherit; }
               <button type="button" style="background:var(--g4)" data-l="4" aria-pressed="false" aria-label="Darkest shade"></button>
             </div>
           </div>
-          <div class="cap"><h3>Five shades, five heights</h3><span class="mono ro" id="shades-read" aria-live="polite">hover a shade</span></div>
-          <p>Each of GitHub's five shades is built at its own height, so a busy month reads as skyline.</p>
+          <div class="cap"><h3>One scale for everyone</h3><span class="mono ro" id="shades-read" aria-live="polite">hover a shade</span></div>
+          <p>A day's height comes from its count, on the same scale for everyone: 40 or more is a skyscraper whoever you are, so a steady heavy year reads as skyline.</p>
         </article>
 
         <article class="card today">
@@ -564,16 +564,18 @@ pre code { background: none; border: 0; padding: 0; font-size: inherit; }
               <button type="button" role="radio" aria-checked="true" data-v="Lands" tabindex="0">Lands</button>
               <button type="button" role="radio" aria-checked="false" data-v="Both">Both</button>
             </div>
+            <label class="pop-tog"><span><b>Same scale for everyone</b><i>Heights follow each day's count: 40+ is a skyscraper</i></span><input type="checkbox" role="switch" id="pop-scale" checked></label>
             <label class="pop-tog"><span><b>Stats</b><i>Totals and streaks over the land</i></span><input type="checkbox" role="switch" id="pop-stats" checked></label>
             <label class="pop-tog"><span><b>Motion</b><i>Taxis in the streets and a train on your streak</i></span><input type="checkbox" role="switch" id="pop-motion" checked></label>
             <div class="pop-foot">Changes apply instantly to open GitHub profiles.</div>
           </div>
         </div>
         <div class="spec">
-          <div class="cap" style="padding:0"><h3>One popup, four settings</h3><span class="mono" id="pop-read">Lands · stats on · motion on</span></div>
+          <div class="cap" style="padding:0"><h3>One popup, five settings</h3><span class="mono" id="pop-read">Lands · stats on · motion on</span></div>
           <dl>
             <div><dt>World</dt><dd>NYC Skyline, the one world that ships today. More worlds later.</dd></div>
             <div><dt>2D, Lands, Both</dt><dd>Keep GitHub's squares, swap them for the city, or show the two together.</dd></div>
+            <div><dt>Same scale</dt><dd>Heights from each day's count on one scale for everyone, or GitHub's shades relative to your own busiest days.</dd></div>
             <div><dt>Stats</dt><dd>Show or hide the Contributions and Streaks panels.</dd></div>
             <div><dt>Motion</dt><dd>Taxis and the train move, or the city holds still.</dd></div>
           </dl>
@@ -763,7 +765,7 @@ pnpm install &amp;&amp; pnpm build</code></pre></div></li>
   var longFmt = new Intl.DateTimeFormat('en-GB', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' });
   var monthFmt = new Intl.DateTimeFormat('en-GB', { month: 'short', timeZone: 'UTC' });
   var yearFmt = new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' });
-  function levelOf(c) { return c === 0 ? 0 : c <= 3 ? 1 : c <= 7 ? 2 : c <= 12 ? 3 : 4; }
+  function levelOf(c) { return c === 0 ? 0 : c < 5 ? 1 : c < 15 ? 2 : c < 40 ? 3 : 4; }
   function countText(c) { return c === 0 ? 'no contributions' : c + ' contribution' + (c === 1 ? '' : 's'); }
 
   function lastWeeks(rows, n) {
@@ -775,7 +777,7 @@ pnpm install &amp;&amp; pnpm build</code></pre></div></li>
     var r = rng(4021), first = new Date(rows[0][0] + 'T00:00:00Z').getTime();
     return rows.map(function (row) {
       var date = new Date(row[0] + 'T00:00:00Z'), idx = Math.round((date.getTime() - first) / 864e5);
-      var w = Math.floor(idx / 7), d = date.getUTCDay(), c = row[1], level = row[2], weekend = d === 0 || d === 6;
+      var w = Math.floor(idx / 7), d = date.getUTCDay(), c = row[1], level = levelOf(c), weekend = d === 0 || d === 6;
       var today = date.getTime() === TODAY.getTime(), name;
       if (today) name = 'special-today-' + level;
       else if (level === 0) { var pool = weekend ? POOLS.park : POOLS.lot; name = pool[Math.floor(r() * pool.length)]; }
@@ -1355,7 +1357,7 @@ pnpm install &amp;&amp; pnpm build</code></pre></div></li>
     var read = document.getElementById('shades-read');
     var btns = Array.prototype.slice.call(document.querySelectorAll('.sw-row button'));
     var names = ['level-0-a', 'level-1-a', 'level-2-a', 'level-3-a', 'level-4-c'];
-    var words = ['no contributions · an empty lot', 'shade 1 · brownstones', 'shade 2 · walk-ups', 'shade 3 · apartment towers', 'shade 4 · skyscrapers'];
+    var words = ['no contributions · an empty lot', '1 to 4 a day · brownstones', '5 to 14 a day · walk-ups', '15 to 39 a day · towers', '40 or more · skyscrapers'];
     var root = S('g', {}, svg), items = [];
     for (var L = 4; L >= 0; L--) {
       var gy = (4 - L) * 1.55, g = S('g', { class: 'lot' }, root);

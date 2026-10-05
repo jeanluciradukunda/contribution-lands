@@ -11,13 +11,26 @@ import contentCss from './content.css?inline';
 
 type ViewSetting = 'squares' | 'cubes' | 'both';
 
+type Scale = 'absolute' | 'relative';
+
 interface Settings {
   viewSetting: ViewSetting;
   motion: boolean;
   showStats: boolean;
+  scale: Scale;
 }
 
-const DEFAULTS: Settings = { viewSetting: 'cubes', motion: true, showStats: true };
+const DEFAULTS: Settings = { viewSetting: 'cubes', motion: true, showStats: true, scale: 'absolute' };
+
+/**
+ * Building height from the day's count on one scale for everyone. GitHub's own levels
+ * are relative to each person's busiest days, so heavy contributors read as low-rise.
+ */
+const ABSOLUTE_BANDS = [1, 5, 15, 40];
+
+function absoluteLevel(count: number): ContributionData['level'] {
+  return ABSOLUTE_BANDS.filter((min) => count >= min).length as ContributionData['level'];
+}
 const POPUP_KEY = 'contributionLandsPopupSettings';
 
 let settings: Settings = { ...DEFAULTS };
@@ -447,7 +460,10 @@ async function generate() {
     const calendarGraph = document.querySelector('.js-calendar-graph');
     const box = document.querySelector('.js-yearly-contributions');
     if (!calendarGraph || !box) return;
-    const data = parseCalendarGraph();
+    const parsed = parseCalendarGraph();
+    const data = parsed && settings.scale === 'absolute'
+      ? parsed.map((d) => ({ ...d, level: absoluteLevel(d.count) }))
+      : parsed;
     if (!data) return;
 
     const { config, sprites, todayStages } = await loadTheme();
@@ -550,6 +566,11 @@ function injectCss() {
         settings.showStats = Boolean(changes.showStats.newValue);
         if (box) applyStatsVisibility(box);
         renderer?.relayout();
+      }
+      if (changes.scale) {
+        settings.scale = changes.scale.newValue === 'relative' ? 'relative' : 'absolute';
+        teardown();
+        void generate();
       }
     });
   } catch {

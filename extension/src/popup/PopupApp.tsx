@@ -138,6 +138,12 @@ export default function PopupApp() {
           ))}
         </div>
         <Toggle
+          label="Same scale for everyone"
+          hint={display.scale === 'absolute' ? 'Heights follow each day\'s count: 40+ is a skyscraper' : 'Heights follow GitHub\'s shades, relative to your busiest days'}
+          checked={display.scale === 'absolute'}
+          onChange={(v) => updateDisplay('scale', v ? 'absolute' : 'relative')}
+        />
+        <Toggle
           label="Stats"
           hint="Totals and streaks over the land"
           checked={display.showStats}
