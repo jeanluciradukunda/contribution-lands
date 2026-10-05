@@ -144,8 +144,8 @@ export default function PopupApp() {
           onChange={(v) => updateDisplay('showStats', v)}
         />
         <Toggle
-          label="Traffic and wildlife"
-          hint="Cars in the streets, birds over the forests"
+          label="Motion"
+          hint="Taxis in the streets and a train on your streak"
           checked={display.motion}
           onChange={(v) => updateDisplay('motion', v)}
         />

@@ -1,8 +1,10 @@
 {
   "manifest_version": 3,
   "name": "Contribution Lands",
-  "description": "Transform your GitHub contribution graph into living isometric worlds — forests, cities, and beyond.",
+  "description": "Turns the contribution graph on GitHub profile pages into an isometric New York skyline, with streaks, stats and landmarks.",
   "version": "0.1.0",
+  "minimum_chrome_version": "111",
+  "homepage_url": "https://jeanluciradukunda.github.io/contribution-lands/",
   "icons": {
     "16": "icons/icon-16.png",
     "32": "icons/icon-32.png",

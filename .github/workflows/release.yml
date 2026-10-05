@@ -17,6 +17,13 @@ permissions:
 jobs:
   build-and-release:
     runs-on: ubuntu-latest
+    env:
+      # Store upload runs only once these secrets exist; the first submission is manual.
+      CLIENT_ID: ${{ secrets.CWS_CLIENT_ID }}
+      CLIENT_SECRET: ${{ secrets.CWS_CLIENT_SECRET }}
+      REFRESH_TOKEN: ${{ secrets.CWS_REFRESH_TOKEN }}
+      PUBLISHER_ID: ${{ secrets.CWS_PUBLISHER_ID }}
+      EXTENSION_ID: ${{ secrets.CWS_EXTENSION_ID }}
     steps:
       - uses: actions/checkout@v4
 
@@ -39,6 +46,12 @@ jobs:
             echo "TAG=${GITHUB_REF_NAME}" >> $GITHUB_OUTPUT
           fi
 
+      - name: Check version format
+        env:
+          VERSION: ${{ steps.version.outputs.VERSION }}
+        run: |
+          [[ "$VERSION" =~ ^[0-9]+(\.[0-9]+){0,3}$ ]] || { echo "Chrome Web Store versions are 1 to 4 dot-separated integers, got: $VERSION"; exit 1; }
+
       - name: Create tag (if manual dispatch)
         if: github.event_name == 'workflow_dispatch'
         run: |
@@ -48,8 +61,24 @@ jobs:
       - name: Install dependencies
         run: cd extension && pnpm install --frozen-lockfile
 
+      - name: Write version into manifest
+        env:
+          VERSION: ${{ steps.version.outputs.VERSION }}
+        run: |
+          cd extension
+          jq --arg v "$VERSION" '.version = $v' manifest.json > manifest.tmp && mv manifest.tmp manifest.json
+
       - name: Build extension
         run: cd extension && pnpm build
+
+      - name: Check package contents
+        env:
+          VERSION: ${{ steps.version.outputs.VERSION }}
+        run: |
+          cd extension/dist
+          test "$(ls themes)" = "city-nyc" || { echo "Unexpected themes:"; ls themes; exit 1; }
+          test -f THIRD_PARTY_NOTICES.md
+          jq -e --arg v "$VERSION" '.version == $v' manifest.json
 
       - name: Package as ZIP
         run: |
@@ -64,17 +93,20 @@ jobs:
           body: |
             ## Contribution Lands v${{ steps.version.outputs.VERSION }}
 
-            Transform your GitHub contribution graph into a living isometric world.
+            Turns the contribution graph on GitHub profile pages into an isometric New York skyline.
 
             ### Install
-            1. Download `contribution-lands-${{ steps.version.outputs.VERSION }}.zip` below
-            2. Unzip the file
-            3. Open `chrome://extensions` → Enable **Developer mode**
-            4. Click **Load unpacked** → Select the unzipped folder
-            5. Visit any GitHub profile — the contribution graph transforms automatically
+            1. Download `contribution-lands-${{ steps.version.outputs.VERSION }}.zip` below and unzip it.
+            2. Open `chrome://extensions` and turn on **Developer mode**.
+            3. Click **Load unpacked** and select the unzipped folder.
+            4. Visit any GitHub profile: the contribution graph becomes a city.
 
-            **Public Beta.** Requires Chrome/Chromium.
+            Requires Chrome 111 or later.
           files: |
             ${{ runner.temp }}/contribution-lands-${{ steps.version.outputs.VERSION }}.zip
           draft: false
-          prerelease: true
+          prerelease: false
+
+      - name: Upload and publish to the Chrome Web Store
+        if: env.EXTENSION_ID != ''
+        run: npx --yes chrome-webstore-upload-cli@4.0.2 --source "${{ runner.temp }}/contribution-lands-${{ steps.version.outputs.VERSION }}.zip"
