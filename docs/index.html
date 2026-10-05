@@ -150,6 +150,41 @@ h1 { font-weight: 500; font-size: clamp(2rem, 4.4vw, 3.15rem); line-height: 1.08
   .lot .wire, .lot.on .wire, .lot .spr, .lot.on .spr { transition: opacity .15s linear; transform: none; }
 }
 @media (max-width: 640px) { .hero-fig { padding: 6px 8px 2px; } }
+.hero-card [hidden] { display: none !important; }
+.hero-card .tools { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.pill.ico { width: 28px; padding: 0; display: inline-flex; align-items: center; justify-content: center; }
+.pill.ico svg { width: 15px; height: 15px; fill: none; stroke: currentColor; stroke-width: 1.2; stroke-linecap: round; stroke-linejoin: round; }
+#hero-sound .w, #hero-sound[aria-pressed="true"] .x { display: none; }
+#hero-sound[aria-pressed="true"] .w { display: inline; }
+#hero-svg { transition: opacity .22s ease; }
+#hero-svg.swap { opacity: 0; }
+#hero-svg.snap .lot .wire, #hero-svg.snap .lot .spr { transition: none; }
+.hero-tl { display: flex; align-items: center; gap: 12px; padding: 2px 16px 10px; }
+.hero-tl input { flex: 1; min-width: 0; margin: 0; height: 20px; background: transparent; -webkit-appearance: none; appearance: none; cursor: pointer; }
+.hero-tl input::-webkit-slider-runnable-track { height: 1px; background: var(--mid); }
+.hero-tl input::-webkit-slider-thumb { -webkit-appearance: none; width: 11px; height: 11px; margin-top: -5px; border-radius: 50%; background: var(--card); border: 1px solid var(--ink); }
+.hero-tl input::-moz-range-track { height: 1px; background: var(--mid); }
+.hero-tl input::-moz-range-thumb { width: 9px; height: 9px; border-radius: 50%; background: var(--card); border: 1px solid var(--ink); }
+.hero-spacer { margin-top: 36px; }
+.hero-scrim { position: fixed; inset: 0; z-index: 40; background: rgba(9, 9, 11, .38); animation: hero-fade .2s ease both; }
+.hero-card.big { position: fixed; z-index: 41; top: 5vh; left: 3vw; width: 94vw; height: 90vh; margin: 0 !important; display: flex; flex-direction: column; box-shadow: 0 30px 90px rgba(0, 0, 0, .22); animation: hero-pop .22s cubic-bezier(.2, .8, .2, 1) both; }
+.hero-card.big .hero-fig { flex: 1 1 auto; min-height: 0; display: flex; padding: 12px 32px 8px; }
+.hero-card.big #hero-svg { flex: 1; min-width: 0; min-height: 0; height: auto; aspect-ratio: auto !important; }
+.hero-card.big #play-year.lead { background: var(--ink); color: var(--bg); border-color: var(--ink); padding: 0 14px 0 12px; }
+.hero-card.big #play-year.lead::before { content: ''; display: inline-block; margin-right: 7px; border-left: 6px solid currentColor; border-top: 4px solid transparent; border-bottom: 4px solid transparent; vertical-align: -1px; }
+.hero-card.big.closing { animation: hero-pop .16s ease reverse both; }
+.hero-scrim.closing { animation: hero-fade .16s ease reverse both; }
+@media (prefers-color-scheme: dark) { .hero-scrim { background: rgba(0, 0, 0, .62); } }
+@keyframes hero-fade { from { opacity: 0; } }
+@keyframes hero-pop { from { opacity: 0; transform: scale(.98); } }
+@media (max-width: 640px) {
+  .hero-card.big { top: 0; left: 0; width: 100vw; height: 100vh; height: 100dvh; border-radius: 0; border: 0; }
+  .hero-card.big .hero-fig { padding: 8px 8px 4px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  #hero-svg { transition: none; }
+  .hero-scrim, .hero-card.big, .hero-card.big.closing, .hero-scrim.closing { animation: none; }
+}
 
 /* Sections */
 .sec { padding: 72px 0 0; scroll-margin-top: 16px; }
@@ -374,11 +409,23 @@ pre code { background: none; border: 0; padding: 0; font-size: inherit; }
     <figure class="card hero-card" style="margin-inline:0;margin-bottom:0">
       <div class="bar">
         <span class="mono" id="hero-spec">fig. 01 · a real year · 1 lot = 1 day</span>
-        <button type="button" class="pill" id="build-all" aria-pressed="false">Show the city</button>
+        <span class="tools">
+          <button type="button" class="pill" id="build-all" aria-pressed="false">Show the city</button>
+          <button type="button" class="pill" id="play-year">Play the year</button>
+          <button type="button" class="pill" id="back-recent" hidden>Back to the last 22 weeks</button>
+          <button type="button" class="pill ico" id="hero-sound" aria-pressed="false" aria-label="Sound" title="Sound off"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2.5 6.2h2.3L8 3.4v9.2L4.8 9.8H2.5z"/><path class="w" d="M10.4 5.9a3 3 0 0 1 0 4.2M12.2 4.2a5.4 5.4 0 0 1 0 7.6"/><path class="x" d="M10.6 6.4l3.2 3.2M13.8 6.4l-3.2 3.2"/></svg></button>
+          <button type="button" class="pill ico" id="hero-big" aria-expanded="false" aria-label="Expand drawing" title="Expand drawing"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M9.5 2.5h4v4M13.5 2.5 9.2 6.8M6.5 13.5h-4v-4M2.5 13.5l4.3-4.3"/></svg></button>
+          <button type="button" class="pill ico" id="hero-close" aria-label="Close expanded drawing" title="Close" hidden><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 4l8 8M12 4l-8 8"/></svg></button>
+        </span>
       </div>
       <div class="hero-fig" id="hero-fig" tabindex="0" role="group" aria-roledescription="drawing" aria-label="A line drawing of a real contribution year, one lot per day. Move the pointer, or use the arrow keys, to build the lots near it as New York buildings." aria-describedby="hero-read">
         <svg class="hl" id="hero-svg" aria-hidden="true"></svg>
         <noscript><img src="card-example.png" alt="A contribution land rendered as an isometric New York City with stats panels." width="1200" height="761"></noscript>
+      </div>
+      <div class="hero-tl" id="hero-tl" hidden>
+        <span class="mono" id="tl-from"></span>
+        <input type="range" id="tl-scrub" min="0" max="1" value="0" step="1" aria-label="Time-lapse position">
+        <span class="mono" id="tl-to"></span>
       </div>
       <figcaption class="hero-foot">
         <span class="mono now" id="hero-read" aria-hidden="true">Move across the drawing to build it</span>
@@ -715,12 +762,18 @@ pnpm install &amp;&amp; pnpm build</code></pre></div></li>
   var shortFmt = new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', timeZone: 'UTC' });
   var longFmt = new Intl.DateTimeFormat('en-GB', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' });
   var monthFmt = new Intl.DateTimeFormat('en-GB', { month: 'short', timeZone: 'UTC' });
+  var yearFmt = new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' });
   function levelOf(c) { return c === 0 ? 0 : c <= 3 ? 1 : c <= 7 ? 2 : c <= 12 ? 3 : 4; }
   function countText(c) { return c === 0 ? 'no contributions' : c + ' contribution' + (c === 1 ? '' : 's'); }
 
-  function realDays() {
-    var r = rng(4021), first = new Date(REAL.days[0][0] + 'T00:00:00Z').getTime();
-    return REAL.days.map(function (row) {
+  function lastWeeks(rows, n) {
+    var last = new Date(rows[rows.length - 1][0] + 'T00:00:00Z');
+    var from = new Date(last.getTime() - (last.getUTCDay() + (n - 1) * 7) * 864e5).toISOString().slice(0, 10);
+    return rows.filter(function (row) { return row[0] >= from; });
+  }
+  function realDays(rows) {
+    var r = rng(4021), first = new Date(rows[0][0] + 'T00:00:00Z').getTime();
+    return rows.map(function (row) {
       var date = new Date(row[0] + 'T00:00:00Z'), idx = Math.round((date.getTime() - first) / 864e5);
       var w = Math.floor(idx / 7), d = date.getUTCDay(), c = row[1], level = row[2], weekend = d === 0 || d === 6;
       var today = date.getTime() === TODAY.getTime(), name;
@@ -728,10 +781,10 @@ pnpm install &amp;&amp; pnpm build</code></pre></div></li>
       else if (level === 0) { var pool = weekend ? POOLS.park : POOLS.lot; name = pool[Math.floor(r() * pool.length)]; }
       else name = POOLS[level][Math.floor(r() * POOLS[level].length)];
       return { w: w, d: d, date: date, count: c, level: level, weekend: weekend, today: today, name: name };
-    }).filter(function (d) { return d.w < WEEKS; });
+    });
   }
 
-  var DAYS = REAL ? realDays() : (function () {
+  var DAYS = REAL ? realDays(lastWeeks(REAL.days, WEEKS)).filter(function (d) { return d.w < WEEKS; }) : (function () {
     var r = rng(4021), out = [];
     for (var w = 0; w < WEEKS; w++) {
       for (var d = 0; d < 7; d++) {
@@ -754,6 +807,13 @@ pnpm install &amp;&amp; pnpm build</code></pre></div></li>
     }
     return out;
   })();
+  var YEAR = (function () {
+    if (!REAL) return DAYS;
+    var names = {};
+    DAYS.forEach(function (d) { names[d.date.getTime()] = d.name; });
+    return realDays(REAL.days).map(function (d) { d.name = names[d.date.getTime()] || d.name; return d; });
+  })();
+  var YW = YEAR[YEAR.length - 1].w + 1;
   var STATS = (function () {
     var total = 0, best = DAYS[0], run = 0, runStart = 0, longest = { len: 0, from: 0, to: 0 };
     DAYS.forEach(function (d, i) {
@@ -768,25 +828,98 @@ pnpm install &amp;&amp; pnpm build</code></pre></div></li>
   })();
   function range(a, b) { return shortFmt.format(a) + ' → ' + shortFmt.format(b); }
 
+  /* Sound */
+  var sound = (function () {
+    var KEY = 'cl-sound', on = false, ctx = null, out = null, next = 0;
+    var STEPS = [0, 2, 4, 7, 9];
+    try { on = localStorage.getItem(KEY) === 'on'; } catch (e) { on = false; }
+    function wake() {
+      if (!on) return;
+      try {
+        if (!ctx) {
+          var AC = window.AudioContext || window.webkitAudioContext;
+          if (!AC) return;
+          ctx = new AC();
+          var lp = ctx.createBiquadFilter();
+          lp.type = 'lowpass';
+          lp.frequency.value = 3400;
+          out = ctx.createGain();
+          out.gain.value = .55;
+          out.connect(lp);
+          lp.connect(ctx.destination);
+        }
+        if (ctx.state === 'suspended') ctx.resume();
+      } catch (e) { ctx = null; }
+    }
+    function voice(f, peak, len, t) {
+      var o = ctx.createOscillator(), g = ctx.createGain();
+      o.frequency.value = f;
+      g.gain.setValueAtTime(0, t);
+      g.gain.linearRampToValueAtTime(peak, t + .004);
+      g.gain.exponentialRampToValueAtTime(.0001, t + len);
+      o.connect(g);
+      g.connect(out);
+      o.start(t);
+      o.stop(t + len + .02);
+    }
+    function tick(level) {
+      if (!on || !ctx || ctx.state !== 'running') return;
+      var t0 = performance.now();
+      if (t0 < next) return;
+      next = t0 + 45 + Math.random() * 15;
+      var t = ctx.currentTime + .004, v = level ? 1 : .55;
+      var f = 523.25 * Math.pow(2, (STEPS[level] + (Math.random() - .5) * .24) / 12);
+      voice(f, .07 * v, .22, t);
+      voice(f * 2.76, .022 * v, .06, t);
+    }
+    function set(v) {
+      on = v;
+      try { localStorage.setItem(KEY, v ? 'on' : 'off'); } catch (e) { /* private mode */ }
+      if (v) wake();
+    }
+    document.addEventListener('pointerup', wake, true);
+    document.addEventListener('keydown', function (e) { if (e.key !== 'Escape' && e.key !== 'Tab') wake(); }, true);
+    return { isOn: function () { return on; }, set: set, tick: tick };
+  })();
+
   /* Hero */
   (function hero() {
+    var card = document.querySelector('.hero-card');
     var fig = document.getElementById('hero-fig');
     var svg = document.getElementById('hero-svg');
     var readEl = document.getElementById('hero-read');
     var countEl = document.getElementById('hero-count');
     var live = document.getElementById('hero-live');
     var allBtn = document.getElementById('build-all');
+    var playBtn = document.getElementById('play-year');
+    var backBtn = document.getElementById('back-recent');
+    var soundBtn = document.getElementById('hero-sound');
+    var bigBtn = document.getElementById('hero-big');
+    var closeBtn = document.getElementById('hero-close');
+    var tlRow = document.getElementById('hero-tl');
+    var scrub = document.getElementById('tl-scrub');
+    var tlFrom = document.getElementById('tl-from');
+    var tlTo = document.getElementById('tl-to');
     var spec = document.getElementById('hero-spec');
-    var lots = [], weeks = 0, X = 0, ink, cursor = null, lastInput = -1e9, buildAll = false, visible = true, raf = 0, base = new Set(), labels = [];
-    var GAP = .6, M = .7, T = 4;
+    var lots = [], order = [], weeks = 0, X = 0, ink, cursor = null, lastInput = -1e9, buildAll = false, visible = true, raf = 0, base = new Set(), labels = [];
+    var mode = 'recent', layout = '', restRatio = '', shownTotal = 0, quiet = false, big = false, scrim = null, spacer = null, swaps = 0;
+    var tl = { built: 0, elapsed: 0, playing: false, ended: false, wait: 0, raf: 0, last: 0 };
+    var GAP = .6, M = .7, T = 4, DUR = 13000;
     function gxOf(w) { return w + Math.floor(w / 6) * GAP; }
+    function narrow() { return fig.clientWidth < 620; }
+    function span() { return mode === 'year' ? (narrow() ? Math.min(26, YW) : YW) : (narrow() ? 12 : WEEKS); }
+    function ease(p) { return p - .3 * Math.sin(2 * Math.PI * p) / (2 * Math.PI); }
+    function target() { return tl.ended ? order.length : Math.round(ease(Math.min(1, tl.elapsed / DUR)) * order.length); }
+    function busy() { return mode === 'year' && (tl.playing || !!tl.wait); }
 
     function build() {
-      weeks = fig.clientWidth < 620 ? 12 : WEEKS;
+      var src = mode === 'year' ? YEAR : DAYS, W = mode === 'year' ? YW : WEEKS;
+      weeks = span();
+      layout = mode + weeks;
       while (svg.firstChild) svg.removeChild(svg.firstChild);
       lots = []; labels = [];
-      var days = DAYS.filter(function (d) { return d.w >= WEEKS - weeks; });
-      var W0 = WEEKS - weeks;
+      var days = src.filter(function (d) { return d.w >= W - weeks; });
+      var W0 = W - weeks;
       X = gxOf(weeks - 1) + 1;
       var Y = 7;
       var root = S('g', {}, svg);
@@ -817,15 +950,17 @@ pnpm install &amp;&amp; pnpm build</code></pre></div></li>
       });
       S('path', { d: path.apply(null, ticks), class: 'm' }, notes);
       var offx = X + M + 1.4, side = [[P(offx, -M), P(offx, Y + M)], [P(offx - .3, -M), P(offx + .3, -M)], [P(offx - .3, Y + M), P(offx + .3, Y + M)]];
+      var tight = mode === 'year' && narrow();
       ['Mon', 'Wed', 'Fri'].forEach(function (n, i) {
         var gy = 2 * i + 1.5;
         side.push([P(offx - .2, gy), P(offx + .2, gy)]);
-        note(n, P(offx + .7, gy + .25), -26.565);
+        if (!tight || i !== 1) note(n, P(offx + .7, gy + .25), -26.565);
       });
       S('path', { d: path.apply(null, side), class: 'm' }, notes);
 
       var layer = S('g', {}, root);
-      days.forEach(function (d) {
+      shownTotal = 0;
+      days.forEach(function (d, i) {
         var gx = gxOf(d.w - W0), gy = d.d;
         var g = S('g', { class: 'lot' }, layer);
         var lotPoly = diamond(gx, gy, gx + 1, gy + 1);
@@ -850,8 +985,10 @@ pnpm install &amp;&amp; pnpm build</code></pre></div></li>
           shape = { sil: lotPoly, ink: path(closed(lotPoly)) };
         }
         var img = sprite(g, gx, gy, d.name);
-        lots.push({ d: d, g: g, img: img, sil: shape.sil, ink: shape.ink, c: [gx + .5, gy + .5], on: false });
+        shownTotal += d.count;
+        lots.push({ d: d, g: g, img: img, sil: shape.sil, ink: shape.ink, c: [gx + .5, gy + .5], on: false, i: i });
       });
+      order = lots.slice();
       lots.sort(function (p, q) { return (p.c[0] + p.c[1]) - (q.c[0] + q.c[1]); });
       lots.forEach(function (l) { layer.appendChild(l.g); });
       ink = S('path', { class: 'k', d: '' }, root);
@@ -859,17 +996,32 @@ pnpm install &amp;&amp; pnpm build</code></pre></div></li>
       var minX = P(-M - 2.4, Y + M)[0], maxX = P(offx + 2.2, -M)[0];
       var minY = P(-M, -M)[1] - 10, maxY = P(X + M, off + 1.4)[1] + 8;
       lots.forEach(function (l) { var y = l.sil[0][1] - (l.d.level ? 2 : 0); if (+l.img.getAttribute('y') < minY) minY = +l.img.getAttribute('y'); if (y < minY) minY = y; });
-      svg.setAttribute('viewBox', [minX, minY - 4, maxX - minX, maxY - minY + 4].map(r2).join(' '));
+      var vb = [minX, minY - 4, maxX - minX, maxY - minY + 4].map(r2);
+      svg.setAttribute('viewBox', vb.join(' '));
       base = new Set();
-      if (RM.matches) lots.forEach(function (l) { if (l.d.w - W0 >= weeks / 2) base.add(l); });
-      spec.textContent = REAL ? 'fig. 01 · @' + REAL.user + ', the last ' + weeks + ' weeks' : 'fig. 01 · a sample year, ' + weeks + ' weeks';
+      if (mode === 'recent') {
+        if (RM.matches) lots.forEach(function (l) { if (l.d.w - W0 >= weeks / 2) base.add(l); });
+        restRatio = vb[2] + ' / ' + vb[3];
+        svg.style.aspectRatio = '';
+        spec.textContent = REAL ? 'fig. 01 · @' + REAL.user + ', the last ' + weeks + ' weeks' : 'fig. 01 · a sample year, ' + weeks + ' weeks';
+      } else {
+        svg.style.aspectRatio = restRatio;
+        spec.textContent = REAL ? 'fig. 01 · @' + REAL.user + (weeks === YW ? ', the whole year' : ', the last ' + weeks + ' weeks of the year') : 'fig. 01 · a sample year, ' + weeks + ' weeks';
+        scrub.max = order.length;
+        tlFrom.textContent = shortFmt.format(order[0].d.date);
+        tlTo.textContent = shortFmt.format(order[order.length - 1].d.date);
+        tl.built = 0;
+        tl.built = target();
+        scrubbed();
+      }
       sizeText();
-      apply();
+      if (mode === 'year') snap(apply); else apply();
     }
     function sizeText() {
       var vb = svg.viewBox.baseVal;
       if (!vb || !vb.width) return;
       var s = svg.clientWidth / vb.width;
+      if (mode === 'year' || big) s = Math.min(s, svg.clientHeight / vb.height || s);
       labels.forEach(function (l) { l.el.setAttribute('font-size', r2(l.px / s)); });
     }
     function near(gx, gy) {
@@ -882,38 +1034,177 @@ pnpm install &amp;&amp; pnpm build</code></pre></div></li>
       var gx = (pt[0] / 10 + pt[1] / 5) / 2, gy = (pt[1] / 5 - pt[0] / 10) / 2;
       return near(gx, gy);
     }
-    function apply() {
-      var R = weeks < WEEKS ? 1.7 : 2.3, n = 0;
+    function yearCaption() {
+      var n = tl.built, N = order.length;
+      if (n === N && !busy()) readEl.textContent = yearFmt.format(order[0].d.date) + ' → ' + yearFmt.format(order[N - 1].d.date) + ' · ' + shownTotal.toLocaleString('en-GB') + ' contributions';
+      else if (n === 0) readEl.textContent = 'The year, drawn';
+      else { var d = order[n - 1].d; readEl.textContent = (d.today ? 'Today' : dayFmt.format(d.date)) + ' · ' + countText(d.count); }
+    }
+    function apply(audible) {
+      var R = weeks < WEEKS ? 1.7 : 2.3, n = 0, fresh = null, year = mode === 'year';
       lots.forEach(function (l) {
-        var want = buildAll || base.has(l);
+        var want = buildAll || base.has(l) || (year && l.i < tl.built);
         if (!want && cursor) { var dx = l.c[0] - cursor.c[0], dy = (l.c[1] - cursor.c[1]) * 1.15; want = dx * dx + dy * dy <= R * R; }
-        if (want !== l.on) { l.on = want; l.g.classList.toggle('on', want); }
+        if (want !== l.on) { l.on = want; l.g.classList.toggle('on', want); if (want) fresh = l; }
         if (want) n++;
       });
+      if (fresh && audible) sound.tick((cursor && cursor.on ? cursor : fresh).d.level);
       countEl.textContent = n + ' of ' + lots.length + ' built';
       ink.setAttribute('d', cursor ? cursor.ink : '');
       if (cursor) {
         var d = cursor.d;
         readEl.textContent = (d.today ? 'Today' : dayFmt.format(d.date)) + ' · ' + countText(d.count) + ' · ' + (d.today ? 'under construction' : cursor.on ? 'built' : 'drawn');
+      } else if (year) {
+        yearCaption();
       } else {
         readEl.textContent = buildAll ? 'The whole year, built' : 'Move across the drawing to build it';
       }
     }
-    function setCursor(l) { if (l !== cursor) { cursor = l; apply(); } }
+    function setCursor(l) { if (l !== cursor) { cursor = l; apply(!quiet); } }
+
+    function setBuilt(n, audible) {
+      var from = tl.built, fresh = null, i;
+      tl.built = n;
+      if (cursor) { apply(audible); scrubbed(); return; }
+      for (i = from; i < n; i++) { order[i].on = true; order[i].g.classList.add('on'); fresh = order[i]; }
+      for (i = n; i < from; i++) { order[i].on = false; order[i].g.classList.remove('on'); }
+      if (fresh && audible) sound.tick(fresh.d.level);
+      countEl.textContent = n + ' of ' + order.length + ' built';
+      yearCaption();
+      scrubbed();
+    }
+    function scrubbed() {
+      scrub.value = tl.built;
+      var d = order[Math.max(0, tl.built - 1)].d;
+      scrub.setAttribute('aria-valuetext', tl.built + ' of ' + order.length + ' days built, ' + longFmt.format(d.date));
+    }
+    function snap(fn) {
+      svg.classList.add('snap');
+      fn();
+      requestAnimationFrame(function () { requestAnimationFrame(function () { svg.classList.remove('snap'); }); });
+    }
+    function swap(fn) {
+      var id = ++swaps;
+      if (RM.matches) { fn(); return; }
+      svg.classList.add('swap');
+      setTimeout(function () { if (id !== swaps) return; fn(); svg.classList.remove('swap'); }, 220);
+    }
+
+    function frame(t) {
+      tl.raf = 0;
+      if (!tl.playing) return;
+      var dt = tl.last ? Math.min(64, t - tl.last) : 0;
+      tl.last = t;
+      if (visible && !document.hidden) tl.elapsed += dt;
+      if (tl.elapsed >= DUR) { finish(); return; }
+      var n = target();
+      if (n !== tl.built) setBuilt(n, true);
+      tl.raf = requestAnimationFrame(frame);
+    }
+    function play() {
+      tl.wait = 0;
+      tl.playing = true;
+      tl.last = 0;
+      cursor = null;
+      ink.setAttribute('d', '');
+      if (!tl.raf) tl.raf = requestAnimationFrame(frame);
+      controls();
+    }
+    function pause() {
+      clearTimeout(tl.wait);
+      tl.wait = 0;
+      tl.playing = false;
+      cancelAnimationFrame(tl.raf);
+      tl.raf = 0;
+      controls();
+    }
+    function finish() {
+      tl.playing = false;
+      tl.ended = true;
+      tl.elapsed = DUR;
+      setBuilt(order.length, true);
+      controls();
+      live.textContent = readEl.textContent + ', ' + countEl.textContent;
+    }
+    function playYear() {
+      mode = 'year';
+      buildAll = false;
+      allBtn.setAttribute('aria-pressed', 'false');
+      allBtn.textContent = 'Show the city';
+      cursor = null;
+      tl.elapsed = 0;
+      tl.ended = RM.matches;
+      tl.playing = false;
+      if (RM.matches) {
+        build();
+        controls();
+        live.textContent = readEl.textContent;
+        return;
+      }
+      tl.wait = -1;
+      controls();
+      swap(function () {
+        build();
+        live.textContent = 'Playing the year, ' + order.length + ' days';
+        tl.wait = setTimeout(play, 700);
+      });
+    }
+    function replay() {
+      tl.elapsed = 0;
+      tl.ended = false;
+      cursor = null;
+      snap(function () { setBuilt(0); });
+      tl.wait = setTimeout(play, 500);
+      controls();
+    }
+    function backToRecent() {
+      pause();
+      mode = 'recent';
+      tl.ended = false;
+      cursor = null;
+      controls();
+      swap(function () {
+        build();
+        lastInput = performance.now();
+        start();
+      });
+    }
+    function toggle() {
+      if (mode === 'recent') playYear();
+      else if (RM.matches) return;
+      else if (tl.ended) replay();
+      else if (busy()) pause();
+      else play();
+    }
+    function controls() {
+      var year = mode === 'year';
+      playBtn.textContent = !year ? 'Play the year' : tl.ended ? 'Replay' : busy() ? 'Pause' : 'Resume';
+      playBtn.hidden = year && RM.matches;
+      playBtn.classList.toggle('lead', big && !year);
+      allBtn.hidden = year;
+      backBtn.hidden = !year;
+      backBtn.textContent = 'Back to the last ' + (narrow() ? 12 : WEEKS) + ' weeks';
+      tlRow.hidden = !year;
+    }
 
     fig.addEventListener('pointermove', function (e) {
+      if (busy()) return;
       lastInput = performance.now();
       var pt = svgPoint(svg, e);
       if (pt) setCursor(pick(pt));
     });
     fig.addEventListener('pointerdown', function (e) {
+      if (busy()) return;
       lastInput = performance.now();
       var pt = svgPoint(svg, e);
       if (pt) setCursor(pick(pt));
     });
+    fig.addEventListener('click', function () { if (mode === 'year' && tl.playing) pause(); });
     fig.addEventListener('pointerleave', function (e) { if (e.pointerType === 'touch') return; lastInput = performance.now(); setCursor(null); });
     fig.addEventListener('keydown', function (e) {
       var k = e.key, dw = 0, dd = 0;
+      if (k === ' ' && mode === 'year') { e.preventDefault(); toggle(); return; }
+      if (busy()) return;
       if (k === 'ArrowRight') dw = 1; else if (k === 'ArrowLeft') dw = -1; else if (k === 'ArrowDown') dd = 1; else if (k === 'ArrowUp') dd = -1; else return;
       e.preventDefault();
       lastInput = performance.now() + 1e9;
@@ -924,7 +1215,7 @@ pnpm install &amp;&amp; pnpm build</code></pre></div></li>
       if (next) { setCursor(next); live.textContent = readEl.textContent; }
     });
     fig.addEventListener('focus', function () {
-      if (!cursor) { lastInput = performance.now() + 1e9; setCursor(lots.filter(function (l) { return l.d.today; })[0]); live.textContent = readEl.textContent; }
+      if (!cursor && !busy()) { lastInput = performance.now() + 1e9; setCursor(lots.filter(function (l) { return l.d.today; })[0]); live.textContent = readEl.textContent; }
     });
     fig.addEventListener('blur', function () { lastInput = performance.now(); setCursor(null); });
     allBtn.addEventListener('click', function () {
@@ -932,33 +1223,128 @@ pnpm install &amp;&amp; pnpm build</code></pre></div></li>
       allBtn.setAttribute('aria-pressed', String(buildAll));
       allBtn.textContent = buildAll ? 'Show the drawing' : 'Show the city';
       apply();
+      if (buildAll && sound.isOn()) {
+        var step = Math.max(1, Math.round(order.length / 18));
+        for (var i = 0, k = 0; i < order.length; i += step, k++) setTimeout(sound.tick, k * 62, order[i].d.level);
+      }
+    });
+    playBtn.addEventListener('click', toggle);
+    backBtn.addEventListener('click', backToRecent);
+    scrub.addEventListener('input', function () {
+      pause();
+      var n = +scrub.value, N = order.length, lo = 0, hi = 1;
+      for (var i = 0; i < 24; i++) { var mid = (lo + hi) / 2; if (ease(mid) * N < n) lo = mid; else hi = mid; }
+      tl.elapsed = hi * DUR;
+      tl.ended = n === N;
+      snap(function () { setBuilt(n); });
+      controls();
+    });
+
+    function paintSound() {
+      soundBtn.setAttribute('aria-pressed', String(sound.isOn()));
+      soundBtn.title = sound.isOn() ? 'Sound on' : 'Sound off';
+    }
+    soundBtn.addEventListener('click', function () {
+      sound.set(!sound.isOn());
+      paintSound();
+      if (sound.isOn()) setTimeout(sound.tick, 80, 2);
+    });
+    paintSound();
+
+    function trap(e) {
+      if (e.key !== 'Tab' || !big) return;
+      var f = Array.prototype.filter.call(card.querySelectorAll('button, input, [tabindex="0"]'), function (el) { return !el.hidden && el.getClientRects().length; });
+      var first = f[0], last = f[f.length - 1];
+      if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+      else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+    }
+    function relayout() {
+      build();
+      controls();
+    }
+    function openBig() {
+      if (big) return;
+      big = true;
+      spacer = document.createElement('div');
+      spacer.className = 'hero-spacer';
+      spacer.style.height = card.offsetHeight + 'px';
+      card.parentNode.insertBefore(spacer, card);
+      scrim = document.createElement('div');
+      scrim.className = 'hero-scrim';
+      scrim.addEventListener('click', closeBig);
+      document.body.appendChild(scrim);
+      var bar = window.innerWidth - document.documentElement.clientWidth;
+      document.documentElement.style.overflow = 'hidden';
+      if (bar > 0) document.body.style.paddingRight = bar + 'px';
+      card.classList.add('big');
+      card.setAttribute('role', 'dialog');
+      card.setAttribute('aria-modal', 'true');
+      card.setAttribute('aria-label', 'The drawing, expanded');
+      bigBtn.setAttribute('aria-expanded', 'true');
+      bigBtn.hidden = true;
+      closeBtn.hidden = false;
+      relayout();
+      closeBtn.focus();
+    }
+    function closeBig() {
+      if (!big) return;
+      big = false;
+      var s = scrim, sp = spacer;
+      scrim = spacer = null;
+      function done() {
+        card.classList.remove('big', 'closing');
+        ['role', 'aria-modal', 'aria-label'].forEach(function (a) { card.removeAttribute(a); });
+        s.remove();
+        sp.remove();
+        document.documentElement.style.overflow = '';
+        document.body.style.paddingRight = '';
+        bigBtn.setAttribute('aria-expanded', 'false');
+        bigBtn.hidden = false;
+        closeBtn.hidden = true;
+        relayout();
+        bigBtn.focus();
+      }
+      if (RM.matches) { done(); return; }
+      card.classList.add('closing');
+      s.classList.add('closing');
+      setTimeout(done, 160);
+    }
+    bigBtn.addEventListener('click', openBig);
+    closeBtn.addEventListener('click', closeBig);
+    card.addEventListener('keydown', trap);
+    document.addEventListener('keydown', function (e) {
+      if (e.key !== 'Escape') return;
+      if (big) { e.preventDefault(); closeBig(); }
+      else if (mode === 'year' && (card.contains(document.activeElement) || document.activeElement === document.body)) { e.preventDefault(); backToRecent(); }
     });
 
     function tick(t) {
       raf = 0;
-      if (!visible || document.hidden || RM.matches) return;
+      if (!visible || document.hidden || RM.matches || mode === 'year') return;
       if (!buildAll && t - lastInput > 2600) {
         var ph = t * .00028;
         var gx = (X - 1) * (.5 - .5 * Math.cos(ph)) + .5, gy = 3.5 + 2.6 * Math.sin(ph * 2.7);
         var l = near(gx, gy) || cursor;
+        quiet = true;
         if (l !== cursor) setCursor(l);
+        quiet = false;
       }
       raf = requestAnimationFrame(tick);
     }
-    function start() { if (!raf && visible && !RM.matches) raf = requestAnimationFrame(tick); }
+    function start() { if (!raf && visible && !RM.matches && mode === 'recent') raf = requestAnimationFrame(tick); }
     onVisible(fig, function (v) { visible = v; start(); });
     document.addEventListener('visibilitychange', start);
 
     build();
+    controls();
     lastInput = performance.now() - 2000;
     start();
-    var rt, lastW = fig.clientWidth;
+    var rt;
     window.addEventListener('resize', function () {
       clearTimeout(rt);
       rt = setTimeout(function () {
-        var w = fig.clientWidth;
-        if ((w < 620) !== (lastW < 620)) { cursor = null; build(); } else sizeText();
-        lastW = w;
+        if (mode + span() !== layout) { cursor = null; build(); } else sizeText();
+        controls();
       }, 120);
     });
   })();
