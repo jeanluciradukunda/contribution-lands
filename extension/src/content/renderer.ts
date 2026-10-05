@@ -260,7 +260,15 @@ export class IsoRenderer {
     const ranked = contributions
       .filter((c) => c.count > 0)
       .sort((a, b) => b.count - a.count || b.date.localeCompare(a.date));
-    const landmarkFor = new Map(ranked.slice(0, landmarks.length).map((c, i) => [c.date, { ...landmarks[i], rank: i + 1 }]));
+    // A landmark is earned: it only lands on a day at least as tall as its own sprite's level.
+    const landmarkFor = new Map<string, { sprite: string; name: string; rank: number }>();
+    const unused = landmarks.map((l) => ({ ...l, needs: Number(l.sprite.match(/^level-(\d)/)?.[1] ?? 4) }));
+    ranked.forEach((day, i) => {
+      const pick = unused.findIndex((l) => day.level >= l.needs);
+      if (pick < 0) return;
+      const [landmark] = unused.splice(pick, 1);
+      landmarkFor.set(day.date, { sprite: landmark.sprite, name: landmark.name, rank: i + 1 });
+    });
 
     const parks = new Set((this.theme.park_sprites ?? []).map((name) => byName.get(name)).filter(Boolean));
 
