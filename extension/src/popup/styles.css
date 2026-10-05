@@ -62,6 +62,9 @@ button { font: inherit; color: inherit; }
   gap: 6px;
 }
 
+.theme-grid:has(> .theme-card:only-child) { grid-template-columns: 1fr; }
+.theme-grid:has(> .theme-card:only-child) .skyline { height: 84px; }
+
 .theme-card {
   display: flex;
   flex-direction: column;

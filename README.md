@@ -13,36 +13,28 @@
   <img src="docs/hero-banner.svg" alt="Forest and city biome blueprint showing level progression from bare earth to ancient redwood and empty lot to supertall skyscraper" width="860">
 </p>
 
-> Transform your GitHub contribution graph into a living isometric world — forests, cities, and beyond.
+> Turns the contribution graph on GitHub profile pages into an isometric New York skyline, with streaks, stats and landmarks.
 
 ## What is Contribution Lands?
 
-A browser extension that replaces GitHub's flat contribution graph with themed isometric visualizations. Each contribution level maps to increasingly impressive elements — from saplings to ancient redwoods, from brownstones to skyscrapers. Themes come alive with ambient animations: deer wandering through forests, taxis cruising through NYC, cherry blossoms drifting in spring.
+A browser extension that rebuilds GitHub's contribution calendar as a small isometric New York. Every day of the year is a lot in the city: quiet days stay as empty lots or weekend parks, busier days become taller buildings, and your best days are marked with landmark towers. Streets run between the blocks with taxis in them, your longest streak becomes an elevated railway, and today's lot is a construction site that grows as you contribute.
 
-### Themes
+A stats panel shows your total, best day, daily average and streaks. Hover a building to see its day, or click it to filter GitHub's activity feed to that day. It works with GitHub's light and dark modes, and the toolbar popup switches between the flat graph, the land or both.
 
-| Theme | Level 0 | Level 1 | Level 2 | Level 3 | Level 4 |
-|-------|---------|---------|---------|---------|---------|
-| **Summer Forest** | Grass | Sapling | Young tree | Mature tree | Ancient redwood |
-| **Autumn Forest** | Fallen leaves | Orange sapling | Red maple | Autumn oak | Blazing canopy |
-| **Winter Forest** | Snow | Bare twig | Frosted pine | Snow-laden spruce | Ice giant |
-| **Spring Forest** | Wildflowers | Sprout | Cherry tree | Cherry blossom | Wisteria |
-| **NYC Skyline** | Empty lot | Brownstone | Apartment | Skyscraper | Supertall |
-| **Paris** | Cobblestone | Cafe | Haussmann | Grand boulevard | Eiffel Tower |
-| **Cape Town** | Sandy earth | Bo-Kaap house | Victorian | Office tower | Table Mountain |
+NYC is the only world in the extension for now. The repository also holds earlier sprite sets (Paris, Cape Town, a rainforest) used by the README card and theme experiments.
 
 ## Project Structure
 
 ```
 contribution-lands/
-├── extension/                  # Chrome extension (prototype + future code)
-│   └── prototype.html          # Interactive animated preview
+├── extension/                  # Chrome extension (Manifest V3)
+│   ├── src/                    # Content script, renderer, popup
+│   └── dev/                    # Local harness: npm run harness
 ├── themes/                     # Ready-to-use sprite assets (committed)
 │   ├── theme.schema.json       # What a valid theme looks like
-│   ├── forest-summer/
+│   ├── city-nyc/
 │   │   ├── theme.json          # Theme metadata, entity config, colors
 │   │   └── sprites/            # Clean, transparent, correctly-sized PNGs
-│   ├── city-nyc/
 │   └── ...
 ├── tools/
 │   └── theme-generator/        # Standalone sprite generation pipeline
@@ -56,22 +48,22 @@ contribution-lands/
     └── creating-themes.md       # Complete prompt writing guide
 ```
 
-## Install (Developer Preview)
+## Install
 
-1. Clone and build:
+The Chrome Web Store listing is on its way. Until then, install a release build:
+
+1. Download the latest `contribution-lands-*.zip` from [Releases](https://github.com/jeanluciradukunda/contribution-lands/releases) and unzip it.
+2. Go to `chrome://extensions/`, turn on **Developer mode**, click **Load unpacked** and select the unzipped folder.
+
+Or build it yourself:
+
 ```bash
 git clone https://github.com/jeanluciradukunda/contribution-lands.git
 cd contribution-lands/extension
-pnpm install && pnpm build
-cp -r ../themes dist/themes
+pnpm install && pnpm build   # then load extension/dist
 ```
 
-2. Load in Chrome:
-   - Go to `chrome://extensions/`
-   - Enable **Developer mode**
-   - Click **Load unpacked** → select `extension/dist`
-
-3. Visit any GitHub profile — your contribution graph becomes a living isometric city!
+Then visit any GitHub profile: the contribution graph becomes a city. Requires Chrome 111 or later. See the [privacy policy](https://jeanluciradukunda.github.io/contribution-lands/privacy.html).
 
 ### Put your land in your profile README
 
@@ -114,13 +106,14 @@ Then show it in your `README.md`, matching the reader's light or dark mode:
 
 <img alt="Example contribution land card" src="docs/card-example.png" width="600">
 
-### Preview the Prototype
+### Try it locally
 
 ```bash
-open extension/prototype.html
+cd extension
+npm run harness   # http://localhost:5199/dev/harness.html
 ```
 
-Click through all 7 themes — each has animated entities and weather particles.
+The harness renders the content script against a saved contribution calendar with GitHub's own stylesheets, in light or dark mode and at several widths.
 
 ### Generate Sprites (for contributors)
 
@@ -133,14 +126,14 @@ pip install -r requirements.txt
 export GOOGLE_API_KEY="your-key"  # Free at aistudio.google.com/apikey
 
 python generate.py --list               # See available themes
-python generate.py forest-summer        # Generate one theme
+python generate.py city-nyc             # Generate one theme
 python -m validation.validate_all       # Validate + HTML report
 ```
 
 ## Inspiration
 
-- [isometric-contributions](https://github.com/jasonlong/isometric-contributions) — The original isometric GitHub extension
-- [isometric-nyc](https://cannoneyed.com/projects/isometric-nyc) — AI-generated isometric pixel art of NYC
+- [isometric-contributions](https://github.com/jasonlong/isometric-contributions): the original isometric GitHub extension. Some code is adapted from it under the MIT licence; see [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+- [isometric-nyc](https://cannoneyed.com/projects/isometric-nyc): AI-generated isometric pixel art of NYC.
 
 ## Contributing
 
@@ -148,4 +141,4 @@ See [CONTRIBUTING.md](CONTRIBUTING.md). To create a new theme, follow [tools/the
 
 ## License
 
-[MIT](LICENSE) — Jean Luc Iradukunda
+[MIT](LICENSE), Jean Luc Iradukunda. Building names are used descriptively. Not affiliated with or endorsed by GitHub, Inc.
