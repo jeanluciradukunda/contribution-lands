@@ -304,21 +304,22 @@ function injectToggle(box: Element) {
 
   const expand = document.createElement('button');
   expand.type = 'button';
-  expand.className = 'cl-expand btn btn-sm py-0 px-2';
+  expand.className = 'cl-expand btn BtnGroup-item btn-sm py-0 px-2';
   expand.setAttribute('aria-label', 'Expand the land');
   expand.setAttribute('aria-expanded', 'false');
   expand.title = 'Expand';
   expand.innerHTML = '<svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><path fill="currentColor" d="M3.72 3.72a.75.75 0 0 1 .53-.22h2.5a.75.75 0 0 1 0 1.5H6.06l1.97 1.97a.75.75 0 0 1-1.06 1.06L5 6.06v.69a.75.75 0 0 1-1.5 0v-2.5a.75.75 0 0 1 .22-.53Zm8.56 8.56a.75.75 0 0 1-.53.22h-2.5a.75.75 0 0 1 0-1.5h.69l-1.97-1.97a.75.75 0 1 1 1.06-1.06L11 9.94v-.69a.75.75 0 0 1 1.5 0v2.5a.75.75 0 0 1-.22.53Z"/></svg>';
   expand.addEventListener('click', () => openExpanded(expand));
+  group.append(expand);
 
   const controls = document.createElement('div');
   controls.className = 'cl-controls d-flex flex-items-center float-right';
   const settingsMenu = box.querySelector('focus-group, details.contrib-settings');
   if (settingsMenu) {
     settingsMenu.before(controls);
-    controls.append(settingsMenu, group, expand);
+    controls.append(settingsMenu, group);
   } else {
-    controls.append(group, expand);
+    controls.append(group);
     box.querySelector('h2')?.before(controls);
   }
 }
@@ -356,11 +357,15 @@ function openExpanded(trigger: HTMLElement) {
   const shut = () => {
     document.removeEventListener('keydown', onKey, true);
     wrapper.classList.remove('is-expanded');
-    placeholder.replaceWith(wrapper);
+    if (placeholder.isConnected) placeholder.replaceWith(wrapper);
+    else placeholder.remove();
     overlay.remove();
     document.documentElement.classList.remove('cl-overlay-open');
-    trigger.setAttribute('aria-expanded', 'false');
-    trigger.focus();
+    closeExpanded = null;
+    reattach();
+    const button = trigger.isConnected ? trigger : document.querySelector<HTMLElement>('.cl-expand');
+    button?.setAttribute('aria-expanded', 'false');
+    button?.focus();
   };
   const onKey = (e: KeyboardEvent) => {
     if (e.key === 'Escape') {
@@ -377,6 +382,23 @@ function openExpanded(trigger: HTMLElement) {
 }
 
 let closeExpanded: (() => void) | null = null;
+let landWrapper: HTMLElement | null = null;
+
+/**
+ * Unselecting a day makes GitHub re-render the whole contributions section. Move the
+ * existing land into the new section and follow the new calendar, instead of rebuilding.
+ */
+function reattach() {
+  const calendarGraph = document.querySelector('.js-calendar-graph');
+  const box = document.querySelector('.js-yearly-contributions');
+  if (!landWrapper || !renderer || !calendarGraph || !box) return;
+  const expanded = !!document.querySelector('.cl-overlay');
+  if (!expanded && !box.contains(landWrapper)) calendarGraph.before(landWrapper);
+  if (!box.querySelector('.cl-controls')) injectToggle(box);
+  applyView(box, settings.viewSetting);
+  applyStatsVisibility(box);
+  mirrorSelection(calendarGraph);
+}
 
 function dayCell(date: string): HTMLElement | null {
   return document.querySelector<HTMLElement>(`.js-calendar-graph td.ContributionCalendar-day[data-date="${date}"]`);
@@ -403,6 +425,8 @@ function teardown() {
   historyRequest = null;
   renderer?.destroy();
   renderer = null;
+  landWrapper?.remove();
+  landWrapper = null;
   document.querySelector('.cl-contributions-wrapper')?.remove();
   const controls = document.querySelector('.cl-controls');
   if (controls) {
@@ -432,6 +456,7 @@ async function generate() {
     const wrapper = document.createElement('div');
     wrapper.className = 'cl-contributions-wrapper';
     calendarGraph.before(wrapper);
+    landWrapper = wrapper;
 
     const canvas = document.createElement('canvas');
     canvas.id = 'contribution-lands-canvas';
@@ -475,9 +500,15 @@ function setupObserver() {
   if (!document.querySelector('.vcard-names-container')) return;
 
   const initIfReady = () => {
-    if (document.querySelector('.js-calendar-graph') && !document.querySelector('.cl-contributions-wrapper')) {
-      void generate();
+    const graph = document.querySelector('.js-calendar-graph');
+    if (!graph) return;
+    if (landWrapper && renderer) {
+      const box = document.querySelector('.js-yearly-contributions');
+      const stale = !box?.querySelector('.cl-controls') || (!document.querySelector('.cl-overlay') && !box.contains(landWrapper));
+      if (stale) reattach();
+      return;
     }
+    if (!document.querySelector('.cl-contributions-wrapper')) void generate();
   };
   initIfReady();
   observer = new MutationObserver(initIfReady);

@@ -92,7 +92,7 @@
   font-weight: 600;
 }
 
-.cl-expand { margin-left: 6px; display: inline-flex; align-items: center; }
+.cl-expand svg { vertical-align: text-bottom; }
 
 .cl-overlay-open { overflow: hidden; }
 .cl-overlay {
