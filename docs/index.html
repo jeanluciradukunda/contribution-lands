@@ -21,7 +21,7 @@
 <link rel="apple-touch-icon" href="assets/icon-128.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500&family=Instrument+Serif:ital@1&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
 :root {
   --bg: #ffffff;
@@ -38,9 +38,8 @@
   --taxi-side: #d6a619;
   --taxi-end: #b88b0f;
   --g0: #ebedf0; --g1: #9be9a8; --g2: #40c463; --g3: #30a14e; --g4: #216e39;
-  --sans: 'Geist', system-ui, -apple-system, 'Segoe UI', sans-serif;
-  --mono: 'Geist Mono', ui-monospace, 'SF Mono', Menlo, monospace;
-  --serif: 'Instrument Serif', Georgia, serif;
+  --sans: 'IBM Plex Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --mono: 'IBM Plex Mono', ui-monospace, 'SF Mono', Menlo, monospace;
   --sw: .9;
 }
 @media (prefers-color-scheme: dark) {
@@ -72,7 +71,9 @@ button { font: inherit; color: inherit; }
 .skip { position: absolute; left: -9999px; }
 .skip:focus { left: 16px; top: 12px; z-index: 20; background: var(--ink); color: var(--bg); padding: .4rem .7rem; border-radius: 6px; }
 .mono { font-family: var(--mono); font-size: 12px; letter-spacing: 0; color: var(--muted); }
-em.acc { font-family: var(--serif); font-style: italic; font-weight: 400; font-size: 1.12em; letter-spacing: 0; }
+.mk { text-decoration: underline; text-decoration-color: var(--taxi); text-decoration-thickness: .14em; text-underline-offset: .14em; text-decoration-skip-ink: none; }
+.sht { display: inline-block; font: 500 10.5px/1 var(--mono); letter-spacing: .06em; color: var(--text); padding: 3px 5px 2px; border: 1px solid var(--mid); border-radius: 4px; white-space: nowrap; vertical-align: 1px; }
+.caps { font-family: var(--mono); font-size: 11px; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
 
 /* Top bar */
 .top { border-bottom: 1px solid var(--line); }
@@ -92,7 +93,7 @@ em.acc { font-family: var(--serif); font-style: italic; font-weight: 400; font-s
 .side a { display: flex; justify-content: space-between; gap: 8px; padding: 5px 10px; margin: 0 -10px; border-radius: 7px; text-decoration: none; color: var(--muted); font-size: 14px; }
 .side a:hover { color: var(--text); }
 .side a[aria-current="true"] { color: var(--text); background: var(--soft); }
-.side a span { font-family: var(--mono); font-size: 12px; color: var(--muted); }
+.side a span { font-family: var(--mono); font-size: 11px; line-height: 1.9; color: var(--muted); }
 .side .rule { border-top: 1px solid var(--line); margin: 10px 0; }
 main { min-width: 0; padding-bottom: 40px; }
 @media (max-width: 980px) {
@@ -102,7 +103,7 @@ main { min-width: 0; padding-bottom: 40px; }
 
 /* Hero */
 .hero { padding: 56px 0 28px; }
-h1 { font-weight: 500; font-size: clamp(2rem, 4.4vw, 3.15rem); line-height: 1.08; letter-spacing: -.028em; margin: 0 0 18px; max-width: 18ch; text-wrap: balance; }
+h1 { font-weight: 500; font-size: clamp(2rem, 4.4vw, 3.15rem); line-height: 1.08; letter-spacing: -.02em; margin: 0 0 18px; max-width: 18ch; text-wrap: balance; }
 .lede { font-size: 17px; color: var(--muted); max-width: 58ch; margin: 0 0 24px; }
 .actions { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
 .btn { display: inline-flex; align-items: center; gap: 8px; height: 38px; padding: 0 16px; border-radius: 999px; border: 1px solid var(--line); text-decoration: none; font-size: 14px; font-weight: 500; background: var(--card); }
@@ -117,8 +118,8 @@ h1 { font-weight: 500; font-size: clamp(2rem, 4.4vw, 3.15rem); line-height: 1.08
 .pill { height: 28px; padding: 0 12px; border-radius: 999px; border: 1px solid var(--line); background: var(--card); font-size: 12.5px; cursor: pointer; color: var(--text); }
 .pill:hover { border-color: var(--mid); }
 .pill[aria-pressed="true"] { background: var(--ink); color: var(--bg); border-color: var(--ink); }
-.cap { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; padding: 14px 16px 0; }
-.cap h3 { margin: 0; font-size: 14.5px; font-weight: 500; letter-spacing: -.005em; }
+.cap { display: flex; justify-content: flex-start; align-items: baseline; gap: 10px; padding: 14px 16px 0; }
+.cap h3 { margin: 0 auto 0 0; font-size: 14.5px; font-weight: 500; letter-spacing: 0; }
 .cap { flex-wrap: wrap; }
 .cap .mono { min-width: 0; }
 .cap .ro { position: absolute; top: 12px; left: 16px; right: 16px; text-align: left; pointer-events: none; z-index: 2; }
@@ -136,6 +137,19 @@ h1 { font-weight: 500; font-size: clamp(2rem, 4.4vw, 3.15rem); line-height: 1.08
 .hl .fk { fill: var(--ink); stroke: none; }
 .hl text { font-family: var(--mono); fill: var(--muted); }
 .hl image { pointer-events: none; }
+.tb { position: absolute; left: 20px; bottom: 14px; z-index: 1; display: flex; border: 1px solid var(--mid); border-radius: 6px; overflow: hidden; background: var(--card); font: 10.5px/1.3 var(--mono); color: var(--text); pointer-events: none; }
+.tb dl { margin: 0; }
+.tb dl div { display: grid; grid-template-columns: 64px auto; gap: 8px; padding: 3px 9px; border-bottom: 1px solid var(--line); }
+.tb dl div:last-child { border-bottom: 0; }
+.tb dt { color: var(--muted); text-transform: uppercase; letter-spacing: .08em; font-size: 9.5px; line-height: 1.4; }
+.tb dd { margin: 0; white-space: nowrap; }
+.tb .no { display: flex; flex-direction: column; justify-content: center; padding: 4px 12px; border-left: 1px solid var(--line); }
+.tb .no span { font-size: 9.5px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.tb .no b { font: 600 17px/1.2 var(--sans); letter-spacing: .02em; }
+.north { position: absolute; left: 22px; top: 12px; width: 26px; height: 34px; fill: none; stroke: var(--edge); stroke-width: 1; pointer-events: none; }
+.north path { fill: var(--taxi); stroke: var(--ink); stroke-linejoin: round; }
+.north text { fill: var(--muted); stroke: none; font: 500 9px var(--mono); text-anchor: middle; }
+@media (max-width: 760px) { .tb, .north { display: none; } }
 
 /* Hero figure */
 .hero-card { margin-top: 36px; }
@@ -190,7 +204,7 @@ h1 { font-weight: 500; font-size: clamp(2rem, 4.4vw, 3.15rem); line-height: 1.08
 /* Sections */
 .sec { padding: 72px 0 0; scroll-margin-top: 16px; }
 .sec-head { display: flex; justify-content: space-between; align-items: baseline; gap: 16px; margin-bottom: 18px; flex-wrap: wrap; }
-h2 { font-weight: 500; font-size: clamp(1.55rem, 2.6vw, 2rem); line-height: 1.15; letter-spacing: -.022em; margin: 0 0 10px; text-wrap: balance; }
+h2 { font-weight: 500; font-size: clamp(1.55rem, 2.6vw, 2rem); line-height: 1.15; letter-spacing: -.015em; margin: 0 0 10px; text-wrap: balance; }
 .intro { color: var(--muted); max-width: 60ch; margin: 0 0 8px; }
 .shelf { padding-top: 40px; scroll-margin-top: 16px; }
 .shelf-head { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; padding-bottom: 12px; }
@@ -371,7 +385,7 @@ pre code { background: none; border: 0; padding: 0; font-size: inherit; }
       <svg viewBox="0 0 20 20" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-width="1" stroke-linejoin="round"><path d="M10 2.5 17 6.2 10 9.9 3 6.2Z"/><path d="M3 6.2V13.8L10 17.5 17 13.8V6.2M10 9.9V17.5"/></g></svg>
       contribution lands
     </a>
-    <span class="mono">v 0.1.0</span>
+    <span class="mono">rev 0.1.0</span>
     <nav aria-label="Primary">
       <a class="wide" href="#figures">Figures</a>
       <a href="library.html">Library</a>
@@ -385,22 +399,22 @@ pre code { background: none; border: 0; padding: 0; font-size: inherit; }
 <div class="shell">
   <aside class="side" aria-label="On this page">
     <ol id="toc">
-      <li><a href="#top">Overview<span>01</span></a></li>
-      <li><a href="#source">Where lots come from<span>01</span></a></li>
+      <li><a href="#top">Overview<span>A-101</span></a></li>
+      <li><a href="#source">Where lots come from<span>A-102</span></a></li>
       <li class="rule" aria-hidden="true"></li>
-      <li><a href="#land">The land<span>3</span></a></li>
-      <li><a href="#streets">The streets<span>2</span></a></li>
-      <li><a href="#profile">On your profile<span>2</span></a></li>
-      <li><a href="#toolbar">In the toolbar<span>1</span></a></li>
-      <li><a href="#readme">In your README<span>1</span></a></li>
+      <li><a href="#land">The land<span>A-200</span></a></li>
+      <li><a href="#streets">The streets<span>A-300</span></a></li>
+      <li><a href="#profile">On your profile<span>A-400</span></a></li>
+      <li><a href="#toolbar">In the toolbar<span>A-500</span></a></li>
+      <li><a href="#readme">In your README<span>A-600</span></a></li>
       <li class="rule" aria-hidden="true"></li>
-      <li><a href="#install">Install<span>3</span></a></li>
+      <li><a href="#install">Install<span>3 steps</span></a></li>
     </ol>
   </aside>
 
 <main id="main">
   <section class="hero" id="top" aria-labelledby="hero-title">
-    <h1 id="hero-title">Your year, drawn first, then <em class="acc">built.</em></h1>
+    <h1 id="hero-title">Your year, drawn first, then <span class="mk">built</span>.</h1>
     <p class="lede">Contribution Lands is a Chrome extension that rebuilds the contribution graph on GitHub profile pages as an isometric New York City. Every day is a lot. Quiet days stay low, busy days rise into towers, and today is a building site.</p>
     <div class="actions">
       <a class="btn dark" href="#install">Install the extension</a>
@@ -410,7 +424,7 @@ pre code { background: none; border: 0; padding: 0; font-size: inherit; }
 
     <figure class="card hero-card" style="margin-inline:0;margin-bottom:0">
       <div class="bar">
-        <span class="mono" id="hero-spec">fig. 01 · a real year · 1 lot = 1 day</span>
+        <span class="mono"><span class="sht">A-101</span> <span id="hero-spec">a real year · 1 lot = 1 day</span></span>
         <span class="tools">
           <button type="button" class="pill" id="build-all" aria-pressed="false">Show the city</button>
           <button type="button" class="pill" id="play-year">Play the year</button>
@@ -422,6 +436,8 @@ pre code { background: none; border: 0; padding: 0; font-size: inherit; }
       </div>
       <div class="hero-fig" id="hero-fig" tabindex="0" role="group" aria-roledescription="drawing" aria-label="A line drawing of a real contribution year, one lot per day. Move the pointer, or use the arrow keys, to build the lots near it as New York buildings." aria-describedby="hero-read">
         <svg class="hl" id="hero-svg" aria-hidden="true"></svg>
+        <svg class="north" viewBox="0 0 26 34" aria-hidden="true"><circle cx="13" cy="21" r="10"/><path d="M13 8.5 17 29 13 25.5 9 29Z"/><text x="13" y="7">N</text></svg>
+        <div class="tb" aria-hidden="true"><dl><div><dt>drawn by</dt><dd id="tb-by">a sample year</dd></div><div><dt>scale</dt><dd>1 lot : 1 day</dd></div><div><dt>span</dt><dd id="tb-span">22 weeks</dd></div></dl><div class="no"><span>sheet</span><b>A-101</b></div></div>
         <noscript><img src="card-example.png" alt="A contribution land rendered as an isometric New York City with stats panels." width="1200" height="761"></noscript>
       </div>
       <div class="hero-tl" id="hero-tl" hidden>
@@ -438,12 +454,12 @@ pre code { background: none; border: 0; padding: 0; font-size: inherit; }
   </section>
 
   <section class="sec" id="source" aria-labelledby="source-title">
-    <h2 id="source-title">Drawn from your <em class="acc">contributions.</em></h2>
+    <h2 id="source-title">Drawn from your <span class="mk">contributions</span>.</h2>
     <article class="card source">
       <div class="fig">
         <div class="branches-box" id="branches" role="img" aria-label="A commit graph with a branch forking off main and merging back. The commit under the pointer rises with its history."></div>
         <div class="bar" style="padding:2px 2px 0">
-          <span class="mono" id="branches-read">history</span>
+          <span class="mono"><span class="sht">A-102</span> <span id="branches-read">history</span></span>
           <span class="credit">Figure from <a href="https://hairline.lucasmarkes.com">Hairline</a> by Lucas Marques, MIT</span>
         </div>
       </div>
@@ -456,11 +472,11 @@ pre code { background: none; border: 0; padding: 0; font-size: inherit; }
   </section>
 
   <section class="sec" id="figures" aria-labelledby="figures-title">
-    <h2 id="figures-title">Every detail, by what it <em class="acc">means.</em></h2>
+    <h2 id="figures-title">Every detail, by what it <span class="mk">means</span>.</h2>
     <p class="intro">Eight figures, shelved by where you meet them. Each one answers the pointer.</p>
 
     <div class="shelf" id="land">
-      <div class="shelf-head"><h3>The land</h3><span class="mono">3 of 3 drawn</span></div>
+      <div class="shelf-head"><h3>The land</h3><span class="mono">3 sheets · A-201 to A-203</span></div>
       <div class="grid">
         <article class="card shades">
           <div class="fig" id="shades-fig">
@@ -473,7 +489,7 @@ pre code { background: none; border: 0; padding: 0; font-size: inherit; }
               <button type="button" style="background:var(--g4)" data-l="4" aria-pressed="false" aria-label="Darkest shade"></button>
             </div>
           </div>
-          <div class="cap"><h3>One scale for everyone</h3><span class="mono ro" id="shades-read" aria-live="polite">hover a shade</span></div>
+          <div class="cap"><h3>One scale for everyone</h3><span class="sht">A-201</span><span class="mono ro" id="shades-read" aria-live="polite">hover a shade</span></div>
           <p>A day's height comes from its count, on the same scale for everyone: 40 or more is a skyscraper whoever you are, so a steady heavy year reads as skyline.</p>
         </article>
 
@@ -484,7 +500,7 @@ pre code { background: none; border: 0; padding: 0; font-size: inherit; }
               <li>4 topping out</li><li>3 cladding</li><li class="on">2 frame</li><li>1 groundwork</li><li>0 nothing yet</li>
             </ol>
           </div>
-          <div class="cap"><h3>Today is a building site</h3><span class="mono ro" id="today-read">stage 2 · frame</span></div>
+          <div class="cap"><h3>Today is a building site</h3><span class="sht">A-202</span><span class="mono ro" id="today-read">stage 2 · frame</span></div>
           <p>Today's lot climbs a stage each time today's shade deepens. Tomorrow it is built like any other day.</p>
         </article>
 
@@ -493,7 +509,7 @@ pre code { background: none; border: 0; padding: 0; font-size: inherit; }
             <svg class="hl" id="lm-svg" aria-hidden="true"></svg>
             <div class="tip" id="lm-tip" aria-hidden="true"></div>
           </div>
-          <div class="cap"><h3>Your best days are landmarks</h3><span class="mono ro" id="lm-read">hover the tall one</span></div>
+          <div class="cap"><h3>Your best days are landmarks</h3><span class="sht">A-203</span><span class="mono ro" id="lm-read">hover the tall one</span></div>
           <p>Your sixteen busiest days are built as real New York buildings, ranked from your best day down.</p>
           <details class="lm-list">
             <summary>The sixteen, from your best day down</summary>
@@ -506,13 +522,13 @@ pre code { background: none; border: 0; padding: 0; font-size: inherit; }
     </div>
 
     <div class="shelf" id="streets">
-      <div class="shelf-head"><h3>The streets</h3><span class="mono">2 of 2 drawn</span></div>
+      <div class="shelf-head"><h3>The streets</h3><span class="mono">2 sheets · A-301 to A-302</span></div>
       <div class="grid">
         <article class="card rail">
           <div class="fig" id="rail-fig" tabindex="0" role="slider" aria-label="Train position along your longest streak" aria-valuemin="1" aria-valuemax="9" aria-valuenow="1">
             <svg class="hl" id="rail-svg" aria-hidden="true"></svg>
           </div>
-          <div class="cap"><h3>Streaks run on rails</h3><span class="mono ro" id="rail-read">9-day streak</span></div>
+          <div class="cap"><h3>Streaks run on rails</h3><span class="sht">A-301</span><span class="mono ro" id="rail-read">9-day streak</span></div>
           <p>Your longest streak is an elevated railway along the front street, with a train running its length.</p>
         </article>
 
@@ -520,21 +536,21 @@ pre code { background: none; border: 0; padding: 0; font-size: inherit; }
           <div class="fig" id="blocks-fig" style="aspect-ratio:auto;min-height:280px">
             <svg class="hl" id="blocks-svg" role="img" aria-label="Three six-week blocks of lots with streets between them and taxis driving the grid."></svg>
           </div>
-          <div class="cap"><h3>Blocks, streets and taxis</h3><span class="mono ro" id="blocks-read">3 blocks · 18 weeks</span></div>
+          <div class="cap"><h3>Blocks, streets and taxis</h3><span class="sht">A-302</span><span class="mono ro" id="blocks-read">3 blocks · 18 weeks</span></div>
           <p>Weeks are grouped into six-week blocks with streets between them, and taxis work the grid. Motion can be switched off in the popup.</p>
         </article>
       </div>
     </div>
 
     <div class="shelf" id="profile">
-      <div class="shelf-head"><h3>On your profile</h3><span class="mono">2 of 2 drawn</span></div>
+      <div class="shelf-head"><h3>On your profile</h3><span class="mono">2 sheets · A-401 to A-402</span></div>
       <div class="grid">
         <article class="card span2 stats">
           <div class="fig">
             <div class="gh" id="gh"></div>
             <svg class="hl stats-plan" id="stats-svg" role="img" aria-label="The sample year as a flat plan of lots. Hover a stat to see which days it counts."></svg>
           </div>
-          <div class="cap"><h3>Stats in GitHub's own style</h3><span class="mono" id="stats-read">hover a stat</span></div>
+          <div class="cap"><h3>Stats in GitHub's own style</h3><span class="mono" id="stats-read">hover a stat</span><span class="sht">A-401</span></div>
           <p>Contributions and Streaks panels sit over the land, styled like GitHub's own headings.</p>
         </article>
 
@@ -543,14 +559,14 @@ pre code { background: none; border: 0; padding: 0; font-size: inherit; }
             <svg class="hl" id="click-svg" role="group" aria-label="This week's buildings. Choose one to filter the activity to that day."></svg>
             <div class="feed" id="feed" aria-live="polite"></div>
           </div>
-          <div class="cap"><h3>Click a building, see that day</h3><span class="mono ro" id="click-read">click a building</span></div>
+          <div class="cap"><h3>Click a building, see that day</h3><span class="sht">A-402</span><span class="mono ro" id="click-read">click a building</span></div>
           <p>Clicking a lot does what clicking a square does: GitHub filters the activity below to that day.</p>
         </article>
       </div>
     </div>
 
     <div class="shelf" id="toolbar">
-      <div class="shelf-head"><h3>In the toolbar</h3><span class="mono">1 of 1 drawn</span></div>
+      <div class="shelf-head"><h3>In the toolbar</h3><span class="mono">1 sheet · A-501</span></div>
       <article class="card toolbar">
         <div class="fig">
           <div class="pop" id="pop">
@@ -573,7 +589,7 @@ pre code { background: none; border: 0; padding: 0; font-size: inherit; }
           </div>
         </div>
         <div class="spec">
-          <div class="cap" style="padding:0"><h3>One popup, five settings</h3><span class="mono" id="pop-read">Lands · stats on · motion on</span></div>
+          <div class="cap" style="padding:0"><h3>One popup, five settings</h3><span class="mono" id="pop-read">Lands · stats on · motion on</span><span class="sht">A-501</span></div>
           <dl>
             <div><dt>World</dt><dd>NYC Skyline, the one world that ships today. More worlds later.</dd></div>
             <div><dt>2D, Lands, Both</dt><dd>Keep GitHub's squares, swap them for the city, or show the two together.</dd></div>
@@ -587,11 +603,11 @@ pre code { background: none; border: 0; padding: 0; font-size: inherit; }
     </div>
 
     <div class="shelf" id="readme">
-      <div class="shelf-head"><h3>In your README</h3><span class="mono">1 of 1 drawn</span></div>
+      <div class="shelf-head"><h3>In your README</h3><span class="mono">1 sheet · A-601</span></div>
       <article class="card readme">
         <div class="fig">
           <img src="card-example.png" decoding="async" width="1200" height="761" alt="A rendered contribution land: an isometric strip of New York with brownstones, parks and towers, beside Contributions and Streaks panels.">
-          <span class="mono">A real render from the Action, light version.</span>
+          <span class="mono"><span class="sht">A-601</span> A real render from the Action, light version.</span>
         </div>
         <div class="side-txt">
           <div class="cap" style="padding:0 0 4px"><h3>Your city, rendered every night</h3><span class="mono">.webp · light and dark</span></div>
@@ -631,7 +647,7 @@ pre code { background: none; border: 0; padding: 0; font-size: inherit; }
 
   <section class="sec" id="install" aria-labelledby="install-title">
     <div class="sec-head" style="margin:0">
-      <h2 id="install-title">Install it, <em class="acc">for now</em> by hand.</h2>
+      <h2 id="install-title">Install it, <span class="mk">for now</span> by hand.</h2>
       <span class="mono">3 steps · Chrome 111 or later</span>
     </div>
     <p class="intro">The Chrome Web Store listing is coming soon. Until then, take a packaged build from <a href="https://github.com/jeanluciradukunda/contribution-lands/releases">GitHub Releases</a> when one is published, or build it from source.</p>
@@ -905,6 +921,8 @@ pnpm install &amp;&amp; pnpm build</code></pre></div></li>
     var tlFrom = document.getElementById('tl-from');
     var tlTo = document.getElementById('tl-to');
     var spec = document.getElementById('hero-spec');
+    var tbSpan = document.getElementById('tb-span');
+    if (REAL) document.getElementById('tb-by').textContent = '@' + REAL.user;
     var lots = [], order = [], weeks = 0, X = 0, ink, cursor = null, lastInput = -1e9, buildAll = false, visible = true, raf = 0, base = new Set(), labels = [];
     var mode = 'recent', layout = '', restRatio = '', shownTotal = 0, quiet = false, big = false, scrim = null, spacer = null, swaps = 0;
     var tl = { built: 0, elapsed: 0, playing: false, ended: false, wait: 0, raf: 0, last: 0 };
@@ -1007,10 +1025,10 @@ pnpm install &amp;&amp; pnpm build</code></pre></div></li>
         if (RM.matches) lots.forEach(function (l) { if (l.d.w - W0 >= weeks / 2) base.add(l); });
         restRatio = vb[2] + ' / ' + vb[3];
         svg.style.aspectRatio = '';
-        spec.textContent = REAL ? 'fig. 01 · @' + REAL.user + ', the last ' + weeks + ' weeks' : 'fig. 01 · a sample year, ' + weeks + ' weeks';
+        spec.textContent = REAL ? '@' + REAL.user + ', the last ' + weeks + ' weeks' : 'a sample year, ' + weeks + ' weeks';
       } else {
         svg.style.aspectRatio = restRatio;
-        spec.textContent = REAL ? 'fig. 01 · @' + REAL.user + (weeks === YW ? ', the whole year' : ', the last ' + weeks + ' weeks of the year') : 'fig. 01 · a sample year, ' + weeks + ' weeks';
+        spec.textContent = REAL ? '@' + REAL.user + (weeks === YW ? ', the whole year' : ', the last ' + weeks + ' weeks of the year') : 'a sample year, ' + weeks + ' weeks';
         scrub.max = order.length;
         tlFrom.textContent = shortFmt.format(order[0].d.date);
         tlTo.textContent = shortFmt.format(order[order.length - 1].d.date);
@@ -1018,6 +1036,7 @@ pnpm install &amp;&amp; pnpm build</code></pre></div></li>
         tl.built = target();
         scrubbed();
       }
+      tbSpan.textContent = weeks + ' weeks';
       sizeText();
       if (mode === 'year') snap(apply); else apply();
     }
@@ -1053,7 +1072,7 @@ pnpm install &amp;&amp; pnpm build</code></pre></div></li>
         if (want) n++;
       });
       if (fresh && audible) sound.tick((cursor && cursor.on ? cursor : fresh).d.level);
-      countEl.textContent = n + ' of ' + lots.length + ' built';
+      countEl.textContent = n + ' / ' + lots.length + ' lots built';
       ink.setAttribute('d', cursor ? cursor.ink : '');
       if (cursor) {
         var d = cursor.d;
@@ -1073,7 +1092,7 @@ pnpm install &amp;&amp; pnpm build</code></pre></div></li>
       for (i = from; i < n; i++) { order[i].on = true; order[i].g.classList.add('on'); fresh = order[i]; }
       for (i = n; i < from; i++) { order[i].on = false; order[i].g.classList.remove('on'); }
       if (fresh && audible) sound.tick(fresh.d.level);
-      countEl.textContent = n + ' of ' + order.length + ' built';
+      countEl.textContent = n + ' / ' + order.length + ' lots built';
       yearCaption();
       scrubbed();
     }

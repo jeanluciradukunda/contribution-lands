@@ -21,7 +21,7 @@
 <link rel="apple-touch-icon" href="assets/icon-128.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500&family=Instrument+Serif:ital@1&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
 :root {
   --bg: #ffffff;
@@ -38,9 +38,8 @@
   --taxi-side: #d6a619;
   --taxi-end: #b88b0f;
   --g0: #ebedf0; --g1: #9be9a8; --g2: #40c463; --g3: #30a14e; --g4: #216e39;
-  --sans: 'Geist', system-ui, -apple-system, 'Segoe UI', sans-serif;
-  --mono: 'Geist Mono', ui-monospace, 'SF Mono', Menlo, monospace;
-  --serif: 'Instrument Serif', Georgia, serif;
+  --sans: 'IBM Plex Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --mono: 'IBM Plex Mono', ui-monospace, 'SF Mono', Menlo, monospace;
   --sw: .9;
 }
 @media (prefers-color-scheme: dark) {
@@ -72,7 +71,9 @@ button { font: inherit; color: inherit; }
 .skip { position: absolute; left: -9999px; }
 .skip:focus { left: 16px; top: 12px; z-index: 20; background: var(--ink); color: var(--bg); padding: .4rem .7rem; border-radius: 6px; }
 .mono { font-family: var(--mono); font-size: 12px; letter-spacing: 0; color: var(--muted); }
-em.acc { font-family: var(--serif); font-style: italic; font-weight: 400; font-size: 1.12em; letter-spacing: 0; }
+.mk { text-decoration: underline; text-decoration-color: var(--taxi); text-decoration-thickness: .14em; text-underline-offset: .14em; text-decoration-skip-ink: none; }
+.sht { display: inline-block; font: 500 10.5px/1 var(--mono); letter-spacing: .06em; color: var(--text); padding: 3px 5px 2px; border: 1px solid var(--mid); border-radius: 4px; white-space: nowrap; vertical-align: 1px; }
+.caps { font-family: var(--mono); font-size: 11px; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
 
 /* Top bar */
 .top { border-bottom: 1px solid var(--line); }
@@ -88,7 +89,7 @@ em.acc { font-family: var(--serif); font-style: italic; font-weight: 400; font-s
 
 .page { max-width: 760px; margin: 0 auto; padding: 56px 24px 0; }
 .kick { display: flex; justify-content: space-between; gap: 12px; margin-bottom: 18px; }
-h1 { font-weight: 600; font-size: clamp(30px, 5vw, 44px); line-height: 1.08; letter-spacing: -.03em; margin: 0 0 16px; }
+h1 { font-weight: 600; font-size: clamp(30px, 5vw, 44px); line-height: 1.08; letter-spacing: -.02em; margin: 0 0 16px; }
 .lede { font-size: 17px; color: var(--muted); margin: 0 0 36px; max-width: 60ch; }
 .fig { border: 1px solid var(--line); border-radius: 14px; background: var(--card); overflow: hidden; margin-bottom: 36px; }
 .fig-top, .fig-bot { display: flex; justify-content: space-between; gap: 12px; padding: 12px 16px; }
@@ -125,7 +126,7 @@ code { font-family: var(--mono); font-size: 13px; background: var(--soft); borde
       <svg viewBox="0 0 20 20" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-width="1" stroke-linejoin="round"><path d="M10 2.5 17 6.2 10 9.9 3 6.2Z"/><path d="M3 6.2V13.8L10 17.5 17 13.8V6.2M10 9.9V17.5"/></g></svg>
       contribution lands
     </a>
-    <span class="mono">v 0.1.0</span>
+    <span class="mono">rev 0.1.0</span>
     <nav aria-label="Primary">
       <a class="wide" href="./#figures">Figures</a>
       <a href="library.html">Library</a>
@@ -136,16 +137,16 @@ code { font-family: var(--mono); font-size: 13px; background: var(--soft); borde
   </div>
 </header>
 <main id="main" class="page">
-  <div class="kick"><span class="mono">privacy policy</span><span class="mono">last updated 5 Oct 2026</span></div>
-  <h1>Everything stays in your <em class="acc">browser.</em></h1>
+  <div class="kick"><span class="caps">privacy policy</span><span class="mono">last updated 5 Oct 2026</span></div>
+  <h1>Everything stays in your <span class="mk">browser</span>.</h1>
   <p class="lede">Contribution Lands redraws the contribution calendar on GitHub profile pages as an illustrated city. Here is exactly what it touches.</p>
 
   <figure class="fig">
-    <div class="fig-top"><span class="mono">fig. 01 · how data moves</span><span class="mono">one site, no servers of ours</span></div>
+    <div class="fig-top"><span class="mono"><span class="sht">P-101</span> how data moves</span><span class="mono">one site, no servers of ours</span></div>
     <svg viewBox="0 0 760 300" preserveAspectRatio="xMidYMid meet" role="img" aria-labelledby="flow-t flow-d">
   <title id="flow-t">How data moves</title>
   <desc id="flow-d">The extension reads the contribution calendar from a github.com profile page, may fetch earlier calendars from github.com, draws the city on the same page and keeps four settings in Chrome storage. No other server is contacted.</desc>
-  <g class="hl" fill="none" stroke-linejoin="round" stroke-linecap="round" font-family="Geist Mono, ui-monospace, monospace" font-size="11">
+  <g class="hl" fill="none" stroke-linejoin="round" stroke-linecap="round" font-family="IBM Plex Mono, ui-monospace, monospace" font-size="11">
     <!-- github page -->
     <g transform="translate(36,64)">
       <path d="M0 0h200v150H0Z" stroke="var(--edge)" stroke-width="1"/>
@@ -155,6 +156,12 @@ code { font-family: var(--mono); font-size: 13px; background: var(--soft); borde
         <rect x="14" y="48" width="9" height="9" rx="2"/><rect x="14" y="61" width="9" height="9" rx="2"/><rect x="14" y="74" width="9" height="9" rx="2"/><rect x="14" y="87" width="9" height="9" rx="2"/><rect x="14" y="100" width="9" height="9" rx="2"/><rect x="14" y="113" width="9" height="9" rx="2"/><rect x="14" y="126" width="9" height="9" rx="2"/><rect x="27" y="48" width="9" height="9" rx="2"/><rect x="27" y="61" width="9" height="9" rx="2"/><rect x="27" y="74" width="9" height="9" rx="2"/><rect x="27" y="87" width="9" height="9" rx="2"/><rect x="27" y="100" width="9" height="9" rx="2"/><rect x="27" y="113" width="9" height="9" rx="2"/><rect x="27" y="126" width="9" height="9" rx="2"/><rect x="40" y="48" width="9" height="9" rx="2"/><rect x="40" y="61" width="9" height="9" rx="2"/><rect x="40" y="74" width="9" height="9" rx="2"/><rect x="40" y="87" width="9" height="9" rx="2"/><rect x="40" y="100" width="9" height="9" rx="2"/><rect x="40" y="113" width="9" height="9" rx="2"/><rect x="40" y="126" width="9" height="9" rx="2"/><rect x="53" y="48" width="9" height="9" rx="2"/><rect x="53" y="61" width="9" height="9" rx="2"/><rect x="53" y="74" width="9" height="9" rx="2"/><rect x="53" y="87" width="9" height="9" rx="2"/><rect x="53" y="100" width="9" height="9" rx="2"/><rect x="53" y="113" width="9" height="9" rx="2"/><rect x="53" y="126" width="9" height="9" rx="2"/><rect x="66" y="48" width="9" height="9" rx="2"/><rect x="66" y="61" width="9" height="9" rx="2"/><rect x="66" y="74" width="9" height="9" rx="2"/><rect x="66" y="87" width="9" height="9" rx="2"/><rect x="66" y="100" width="9" height="9" rx="2"/><rect x="66" y="113" width="9" height="9" rx="2"/><rect x="66" y="126" width="9" height="9" rx="2"/><rect x="79" y="48" width="9" height="9" rx="2"/><rect x="79" y="61" width="9" height="9" rx="2"/><rect x="79" y="74" width="9" height="9" rx="2"/><rect x="79" y="87" width="9" height="9" rx="2"/><rect x="79" y="100" width="9" height="9" rx="2"/><rect x="79" y="113" width="9" height="9" rx="2"/><rect x="79" y="126" width="9" height="9" rx="2"/><rect x="92" y="48" width="9" height="9" rx="2"/><rect x="92" y="61" width="9" height="9" rx="2"/><rect x="92" y="74" width="9" height="9" rx="2"/><rect x="92" y="87" width="9" height="9" rx="2"/><rect x="92" y="100" width="9" height="9" rx="2"/><rect x="92" y="113" width="9" height="9" rx="2"/><rect x="92" y="126" width="9" height="9" rx="2"/><rect x="105" y="48" width="9" height="9" rx="2"/><rect x="105" y="61" width="9" height="9" rx="2"/><rect x="105" y="74" width="9" height="9" rx="2"/><rect x="105" y="87" width="9" height="9" rx="2"/><rect x="105" y="100" width="9" height="9" rx="2"/><rect x="105" y="113" width="9" height="9" rx="2"/><rect x="105" y="126" width="9" height="9" rx="2"/><rect x="118" y="48" width="9" height="9" rx="2"/><rect x="118" y="61" width="9" height="9" rx="2"/><rect x="118" y="74" width="9" height="9" rx="2"/><rect x="118" y="87" width="9" height="9" rx="2"/><rect x="118" y="100" width="9" height="9" rx="2"/><rect x="118" y="113" width="9" height="9" rx="2"/><rect x="118" y="126" width="9" height="9" rx="2"/><rect x="131" y="48" width="9" height="9" rx="2"/><rect x="131" y="61" width="9" height="9" rx="2"/><rect x="131" y="74" width="9" height="9" rx="2"/><rect x="131" y="87" width="9" height="9" rx="2"/><rect x="131" y="100" width="9" height="9" rx="2"/><rect x="131" y="113" width="9" height="9" rx="2"/><rect x="131" y="126" width="9" height="9" rx="2"/><rect x="144" y="48" width="9" height="9" rx="2"/><rect x="144" y="61" width="9" height="9" rx="2"/><rect x="144" y="74" width="9" height="9" rx="2"/><rect x="144" y="87" width="9" height="9" rx="2"/><rect x="144" y="100" width="9" height="9" rx="2"/><rect x="144" y="113" width="9" height="9" rx="2"/><rect x="144" y="126" width="9" height="9" rx="2"/><rect x="157" y="48" width="9" height="9" rx="2"/><rect x="157" y="61" width="9" height="9" rx="2"/><rect x="157" y="74" width="9" height="9" rx="2"/><rect x="157" y="87" width="9" height="9" rx="2"/><rect x="157" y="100" width="9" height="9" rx="2"/><rect x="157" y="113" width="9" height="9" rx="2"/><rect x="157" y="126" width="9" height="9" rx="2"/><rect x="170" y="48" width="9" height="9" rx="2"/><rect x="170" y="61" width="9" height="9" rx="2"/><rect x="170" y="74" width="9" height="9" rx="2"/><rect x="170" y="87" width="9" height="9" rx="2"/><rect x="170" y="100" width="9" height="9" rx="2"/><rect x="170" y="113" width="9" height="9" rx="2"/><rect x="170" y="126" width="9" height="9" rx="2"/>
       </g>
       <text x="0" y="172" fill="var(--muted)" stroke="none">github.com profile page</text>
+    </g>
+    <g transform="translate(36,252)">
+      <path d="M4 0h240a4 4 0 0 1 4 4v34a4 4 0 0 1-4 4H4a4 4 0 0 1-4-4V4a4 4 0 0 1 4-4Z" stroke="var(--mid)"/><path d="M0 21h184M184 0v42" stroke="var(--line)"/>
+      <text x="8" y="14.5" fill="var(--muted)" stroke="none" font-size="8.5" letter-spacing=".8">DRAWN BY</text><text x="64" y="14.5" fill="var(--text)" stroke="none" font-size="10">contribution lands</text>
+      <text x="8" y="35.5" fill="var(--muted)" stroke="none" font-size="8.5" letter-spacing=".8">SCALE</text><text x="64" y="35.5" fill="var(--text)" stroke="none" font-size="10">not to scale</text>
+      <text x="193" y="14.5" fill="var(--muted)" stroke="none" font-size="8.5" letter-spacing=".8">SHEET</text><text x="193" y="35" fill="var(--text)" stroke="none" font-size="14" font-weight="600" font-family="IBM Plex Sans, system-ui, sans-serif">P-101</text>
     </g>
     <!-- arrow read -->
     <path d="M250 120h96" stroke="var(--ink)"/><path d="M340 115l6 5-6 5" stroke="var(--ink)"/>
