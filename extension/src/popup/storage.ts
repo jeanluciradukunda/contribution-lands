@@ -4,16 +4,19 @@ export interface PopupSettings {
   selectedThemeId: string | null;
 }
 
+export type Scale = 'absolute' | 'relative';
+
 export interface DisplaySettings {
   viewSetting: ViewSetting;
   motion: boolean;
   showStats: boolean;
+  scale: Scale;
 }
 
 const STORAGE_KEY = 'contributionLandsPopupSettings';
 
 export const DEFAULT_SETTINGS: PopupSettings = { selectedThemeId: null };
-export const DEFAULT_DISPLAY: DisplaySettings = { viewSetting: 'cubes', motion: true, showStats: true };
+export const DEFAULT_DISPLAY: DisplaySettings = { viewSetting: 'cubes', motion: true, showStats: true, scale: 'absolute' };
 
 function hasChromeStorage(): boolean {
   return typeof chrome !== 'undefined' && !!chrome.storage?.sync;

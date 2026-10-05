@@ -24,6 +24,6 @@ body { font-family: var(--fontStack-sansSerif); color: var(--fgColor-default); }
   background: var(--bgColor-default);
 }
 .card h2 { margin: 0 0 4px; font-size: 16px; font-weight: 400; }
-.card #calendar a, .card .js-calendar-graph, .card .cl-controls, .card .contrib-footer, .card details, .card focus-group { display: none !important; }
+.card #user-activity-overview, .card .activity-overview-box, .card #calendar a, .card .js-calendar-graph, .card .cl-controls, .card .contrib-footer, .card details, .card focus-group { display: none !important; }
 .card-footer { margin-top: 4px; font-size: 11px; color: var(--fgColor-muted); text-align: right; }
 .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
