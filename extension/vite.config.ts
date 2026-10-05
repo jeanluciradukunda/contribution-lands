@@ -22,7 +22,7 @@ function copyThemesPlugin() {
           const from = resolve(THEMES_DIR, id, 'sprites', file);
           if (existsSync(from)) cpSync(from, resolve(dest, 'sprites', file));
         }
-        writeFileSync(resolve(dest, 'sprites', 'manifest.json'), JSON.stringify(sprites));
+        writeFileSync(resolve(dest, 'sprites', 'sprites.json'), JSON.stringify(sprites));
       }
       cpSync(resolve(__dirname, '..', 'THIRD_PARTY_NOTICES.md'), resolve(__dirname, 'dist', 'THIRD_PARTY_NOTICES.md'));
     },

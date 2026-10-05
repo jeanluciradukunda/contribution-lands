@@ -100,7 +100,7 @@ async function loadBitmap(path: string): Promise<ImageBitmap | null> {
 
 async function spriteFiles(themeId: string): Promise<Record<string, string[]>> {
   try {
-    const res = await fetch(chrome.runtime.getURL(`themes/${themeId}/sprites/manifest.json`));
+    const res = await fetch(chrome.runtime.getURL(`themes/${themeId}/sprites/sprites.json`));
     if (res.ok) return await res.json();
   } catch {
     // Dev builds have no manifest; fall through to probing.
