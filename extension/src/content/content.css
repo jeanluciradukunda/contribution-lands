@@ -91,3 +91,35 @@
   background-color: var(--button-default-bgColor-selected, #dcdfe3) !important;
   font-weight: 600;
 }
+
+.cl-expand { margin-left: 6px; display: inline-flex; align-items: center; }
+
+.cl-overlay-open { overflow: hidden; }
+.cl-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: grid;
+  place-items: center;
+  background: color-mix(in srgb, var(--bgColor-default, #ffffff) 55%, rgb(0 0 0 / 0.55));
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  animation: cl-fade 160ms ease-out;
+}
+.cl-overlay-panel {
+  position: relative;
+  width: min(94vw, calc(86vh * 1.85));
+  max-height: 94vh;
+  overflow: auto;
+  padding: 44px 16px 12px;
+  border: 1px solid var(--borderColor-default, #d1d9e0);
+  border-radius: 12px;
+  background: var(--bgColor-default, #ffffff);
+  box-shadow: 0 24px 64px rgb(0 0 0 / 0.35);
+}
+.cl-overlay-close { position: absolute; top: 10px; right: 12px; }
+.cl-contributions-wrapper.is-expanded { margin: 0; }
+.cl-contributions-wrapper.is-expanded .cl-stat-value { font-size: 28px; }
+@keyframes cl-fade { from { opacity: 0; } to { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .cl-overlay { animation: none; } }
+.cl-squares .cl-expand { display: none; }
