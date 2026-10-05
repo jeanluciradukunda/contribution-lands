@@ -1,5 +1,8 @@
 <p align="center">
-  <img src="docs/logo.svg" alt="Contribution Lands" width="520">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/logo-dark.svg">
+    <img src="docs/logo-light.svg" alt="Contribution Lands" width="520">
+  </picture>
 </p>
 
 <p align="center">
