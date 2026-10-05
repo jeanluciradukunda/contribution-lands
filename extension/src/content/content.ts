@@ -302,17 +302,81 @@ function injectToggle(box: Element) {
     group.append(btn);
   }
 
+  const expand = document.createElement('button');
+  expand.type = 'button';
+  expand.className = 'cl-expand btn btn-sm py-0 px-2';
+  expand.setAttribute('aria-label', 'Expand the land');
+  expand.setAttribute('aria-expanded', 'false');
+  expand.title = 'Expand';
+  expand.innerHTML = '<svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><path fill="currentColor" d="M3.72 3.72a.75.75 0 0 1 .53-.22h2.5a.75.75 0 0 1 0 1.5H6.06l1.97 1.97a.75.75 0 0 1-1.06 1.06L5 6.06v.69a.75.75 0 0 1-1.5 0v-2.5a.75.75 0 0 1 .22-.53Zm8.56 8.56a.75.75 0 0 1-.53.22h-2.5a.75.75 0 0 1 0-1.5h.69l-1.97-1.97a.75.75 0 1 1 1.06-1.06L11 9.94v-.69a.75.75 0 0 1 1.5 0v2.5a.75.75 0 0 1-.22.53Z"/></svg>';
+  expand.addEventListener('click', () => openExpanded(expand));
+
   const controls = document.createElement('div');
   controls.className = 'cl-controls d-flex flex-items-center float-right';
   const settingsMenu = box.querySelector('focus-group, details.contrib-settings');
   if (settingsMenu) {
     settingsMenu.before(controls);
-    controls.append(settingsMenu, group);
+    controls.append(settingsMenu, group, expand);
   } else {
-    controls.append(group);
+    controls.append(group, expand);
     box.querySelector('h2')?.before(controls);
   }
 }
+
+/**
+ * Moves the existing land into a near-full-screen overlay; the renderer re-lays
+ * itself out for the new width, so nothing is rebuilt and all interaction keeps working.
+ */
+function openExpanded(trigger: HTMLElement) {
+  const wrapper = document.querySelector<HTMLElement>('.cl-contributions-wrapper');
+  if (!wrapper || document.querySelector('.cl-overlay')) return;
+  const placeholder = document.createComment('cl-land');
+  wrapper.before(placeholder);
+
+  const overlay = document.createElement('div');
+  overlay.className = 'cl-overlay';
+  overlay.setAttribute('role', 'dialog');
+  overlay.setAttribute('aria-modal', 'true');
+  overlay.setAttribute('aria-label', 'Contribution land, expanded');
+  const panel = document.createElement('div');
+  panel.className = 'cl-overlay-panel';
+  const close = document.createElement('button');
+  close.type = 'button';
+  close.className = 'cl-overlay-close btn btn-sm';
+  close.textContent = 'Close';
+  close.setAttribute('aria-label', 'Close the expanded land');
+  panel.append(close, wrapper);
+  overlay.append(panel);
+  document.body.append(overlay);
+  document.documentElement.classList.add('cl-overlay-open');
+  trigger.setAttribute('aria-expanded', 'true');
+  wrapper.classList.add('is-expanded');
+  close.focus();
+
+  const shut = () => {
+    document.removeEventListener('keydown', onKey, true);
+    wrapper.classList.remove('is-expanded');
+    placeholder.replaceWith(wrapper);
+    overlay.remove();
+    document.documentElement.classList.remove('cl-overlay-open');
+    trigger.setAttribute('aria-expanded', 'false');
+    trigger.focus();
+  };
+  const onKey = (e: KeyboardEvent) => {
+    if (e.key === 'Escape') {
+      e.stopPropagation();
+      shut();
+    }
+  };
+  document.addEventListener('keydown', onKey, true);
+  close.addEventListener('click', shut);
+  overlay.addEventListener('click', (e) => {
+    if (e.target === overlay) shut();
+  });
+  closeExpanded = shut;
+}
+
+let closeExpanded: (() => void) | null = null;
 
 function dayCell(date: string): HTMLElement | null {
   return document.querySelector<HTMLElement>(`.js-calendar-graph td.ContributionCalendar-day[data-date="${date}"]`);
@@ -331,6 +395,8 @@ function mirrorSelection(calendarGraph: Element) {
 }
 
 function teardown() {
+  closeExpanded?.();
+  closeExpanded = null;
   selectionObserver?.disconnect();
   selectionObserver = null;
   historyRequest?.abort();
