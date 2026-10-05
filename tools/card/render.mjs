@@ -80,7 +80,7 @@ const server = createServer((req, res) => {
     res.writeHead(200, { 'content-type': 'text/html' }).end(calendar);
     return;
   }
-  const manifest = url.pathname.match(/^\/themes\/([^/]+)\/sprites\/manifest\.json$/);
+  const manifest = url.pathname.match(/^\/themes\/([^/]+)\/sprites\/sprites\.json$/);
   if (manifest) {
     res.writeHead(200, { 'content-type': 'application/json' }).end(spriteManifest(manifest[1]));
     return;

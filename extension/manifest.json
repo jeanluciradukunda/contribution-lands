@@ -32,7 +32,7 @@
   ],
   "web_accessible_resources": [
     {
-      "resources": ["themes/*/theme.json", "themes/*/sprites/*.png", "themes/*/sprites/manifest.json"],
+      "resources": ["themes/*/theme.json", "themes/*/sprites/*.png", "themes/*/sprites/sprites.json"],
       "matches": ["https://github.com/*"]
     }
   ]

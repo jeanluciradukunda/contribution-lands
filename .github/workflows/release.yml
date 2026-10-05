@@ -78,6 +78,7 @@ jobs:
           cd extension/dist
           test "$(ls themes)" = "city-nyc" || { echo "Unexpected themes:"; ls themes; exit 1; }
           test -f THIRD_PARTY_NOTICES.md
+          test "$(find . -name manifest.json | wc -l)" -eq 1 || { echo "The store accepts exactly one manifest.json"; find . -name manifest.json; exit 1; }
           jq -e --arg v "$VERSION" '.version == $v' manifest.json
 
       - name: Package as ZIP
