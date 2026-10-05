@@ -1,13 +1,13 @@
 #!/usr/bin/env node
 /**
- * Writes docs/data/year.js: the last 22 weeks of one profile's public contribution
- * calendar, for the site's hero. Usage: node tools/site/snapshot-year.mjs <username>
+ * Writes docs/data/year.js: every day of one profile's public contribution calendar
+ * (about 53 weeks), for the site's hero. Usage: node tools/site/snapshot-year.mjs <username>
  */
 import { writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 
 const user = process.argv[2] ?? 'jeanluciradukunda';
-const WEEKS = 22;
+const MIN_DAYS = 52 * 7;
 const res = await fetch(`https://github.com/users/${encodeURIComponent(user)}/contributions`, {
   headers: { 'user-agent': 'contribution-lands-site' },
 });
@@ -27,12 +27,9 @@ for (const [cell] of html.matchAll(/<td[^>]*ContributionCalendar-day[^>]*>/g)) {
   if (date) days.push({ date, count: counts.get(id) ?? 0, level });
 }
 days.sort((a, b) => a.date.localeCompare(b.date));
-if (days.length < WEEKS * 7) throw new Error(`only ${days.length} days parsed`);
+if (days.length < MIN_DAYS) throw new Error(`only ${days.length} days parsed`);
+const year = days.map((d) => [d.date, d.count, d.level]);
 
-const last = new Date(`${days.at(-1).date}T00:00:00Z`);
-const firstSunday = new Date(last.getTime() - (last.getUTCDay() + (WEEKS - 1) * 7) * 864e5).toISOString().slice(0, 10);
-const recent = days.filter((d) => d.date >= firstSunday).map((d) => [d.date, d.count, d.level]);
-
-const body = `window.CL_YEAR = ${JSON.stringify({ user, taken: new Date().toISOString().slice(0, 10), days: recent })};\n`;
+const body = `window.CL_YEAR = ${JSON.stringify({ user, taken: new Date().toISOString().slice(0, 10), days: year })};\n`;
 writeFileSync(resolve(import.meta.dirname, '../../docs/data/year.js'), body);
-console.log(`Wrote ${recent.length} days for ${user}, ${recent[0][0]} to ${recent.at(-1)[0]}`);
+console.log(`Wrote ${year.length} days for ${user}, ${year[0][0]} to ${year.at(-1)[0]}`);
