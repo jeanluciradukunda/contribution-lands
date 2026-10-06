@@ -418,6 +418,12 @@ function openExpanded(trigger: HTMLElement) {
 
 let closeExpanded: (() => void) | null = null;
 let landWrapper: HTMLElement | null = null;
+let landRange = '';
+
+function calendarRange(): string {
+  const days = document.querySelectorAll<HTMLElement>('.js-calendar-graph td.ContributionCalendar-day');
+  return days.length ? `${days[0].dataset.date}|${days[days.length - 1].dataset.date}` : '';
+}
 
 /**
  * Unselecting a day makes GitHub re-render the whole contributions section. Move the
@@ -487,6 +493,7 @@ async function generate() {
       ? parsed.map((d) => ({ ...d, level: absoluteLevel(d.count) }))
       : parsed;
     if (!data) return;
+    const range = calendarRange();
 
     const { config, sprites, todayStages } = await loadTheme();
     if (document.querySelector('.cl-contributions-wrapper') || !calendarGraph.isConnected) return;
@@ -495,6 +502,7 @@ async function generate() {
     wrapper.className = 'cl-contributions-wrapper';
     calendarGraph.before(wrapper);
     landWrapper = wrapper;
+    landRange = range;
 
     const canvas = document.createElement('canvas');
     canvas.id = 'contribution-lands-canvas';
@@ -541,6 +549,11 @@ function setupObserver() {
     const graph = document.querySelector('.js-calendar-graph');
     if (!graph) return;
     if (landWrapper && renderer) {
+      if (calendarRange() !== landRange) {
+        teardown();
+        void generate();
+        return;
+      }
       const box = document.querySelector('.js-yearly-contributions');
       const stale = !box?.querySelector('.cl-controls') || (!document.querySelector('.cl-overlay') && !box.contains(landWrapper));
       if (stale) reattach();

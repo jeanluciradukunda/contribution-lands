@@ -7,6 +7,9 @@ All notable changes to this project will be documented in this file.
 ### Added
 - Download your land as a high-resolution PNG (three times screen resolution) from the new button next to Expand. It matches GitHub's light or dark background and carries a small `@user · contribution lands` caption.
 
+### Fixed
+- Picking a different year on a profile now rebuilds the land and stats for that year; before, the previous year's city stayed in place.
+
 ## [0.2.0] - 2026-10-06
 
 First tagged release, and the first published by CI to the [Chrome Web Store](https://chromewebstore.google.com/detail/contribution-lands/bbapichgjbdkehhdgaonahkjicihdhih). The store's 0.1.0 (2026-10-05) was a build of `main` from partway through this list.
