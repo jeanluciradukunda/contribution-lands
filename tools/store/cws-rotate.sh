@@ -37,7 +37,7 @@ head -c 400 "$OUT"; echo
 rm -f "$OUT"
 [[ "$CODE" == "200" ]] || echo "    (The token works; the status call returned $CODE. Not blocking, carrying on.)"
 
-printf '%s' "$NEW_SECRET" | gh secret set CWS_CLIENT_SECRET -R "$REPO"
+printf '%s' "$NEW_SECRET" | gh secret set CWS_CLIENT_SECRET -R "$REPO" --env chrome-web-store
 echo "Updated GitHub secret CWS_CLIENT_SECRET."
 op item edit "$ITEM" "client_secret[password]=$NEW_SECRET" >/dev/null
 echo "Updated 1Password: $ITEM"

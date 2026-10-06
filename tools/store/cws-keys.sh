@@ -37,9 +37,9 @@ op item create --category="API Credential" --vault="$VAULT" --title="$TITLE" \
   >/dev/null
 echo "Stored in 1Password: $VAULT / $TITLE"
 
-printf '%s' "$CLIENT_ID"     | gh secret set CWS_CLIENT_ID     -R "$REPO"
-printf '%s' "$CLIENT_SECRET" | gh secret set CWS_CLIENT_SECRET -R "$REPO"
-printf '%s' "$REFRESH_TOKEN" | gh secret set CWS_REFRESH_TOKEN -R "$REPO"
+printf '%s' "$CLIENT_ID"     | gh secret set CWS_CLIENT_ID     -R "$REPO" --env chrome-web-store
+printf '%s' "$CLIENT_SECRET" | gh secret set CWS_CLIENT_SECRET -R "$REPO" --env chrome-web-store
+printf '%s' "$REFRESH_TOKEN" | gh secret set CWS_REFRESH_TOKEN -R "$REPO" --env chrome-web-store
 unset CLIENT_ID CLIENT_SECRET REFRESH_TOKEN
 
-gh secret list -R "$REPO"
+gh secret list -R "$REPO" --env chrome-web-store

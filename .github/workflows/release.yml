@@ -17,8 +17,8 @@ permissions:
 jobs:
   build-and-release:
     runs-on: ubuntu-latest
+    environment: chrome-web-store
     env:
-      # Store upload runs only once these secrets exist; the first submission is manual.
       CLIENT_ID: ${{ secrets.CWS_CLIENT_ID }}
       CLIENT_SECRET: ${{ secrets.CWS_CLIENT_SECRET }}
       REFRESH_TOKEN: ${{ secrets.CWS_REFRESH_TOKEN }}
