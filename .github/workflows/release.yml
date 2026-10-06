@@ -97,10 +97,9 @@ jobs:
             Turns the contribution graph on GitHub profile pages into an isometric New York skyline.
 
             ### Install
-            1. Download `contribution-lands-${{ steps.version.outputs.VERSION }}.zip` below and unzip it.
-            2. Open `chrome://extensions` and turn on **Developer mode**.
-            3. Click **Load unpacked** and select the unzipped folder.
-            4. Visit any GitHub profile: the contribution graph becomes a city.
+            Add it from the [Chrome Web Store](https://chromewebstore.google.com/detail/contribution-lands/bbapichgjbdkehhdgaonahkjicihdhih), then visit any GitHub profile.
+
+            To load this build by hand instead, unzip `contribution-lands-${{ steps.version.outputs.VERSION }}.zip`, open `chrome://extensions`, turn on **Developer mode**, click **Load unpacked** and select the folder.
 
             Requires Chrome 111 or later.
           files: |
