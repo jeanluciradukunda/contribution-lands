@@ -62,7 +62,7 @@ gh workflow run release.yml -f version=0.2.1
 
 The workflow tags `v<version>`, writes the version into the manifest, builds, checks the package (NYC only, one `manifest.json`, the notices file), creates a GitHub release with the zip, and uploads it to the Chrome Web Store and submits it for review. Pushing a `v*` tag does the same. Review of an update has taken minutes to a few days.
 
-The store upload needs five repository secrets: `CWS_CLIENT_ID`, `CWS_CLIENT_SECRET`, `CWS_REFRESH_TOKEN`, `CWS_PUBLISHER_ID` and `CWS_EXTENSION_ID`. Without `CWS_EXTENSION_ID` the upload step is skipped and only the GitHub release is made. The maintainer creates and rotates the OAuth credentials with `tools/store/cws-keys.sh` and `tools/store/cws-rotate.sh`, run in their own terminal. The Google Cloud consent screen must stay "In production", or the refresh token expires after 7 days and uploads fail.
+Each release waits for the maintainer to approve it in the protected `chrome-web-store` environment, which holds the store credentials. The store upload needs five secrets there: `CWS_CLIENT_ID`, `CWS_CLIENT_SECRET`, `CWS_REFRESH_TOKEN`, `CWS_PUBLISHER_ID` and `CWS_EXTENSION_ID`. Without `CWS_EXTENSION_ID` the upload step is skipped and only the GitHub release is made. The maintainer creates and rotates the OAuth credentials with `tools/store/cws-keys.sh` and `tools/store/cws-rotate.sh`, run in their own terminal. The Google Cloud consent screen must stay "In production", or the refresh token expires after 7 days and uploads fail.
 
 Listing text and assets for the store dashboard live in `store/`.
 
