@@ -92,7 +92,7 @@
   font-weight: 600;
 }
 
-.cl-expand svg { vertical-align: text-bottom; }
+.cl-expand svg, .cl-download svg { vertical-align: text-bottom; }
 
 .cl-overlay-open { overflow: hidden; }
 .cl-overlay {
@@ -122,4 +122,4 @@
 .cl-contributions-wrapper.is-expanded .cl-stat-value { font-size: 28px; }
 @keyframes cl-fade { from { opacity: 0; } to { opacity: 1; } }
 @media (prefers-reduced-motion: reduce) { .cl-overlay { animation: none; } }
-.cl-squares .cl-expand { display: none; }
+.cl-squares .cl-expand, .cl-squares .cl-download { display: none; }

@@ -1312,6 +1312,36 @@ export class IsoRenderer {
     });
   }
 
+  /** Renders the current land at print resolution with no hover or selection, then restores the live view. */
+  exportImage(background: string, ink: string, caption: string): Promise<Blob | null> {
+    const { dpr, hovered, selected } = this;
+    this.dpr = Math.max(3, dpr);
+    this.hovered = this.selected = null;
+    this.canvas.width = Math.round(this.cssWidth * this.dpr);
+    this.canvas.height = Math.round(this.cssHeight * this.dpr);
+    this.ground = this.renderGround();
+    this.draw();
+
+    const out = document.createElement('canvas');
+    out.width = this.canvas.width;
+    out.height = this.canvas.height;
+    const ctx = out.getContext('2d')!;
+    ctx.fillStyle = background;
+    ctx.fillRect(0, 0, out.width, out.height);
+    ctx.drawImage(this.canvas, 0, 0);
+    ctx.scale(this.dpr, this.dpr);
+    ctx.font = '500 11px ui-monospace, SFMono-Regular, Menlo, monospace';
+    ctx.fillStyle = ink;
+    ctx.globalAlpha = 0.55;
+    ctx.textAlign = 'right';
+    ctx.fillText(caption, this.cssWidth - 16, this.cssHeight - 10);
+
+    this.hovered = hovered;
+    this.selected = selected;
+    this.layout();
+    return new Promise((resolve) => out.toBlob(resolve, 'image/png'));
+  }
+
   destroy() {
     if (this.frameId !== null) cancelAnimationFrame(this.frameId);
     this.frameId = null;
