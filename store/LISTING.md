@@ -1,6 +1,6 @@
 # Chrome Web Store listing: paste-ready
 
-Upload `contribution-lands-<version>.zip` (built by the release workflow, or a clean build of `main`).
+New versions upload themselves through the Release workflow (see CONTRIBUTING.md). For a manual upload, use `contribution-lands-<version>.zip` from the GitHub release.
 
 ## Store listing tab
 

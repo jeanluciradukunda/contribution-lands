@@ -2,6 +2,30 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.2.0] - 2026-10-06
+
+First tagged release, and the first published by CI to the [Chrome Web Store](https://chromewebstore.google.com/detail/contribution-lands/bbapichgjbdkehhdgaonahkjicihdhih). The store's 0.1.0 (2026-10-05) was a build of `main` from partway through this list.
+
+### Added
+- Streets between six-week blocks, stats panels (total, streaks, busiest day), traffic and a rebuilt popup.
+- Landmark days, click a building to filter the activity feed to that day, building shadows.
+- A construction site on today's lot that grows with the day's count, and weekend parks.
+- The streak railway as an elevated NYC line with graffiti subway cars.
+- Expand the land into a near-full-screen view.
+- One absolute height scale for everyone (popup toggle "Same scale for everyone"); landmarks are earned by the day's count.
+- More NYC sprites: street-scale parks, small buildings, and 16 landmark towers.
+- A GitHub Action that renders your land as a profile README card, in light and dark.
+- Project site with a live drawing of a real year, a sprite library and a privacy policy.
+- Release workflow that packages, publishes a GitHub release and uploads to the Chrome Web Store.
+
+### Changed
+- The store package ships the NYC theme only.
+
+### Fixed
+- Tooltip counts read 0 after GitHub changed how tooltips link to cells.
+- Stats total now matches GitHub's heading on Sundays.
+- The land survives GitHub re-rendering the calendar when a day is selected and unselected.
+
 ## [0.1.0] - 2026-03-23
 
 ### Added
