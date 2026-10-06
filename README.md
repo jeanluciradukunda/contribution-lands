@@ -7,7 +7,7 @@
 
 <p align="center">
   <img alt="Public Beta" src="https://img.shields.io/badge/Status-Public%20Beta-ffcc73?style=for-the-badge">
-  <img alt="Chrome Extension" src="https://img.shields.io/badge/Chrome-Extension-4285F4?style=for-the-badge&logo=googlechrome&logoColor=white">
+  <a href="https://chromewebstore.google.com/detail/contribution-lands/bbapichgjbdkehhdgaonahkjicihdhih"><img alt="Chrome Web Store" src="https://img.shields.io/chrome-web-store/v/bbapichgjbdkehhdgaonahkjicihdhih?style=for-the-badge&logo=googlechrome&logoColor=white&label=Chrome%20Web%20Store&color=4285F4"></a>
   <img alt="MIT License" src="https://img.shields.io/badge/License-MIT-4a90d9?style=for-the-badge">
   <img alt="Python 3.10+" src="https://img.shields.io/badge/Python-3.10+-4ade80?style=for-the-badge&logo=python&logoColor=white">
 </p>
@@ -53,10 +53,7 @@ contribution-lands/
 
 ## Install
 
-The Chrome Web Store listing is on its way. Until then, install a release build:
-
-1. Download the latest `contribution-lands-*.zip` from [Releases](https://github.com/jeanluciradukunda/contribution-lands/releases) and unzip it.
-2. Go to `chrome://extensions/`, turn on **Developer mode**, click **Load unpacked** and select the unzipped folder.
+Install it from the [Chrome Web Store](https://chromewebstore.google.com/detail/contribution-lands/bbapichgjbdkehhdgaonahkjicihdhih).
 
 Or build it yourself:
 
