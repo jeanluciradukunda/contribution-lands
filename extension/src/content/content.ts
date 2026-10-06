@@ -323,7 +323,15 @@ function injectToggle(box: Element) {
   expand.title = 'Expand';
   expand.innerHTML = '<svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><path fill="currentColor" d="M3.72 3.72a.75.75 0 0 1 .53-.22h2.5a.75.75 0 0 1 0 1.5H6.06l1.97 1.97a.75.75 0 0 1-1.06 1.06L5 6.06v.69a.75.75 0 0 1-1.5 0v-2.5a.75.75 0 0 1 .22-.53Zm8.56 8.56a.75.75 0 0 1-.53.22h-2.5a.75.75 0 0 1 0-1.5h.69l-1.97-1.97a.75.75 0 1 1 1.06-1.06L11 9.94v-.69a.75.75 0 0 1 1.5 0v2.5a.75.75 0 0 1-.22.53Z"/></svg>';
   expand.addEventListener('click', () => openExpanded(expand));
-  group.append(expand);
+
+  const download = document.createElement('button');
+  download.type = 'button';
+  download.className = 'cl-download btn BtnGroup-item btn-sm py-0 px-2';
+  download.setAttribute('aria-label', 'Download the land as an image');
+  download.title = 'Download image';
+  download.innerHTML = '<svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><path fill="currentColor" d="M2.75 14A1.75 1.75 0 0 1 1 12.25v-2.5a.75.75 0 0 1 1.5 0v2.5c0 .138.112.25.25.25h10.5a.25.25 0 0 0 .25-.25v-2.5a.75.75 0 0 1 1.5 0v2.5A1.75 1.75 0 0 1 13.25 14Z"/><path fill="currentColor" d="M7.25 7.689V2a.75.75 0 0 1 1.5 0v5.689l1.97-1.969a.749.749 0 1 1 1.06 1.06l-3.25 3.25a.749.749 0 0 1-1.06 0L4.22 6.78a.749.749 0 1 1 1.06-1.06l1.97 1.969Z"/></svg>';
+  download.addEventListener('click', () => void downloadLand());
+  group.append(download, expand);
 
   const controls = document.createElement('div');
   controls.className = 'cl-controls d-flex flex-items-center float-right';
@@ -335,6 +343,20 @@ function injectToggle(box: Element) {
     controls.append(group);
     box.querySelector('h2')?.before(controls);
   }
+}
+
+async function downloadLand() {
+  if (!renderer) return;
+  const user = location.pathname.split('/')[1] || 'github';
+  const page = getComputedStyle(document.body);
+  const blob = await renderer.exportImage(page.backgroundColor, page.color, `@${user} · contribution lands`);
+  if (!blob) return;
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = `contribution-lands-${user}-${todayKey()}.png`;
+  link.click();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
 /**
