@@ -367,6 +367,10 @@ pre code { background: none; border: 0; padding: 0; font-size: inherit; }
 .steps b { font-weight: 500; display: block; margin-bottom: 4px; }
 .steps p { margin: 0 0 8px; color: var(--muted); }
 .steps pre { margin-top: 6px; }
+.card.proposed { background: transparent; border: 1px dashed var(--mid); }
+.card.proposed .cap { padding-top: 16px; }
+.roadmap { margin: 18px 0 0; }
+@media (min-width: 701px) { .grid.phases { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
 
 /* Footer */
 .foot { border-top: 1px solid var(--line); margin-top: 80px; }
@@ -409,6 +413,7 @@ pre code { background: none; border: 0; padding: 0; font-size: inherit; }
       <li><a href="#readme">In your README<span>A-600</span></a></li>
       <li class="rule" aria-hidden="true"></li>
       <li><a href="#install">Install<span>3 steps</span></a></li>
+      <li><a href="#next">What's next<span>phase 2</span></a></li>
     </ol>
   </aside>
 
@@ -656,6 +661,29 @@ pre code { background: none; border: 0; padding: 0; font-size: inherit; }
       <li><div><b>Open a profile</b><p>Visit any GitHub profile. The graph is drawn and built as soon as the page loads.</p></div></li>
       <li><div><b>Pick a view</b><p>Click the toolbar icon to switch between the flat graph, the land or both, and to set the scale, stats and motion.</p></div></li>
     </ol>
+  </section>
+
+  <section class="sec" id="next" aria-labelledby="next-title">
+    <div class="sec-head" style="margin:0">
+      <h2 id="next-title">Next on the <span class="mk">drawing board</span>.</h2>
+      <span class="mono">phase 2 · dashed means not yet built</span>
+    </div>
+    <p class="intro">New York is the first city, not the last. These are the next phases, coming soon.</p>
+    <div class="grid phases" style="margin-top:18px">
+      <article class="card proposed">
+        <div class="cap"><h3>More cities</h3><span class="sht">P-201</span></div>
+        <p>Tokyo, Paris and Cape Town, redrawn on the New York recipe: real materials, warm light and landmarks your best days earn.</p>
+      </article>
+      <article class="card proposed">
+        <div class="cap"><h3>More themes</h3><span class="sht">P-202</span></div>
+        <p>Lands beyond the city, like forests through the seasons, plus day and night by your clock and weather across the year.</p>
+      </article>
+      <article class="card proposed">
+        <div class="cap"><h3>Multiplayer</h3><span class="sht">P-203</span></div>
+        <p>Your city next to your friends'. Put lands side by side, compare skylines and grow a neighbourhood together with your team.</p>
+      </article>
+    </div>
+    <p class="mono roadmap"><a href="https://github.com/jeanluciradukunda/contribution-lands/issues/25">Follow the roadmap</a> · <a href="https://github.com/jeanluciradukunda/contribution-lands/issues/new">suggest an idea</a></p>
   </section>
 </main>
 </div>
