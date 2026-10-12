@@ -35,6 +35,7 @@ function pngSize(file) {
   return { w: b.readUInt32BE(16), h: b.readUInt32BE(20) };
 }
 
+const CP_LANDMARKS = { bethesda: 'Bethesda Terrace', belvedere: 'Belvedere Castle' };
 const landmarks = new Map((theme.landmarks ?? []).map((l, i) => [l.sprite, { name: l.name, order: i + 1 }]));
 const parks = new Set(theme.park_sprites ?? []);
 const today = theme.today_sprites ?? [];
@@ -66,7 +67,24 @@ for (const file of readdirSync(join(THEME_DIR, 'sprites')).sort()) {
   sprites.push({ ...entry, src: `assets/library/${webp}`, w, h, ratio: Math.round((h / w) * 10) / 10, bytes: statSync(join(OUT_IMG, webp)).size });
 }
 
-const order = { lot: 0, park: 1, l1: 2, l2: 3, l3: 4, l4: 5, landmark: 6, today: 7 };
+const cp = theme.central_park_sprites;
+if (cp) {
+  const cpAssets = [
+    ...Object.entries(cp.textures ?? {}).map(([k, file]) => ({ file, kind: 'Texture', name: `${k[0].toUpperCase()}${k.slice(1)} texture` })),
+    ...(cp.trees ?? []).map((file, i) => ({ file, kind: 'Tree', name: `Tree ${String.fromCharCode(65 + i)}` })),
+    ...Object.entries(cp.landmarks ?? {}).map(([k, file]) => ({ file, kind: 'Landmark', name: CP_LANDMARKS[k] ?? k })),
+  ];
+  cpAssets.forEach(({ file, kind, name }, i) => {
+    const src = join(THEME_DIR, 'sprites', file);
+    const { w, h } = pngSize(src);
+    const id = file.replace(/\.png$/, '');
+    const webp = `${id}.webp`;
+    execFileSync('cwebp', ['-quiet', '-q', '80', '-alpha_q', '90', '-m', '6', src, '-o', join(OUT_IMG, webp)]);
+    sprites.push({ id, group: 'cp', role: kind, kind, name, order: i, src: `assets/library/${webp}`, w, h, ratio: Math.round((h / w) * 10) / 10, bytes: statSync(join(OUT_IMG, webp)).size });
+  });
+}
+
+const order = { lot: 0, park: 1, cp: 2, l1: 3, l2: 4, l3: 5, l4: 6, landmark: 7, today: 8 };
 sprites.sort((a, b) => order[a.group] - order[b.group] || (a.order ?? 0) - (b.order ?? 0) || a.level - b.level || a.id.localeCompare(b.id, 'en', { numeric: true }));
 
 const levels = [0, 1, 2, 3, 4].map((level) => ({ level, ...levelBand(level) }));

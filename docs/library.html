@@ -336,6 +336,8 @@ noscript p { color: var(--muted); }
       note: 'weekdays with no contributions', when: function () { return 'builds on weekdays with no contributions'; } },
     { id: 'park', title: 'Weekend parks', one: 'park', many: 'parks', fh: 160, min: 170, head: 'L0 · weekends',
       note: 'weekends with no contributions', when: function () { return 'builds on weekends with no contributions'; } },
+    { id: 'cp', title: 'Central Park', one: 'Central Park sprite', many: 'Central Park sprites', fh: 160, min: 170, head: 'Central Park',
+      note: 'testing, behind the Central Park toggle', when: function () { return 'drawn over long empty stretches when Central Park is on'; } },
     { id: 'l1', level: 1, title: 'Brownstones and shops', one: 'brownstone or shop', many: 'brownstones and shops', fh: 216, min: 170 },
     { id: 'l2', level: 2, title: 'Walk-ups', one: 'walk-up', many: 'walk-ups', fh: 250, min: 170 },
     { id: 'l3', level: 3, title: 'Towers', one: 'tower', many: 'towers', fh: 300, min: 170 },
@@ -408,7 +410,7 @@ noscript p { color: var(--muted); }
 
   function tile(sp, g) {
     var lm = g.id === 'landmark';
-    var head = lm ? 'L' + sp.level + ' · ' + LV[sp.level].min + '+' : g.head;
+    var head = lm ? 'L' + sp.level + ' · ' + LV[sp.level].min + '+' : g.id === 'cp' ? sp.kind.toLowerCase() : g.head;
     var when = lm ? bestDay(sp.order) + ', if it hit ' + LV[sp.level].min + '+' : g.when();
     var tipId = 'tip-' + sp.id, metaId = 'meta-' + sp.id, nameId = 'name-' + sp.id;
     var meta = h('p', { class: 'mono meta', id: metaId });
@@ -419,7 +421,7 @@ noscript p { color: var(--muted); }
     meta.appendChild(document.createTextNode(sp.w + ' × ' + sp.h + ' px · ' + ratio(sp)));
     var el = h('article', { class: 'card tile', id: 't-' + sp.id, tabindex: '0', 'aria-labelledby': nameId, 'aria-describedby': tipId + ' ' + metaId,
       style: '--r:' + (sp.h / sp.w).toFixed(3) }, [
-      h('div', { class: 'bar' }, [h('span', { class: 'mono', text: head }), lm ? h('span', { class: 'badge', text: 'earned' }) : h('span', { class: 'mono', text: sp.letter })]),
+      h('div', { class: 'bar' }, [h('span', { class: 'mono', text: head }), lm ? h('span', { class: 'badge', text: 'earned' }) : g.id === 'cp' ? h('span', { class: 'badge', text: 'testing' }) : h('span', { class: 'mono', text: sp.letter })]),
       h('div', { class: 'tfig' }, [h('span', { class: 'tip', id: tipId, text: when }), stand(sp, sp.name), h('span', { class: 'dim', 'aria-hidden': 'true' }, [h('b', { text: sp.h + ' px' })])]),
       h('h3', { id: nameId, text: sp.name }),
       meta
@@ -444,7 +446,7 @@ noscript p { color: var(--muted); }
 
   GROUPS.forEach(function (g, i) {
     var w = spriteWidth(g);
-    var count = g.items.length + ' ' + (g.id === 'today' ? 'stages' : g.items.length === 1 ? 'lot' : 'lots') + ' · ' + g.note;
+    var count = g.items.length + ' ' + (g.id === 'today' ? 'stages' : g.id === 'cp' ? 'sprites' : g.items.length === 1 ? 'lot' : 'lots') + ' · ' + g.note;
     var body;
     if (g.id === 'today') body = todayCard(g);
     else {
@@ -463,7 +465,7 @@ noscript p { color: var(--muted); }
   var strip = document.getElementById('strip'), read = document.getElementById('strip-read');
   (function drawStrip() {
     var K = .42, W = 128 * K, STEP = 12.5, GAP = 44, LEFT = 60, TOP = 26;
-    var levelSprites = L.sprites.filter(function (s) { return s.group !== 'today'; });
+    var levelSprites = L.sprites.filter(function (s) { return s.group !== 'today' && s.group !== 'cp'; });
     var maxH = Math.max.apply(null, levelSprites.map(function (s) { return s.h; }));
     var base = TOP + maxH * K, x = LEFT + 6;
     var grid = S('g', {}, strip), art = S('g', {}, strip), dims = S('g', {}, strip);
