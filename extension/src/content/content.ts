@@ -137,14 +137,19 @@ async function loadParkSprites(themeId: string, config: ThemeConfig): Promise<Pa
   const names = config.central_park_sprites;
   if (!names) return null;
   const load = async (name: string | undefined) => (name ? loadBitmap(`themes/${themeId}/sprites/${name}`) : null);
-  const loadAll = async (list: string[] | undefined) => (await Promise.all((list ?? []).map(load))).filter((b): b is ImageBitmap => b !== null);
-  const [edgeLeft, edgeRight, edgeCorner, lawn, canopy, landmarks] = await Promise.all([
-    load(names.edge_left), load(names.edge_right), load(names.edge_corner),
-    loadAll(names.lawn), loadAll(names.canopy),
-    Promise.all(PARK_LANDMARKS.map((role) => load(names.landmarks?.[role]))),
+  const [canopy, lawn, water, trees, landmarks] = await Promise.all([
+    load(names.textures.canopy),
+    load(names.textures.lawn),
+    load(names.textures.water),
+    Promise.all(names.trees.map(load)),
+    Promise.all(PARK_LANDMARKS.map(async (role) => [role, await load(names.landmarks?.[role])] as const)),
   ]);
-  if (!edgeLeft || !edgeRight || !edgeCorner || !lawn.length) return null;
-  return { edgeLeft, edgeRight, edgeCorner, lawn, canopy, landmarks: landmarks.filter((b): b is ImageBitmap => b !== null) };
+  if (!canopy || !lawn || !water) return null;
+  return {
+    textures: { canopy, lawn, water },
+    trees: trees.filter((b): b is ImageBitmap => b !== null),
+    landmarks: Object.fromEntries(landmarks.filter(([, b]) => b !== null)),
+  };
 }
 
 async function loadTheme(): Promise<{ config: ThemeConfig; sprites: SpriteSet; todayStages: Array<ImageBitmap | null>; park: ParkSprites | null }> {

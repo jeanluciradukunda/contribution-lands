@@ -40,20 +40,15 @@
   "today_sprites": ["special-today-0.png", "special-today-1.png", "special-today-2.png", "special-today-3.png", "special-today-4.png"],
   "park_sprites": ["level-0-d.png", "level-0-f.png", "level-0-g.png", "level-0-h.png", "level-0-o.png", "level-0-p.png", "level-0-r.png", "level-0-s.png", "level-0-t.png", "level-0-v.png"],
   "central_park_sprites": {
-    "edge_left": "park-cp-wall-left.png",
-    "edge_right": "park-cp-wall-right.png",
-    "edge_corner": "park-cp-edge-c.png",
-    "lawn": ["park-cp-lawn-a.png", "park-cp-lawn-b.png", "park-cp-lawn-c.png", "park-cp-lawn-d.png"],
-    "canopy": ["park-cp-canopy-a.png", "park-cp-canopy-b.png", "park-cp-canopy-c.png"],
+    "textures": {
+      "canopy": "park-cp-tex-canopy.png",
+      "lawn": "park-cp-tex-lawn.png",
+      "water": "park-cp-tex-water.png"
+    },
+    "trees": ["park-cp-tree-a.png", "park-cp-tree-b.png"],
     "landmarks": {
       "bethesda": "park-cp-bethesda.png",
-      "bowbridge": "park-cp-bowbridge.png",
-      "belvedere": "park-cp-belvedere.png",
-      "reservoir": "park-cp-reservoir.png",
-      "sheep_meadow": "park-cp-sheepmeadow.png",
-      "mall": "park-cp-mall.png",
-      "gapstow": "park-cp-gapstow.png",
-      "wollman": "park-cp-wollman.png"
+      "belvedere": "park-cp-belvedere.png"
     }
   }
 }

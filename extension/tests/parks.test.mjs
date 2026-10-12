@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { findPark, parkLandmarkCount, placeLandmarks, PARK_LANDMARKS } from '../.test-build/parks.js';
+import { findPark, nearRegion, parkLayout } from '../.test-build/parks.js';
 
 const base = Date.UTC(2026, 0, 4);
 const iso = (n) => new Date(base + n * 86400000).toISOString().slice(0, 10);
@@ -52,30 +52,56 @@ test('a partial week column is never part of a park', () => {
   assert.deepEqual(findPark(days, farFuture), { firstWeek: 3, lastWeek: 28 });
 });
 
-test('landmark count scales with the district', () => {
-  assert.deepEqual([8, 9, 10, 12, 13, 16, 17, 30].map(parkLandmarkCount), [3, 3, 5, 5, 6, 6, 8, 8]);
-  assert.equal(parkLandmarkCount(30), PARK_LANDMARKS.length);
-});
+const sizes = [[9, 7.5], [14, 7.5], [24.5, 7.5], [52, 7.5]];
 
-test('landmarks are interior, deterministic, never touching, iconic first near the middle', () => {
-  const span = { firstWeek: 20, lastWeek: 31 };
-  const slots = placeLandmarks(span, 5, () => true);
-  assert.deepEqual(slots, placeLandmarks(span, 5, () => true));
-  assert.equal(slots.length, 5);
-  for (const s of slots) {
-    assert.ok(s.week > span.firstWeek && s.week < span.lastWeek, 'last week is the wall');
-    assert.ok(s.day >= 1 && s.day <= 4, 'day 6 is the wall');
+test('layout is deterministic and keeps trees inside the park', () => {
+  for (const [w, h] of sizes) {
+    const layout = parkLayout(w, h);
+    assert.deepEqual(layout, parkLayout(w, h));
+    assert.ok(layout.trees.length > 0);
+    for (const t of layout.trees) assert.ok(t.x > 0 && t.x < w && t.y > 0 && t.y < h);
+    assert.ok(layout.trees.length <= 1400);
   }
-  for (const a of slots) for (const b of slots) if (a !== b) assert.ok(Math.max(Math.abs(a.week - b.week), Math.abs(a.day - b.day)) >= 2);
-  const distance = (s) => Math.abs(s.week - 25.5);
-  assert.ok(distance(slots[0]) <= distance(slots[4]));
-  assert.deepEqual(slots.map((s) => s.index), [0, 1, 2, 3, 4]);
 });
 
-test('landmarks avoid blocked cells and skip when the park is too small', () => {
-  const span = { firstWeek: 0, lastWeek: 8 };
-  const slots = placeLandmarks(span, 3, (week) => week !== 4);
-  assert.equal(slots.length, 3);
-  assert.ok(slots.every((s) => s.week !== 4));
-  assert.deepEqual(placeLandmarks({ firstWeek: 0, lastWeek: 1 }, 3, () => true), []);
+test('no tree stands on water, the reservoir, a path or a landmark', () => {
+  for (const [w, h] of sizes) {
+    const layout = parkLayout(w, h);
+    const wet = layout.regions.filter((r) => r.kind !== 'lawn');
+    for (const t of layout.trees) {
+      assert.ok(!wet.some((r) => nearRegion(t, r, 0)), 'tree in water');
+      for (const l of layout.landmarks) assert.ok(Math.hypot(t.x - l.x, t.y - l.y) >= 0.55);
+      for (const path of layout.paths) for (const p of path) assert.ok(Math.hypot(t.x - p.x, t.y - p.y) >= 0.2);
+    }
+  }
+});
+
+test('the Reservoir is large, the Lake south of it, the Great Lawn between them, Harlem Meer at the north end', () => {
+  const layout = parkLayout(24.5, 7.5);
+  const area = (poly) => Math.abs(poly.reduce((sum, p, i) => sum + (p.x * poly[(i + 1) % poly.length].y - poly[(i + 1) % poly.length].x * p.y), 0) / 2);
+  const centre = (region) => {
+    const pts = region.polys.flat();
+    return { x: pts.reduce((s, p) => s + p.x, 0) / pts.length, y: pts.reduce((s, p) => s + p.y, 0) / pts.length };
+  };
+  const reservoir = layout.regions.find((r) => r.kind === 'reservoir');
+  const water = layout.regions.filter((r) => r.kind === 'water');
+  const lawns = layout.regions.filter((r) => r.kind === 'lawn');
+  const share = area(reservoir.polys[0]) / (24.5 * 7.5);
+  assert.ok(share > 0.1 && share < 0.25, `reservoir share ${share}`);
+  const [lake, meer] = water.sort((a, b) => centre(a).x - centre(b).x);
+  assert.ok(centre(lake).x < centre(reservoir).x - 3);
+  assert.ok(centre(meer).x > 0.9 * 24.5);
+  const between = lawns.filter((l) => centre(l).x > centre(lake).x && centre(l).x < centre(reservoir).x);
+  assert.equal(between.length, 1, 'one lawn between the lake and the reservoir');
+});
+
+test('landmarks sit on their shores, not in the water', () => {
+  const layout = parkLayout(24.5, 7.5);
+  const lake = layout.regions.find((r) => r.kind === 'water');
+  const reservoir = layout.regions.find((r) => r.kind === 'reservoir');
+  const bethesda = layout.landmarks.find((l) => l.role === 'bethesda');
+  const belvedere = layout.landmarks.find((l) => l.role === 'belvedere');
+  assert.ok(!nearRegion(bethesda, lake, 0) && nearRegion(bethesda, lake, 1.2));
+  assert.ok(!nearRegion(belvedere, reservoir, 0) && nearRegion(belvedere, reservoir, 1.2));
+  assert.ok(nearRegion({ x: layout.bridge.x0, y: (layout.bridge.y0 + layout.bridge.y1) / 2 }, lake, 0), 'bow bridge spans the lake');
 });

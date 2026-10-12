@@ -1,4 +1,4 @@
-"""Generate the Central Park landmark and filler sprites for city-nyc.
+"""Generate the Central Park landmark sprites for city-nyc (ground textures and trees: generate_park_textures.py).
 
     GOOGLE_API_KEY=... python generate_central_park.py [name ...] [--budget N]
 
@@ -12,7 +12,7 @@ import sys
 from pathlib import Path
 
 import numpy as np
-from PIL import Image, ImageOps
+from PIL import Image
 from scipy import ndimage
 from google import genai
 from google.genai import types
@@ -42,22 +42,12 @@ SUFFIX = (
 
 SPRITES = {
     "park-cp-bethesda": "Bethesda Terrace and Fountain in Central Park: the Angel of the Waters fountain with its tiered round basin and winged angel statue, in front of a sandstone arcaded terrace with wide steps and balustrades, hexagonal paving.",
-    "park-cp-bowbridge": "Bow Bridge in Central Park: a graceful low cast-iron arch footbridge with white-painted railings spanning a patch of calm blue lake water, a little grass bank at each end.",
     "park-cp-belvedere": "Belvedere Castle in Central Park: a small grey stone Gothic-Romanesque castle with a tower and turret and a flag, standing on its rocky schist outcrop with a few autumn trees.",
-    "park-cp-reservoir": "The Jacqueline Kennedy Onassis Reservoir in Central Park: a calm blue water surface bordered by a black iron fence and a reddish running path along the edge, a few cherry trees on the bank.",
-    "park-cp-sheepmeadow": "Sheep Meadow in Central Park: a wide open green lawn with a handful of tiny people sitting on picnic blankets, a low tree line of mixed green and autumn trees along one edge.",
-    "park-cp-mall": "The Mall in Central Park: a straight promenade of wide pale paving lined on both sides by tall elm trees forming a canopy, with park benches and cast-iron lamp posts.",
-    "park-cp-gapstow": "Gapstow Bridge in Central Park: a small rough-stone single-arch bridge over a pond of dark water, surrounded by orange and red autumn trees.",
-    "park-cp-wollman": "Wollman Rink in Central Park: a pale blue ice rink with a handful of tiny skaters, a low boundary rail and a small red-roofed rink house at one corner.",
-    "park-cp-canopy-a": "A dense Central Park tree canopy tile: a tight cluster of rounded mixed autumn trees (orange, gold, red) and green trees, filling the whole tile, grass showing only at the edges.",
-    "park-cp-canopy-b": "A dense Central Park tree canopy tile: several large rounded green oak and elm trees close together with a few gold leaves, filling the whole tile.",
-    "park-cp-canopy-c": "A dense Central Park tree canopy tile: a mix of tall autumn trees in orange and green plus a couple of low shrubs and a bench half hidden underneath, filling the tile.",
-    "park-cp-wall-left": "A Central Park edge tile: a low grey rough-stone park wall running along the lower-left edge of a grass tile, a hexagonal-paved pavement strip beside it, a cast-iron lamp post and a bench.",
 }
 
 
 # Mostly-green sprites are keyed on magenta, or the backdrop eats their lawn.
-MAGENTA = {"park-cp-sheepmeadow"}
+MAGENTA: set[str] = set()
 
 
 def calls_made():
@@ -88,8 +78,6 @@ def process(name, shadow=False):
         shadow_clean(final, max_std=14.0)
     if name in MAGENTA:
         strip_magenta_fringe(final)
-    if name == "park-cp-wall-left":
-        ImageOps.mirror(Image.open(final)).save(OUT / "park-cp-wall-right.png")
     return True
 
 
