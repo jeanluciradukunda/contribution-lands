@@ -7,6 +7,10 @@ sprites, supersampled and reduced to the standard 128px width. The lake is a
 Gemini renders, generate with the same file names and run the usual
 background removal and standardize_sprite.
 
+The lake, bridge, path and left/right edge tiles it also draws are no longer
+used: the park now takes its landmarks, canopy and walls from
+generate_central_park.py. Only the lawn tiles and the corner come from here.
+
 Usage:
     python create_central_park_sprites.py
 """

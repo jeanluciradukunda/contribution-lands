@@ -6,7 +6,7 @@
  * year keeps its own tile.
  */
 
-import { findPark, type ParkSpan } from './parks';
+import { findPark, parkLandmarkCount, placeLandmarks, PARK_LANDMARKS } from './parks';
 
 export interface ContributionData {
   date: string;
@@ -30,11 +30,9 @@ export interface ThemeConfig {
     edge_left: string;
     edge_right: string;
     edge_corner: string;
-    lake?: string;
-    bridge?: string;
     lawn: string[];
-    path: string[];
-    junction?: string[];
+    canopy?: string[];
+    landmarks?: Partial<Record<(typeof PARK_LANDMARKS)[number], string>>;
   };
   today_sprite?: string;
   today_sprites?: string[];
@@ -62,11 +60,10 @@ export interface ParkSprites {
   edgeLeft: ImageBitmap;
   edgeRight: ImageBitmap;
   edgeCorner: ImageBitmap;
-  lake: ImageBitmap | null;
-  bridge: ImageBitmap | null;
   lawn: ImageBitmap[];
-  path: ImageBitmap[];
-  junction: ImageBitmap[];
+  canopy: ImageBitmap[];
+  /** In PARK_LANDMARKS order, most iconic first. */
+  landmarks: ImageBitmap[];
 }
 
 export interface RendererOptions {
@@ -94,7 +91,8 @@ const BUILDING_WIDTH = 0.95;
 const LOT_MAX_RISE = 7;
 const SHADOW_ALPHA = 0.35;
 const FOREST_WIDTH = 1.25;
-const PARK_LAKE_WEEKS = 10;
+/** Park landmarks spill over their cell; placeLandmarks keeps a free cell between them. */
+const PARK_LANDMARK_SCALE = 1.5;
 
 const FRAME_MS = 1000 / 30;
 const VIADUCT_HEIGHT = 12;
@@ -112,7 +110,6 @@ interface Cell {
   height: number;
   landmark: { name: string; rank: number } | null;
   underConstruction: boolean;
-  overlay?: { sprite: ImageBitmap; height: number };
 }
 
 interface StreakPath {
@@ -160,6 +157,31 @@ function mulberry32(seed: number): () => number {
   };
 }
 
+function averageColour(image: ImageBitmap | undefined): string | null {
+  if (!image) return null;
+  try {
+    const cv = document.createElement('canvas');
+    cv.width = cv.height = 8;
+    const c = cv.getContext('2d')!;
+    c.drawImage(image, 0, 0, 8, 8);
+    const px = c.getImageData(0, 0, 8, 8).data;
+    let r = 0;
+    let g = 0;
+    let b = 0;
+    let n = 0;
+    for (let i = 0; i < px.length; i += 4) {
+      if (px[i + 3] < 200) continue;
+      r += px[i];
+      g += px[i + 1];
+      b += px[i + 2];
+      n++;
+    }
+    return n ? `rgb(${Math.round(r / n)}, ${Math.round(g / n)}, ${Math.round(b / n)})` : null;
+  } catch {
+    return null;
+  }
+}
+
 function shade(hex: string, factor: number): string {
   const n = Number.parseInt(hex.replace('#', ''), 16);
   const ch = (shift: number) => Math.max(0, Math.min(255, Math.round(((n >> shift) & 255) * factor)));
@@ -191,6 +213,9 @@ export class IsoRenderer {
   private readonly blocks: Rect[] = [];
   private readonly avenues: number[] = [];
   private readonly streets: number[] = [];
+  /** Grid rectangle of the Central Park district: no street strips or traffic inside it. */
+  private parkRect: Rect | null = null;
+  private parkColour = '#5b7f3a';
 
   private motion: boolean;
   private readonly obstacles: RendererOptions['obstacles'];
@@ -342,41 +367,30 @@ export class IsoRenderer {
     this.cells.sort((a, b) => a.gx + a.gy - (b.gx + b.gy));
   }
 
-  /** The lake takes 3x3 cells, kept inside one block of weeks and clear of today's construction site. */
-  private lakeCentre(span: ParkSpan, byKey: Map<string, Cell>): { week: number; day: number } | null {
-    const day = 2;
-    const middle = (span.firstWeek + span.lastWeek) / 2;
-    const candidates: number[] = [];
-    for (let w = span.firstWeek + 1; w < span.lastWeek; w++) {
-      if (Math.floor((w - 1) / BLOCK_WEEKS) === Math.floor((w + 1) / BLOCK_WEEKS)) candidates.push(w);
-    }
-    candidates.sort((a, b) => Math.abs(a - middle) - Math.abs(b - middle));
-    return (
-      candidates
-        .map((week) => ({ week, day }))
-        .find(({ week }) => {
-          for (let dw = -1; dw <= 1; dw++) for (let dd = -1; dd <= 1; dd++) if (byKey.get(`${week + dw}:${day + dd}`)?.underConstruction) return false;
-          return true;
-        }) ?? null
-    );
-  }
-
   private buildPark(contributions: ContributionData[], park: ParkSprites, today: string) {
     const span = findPark(contributions, today);
     if (!span) return;
     const byKey = new Map(this.cells.map((c) => [`${c.data.week}:${c.data.day}`, c]));
     const weeks = span.lastWeek - span.firstWeek + 1;
-    const lake = park.lake && weeks >= PARK_LAKE_WEEKS ? this.lakeCentre(span, byKey) : null;
-    const crossingDay = lake ? lake.day : 3;
 
-    const place = (cell: Cell, sprite: ImageBitmap, factor = 1) => {
-      let f = factor;
+    if (this.isCity) {
+      this.parkRect = { x0: this.gxOf(span.firstWeek), y0: this.gyOf(0), x1: this.gxOf(span.lastWeek) + 1, y1: this.gyOf(6) + 1 };
+      this.parkColour = averageColour(park.lawn[0]) ?? this.parkColour;
+    }
+
+    const place = (cell: Cell, sprite: ImageBitmap, factor = 0) => {
       const rise = (sprite.height / sprite.width - TH / TW) * TW;
-      if (factor === 1 && rise > LOT_MAX_RISE) f = LOT_MAX_RISE / rise;
+      const f = factor || (rise > LOT_MAX_RISE ? LOT_MAX_RISE / rise : 1);
       cell.sprite = sprite;
       cell.width = TW * f;
       cell.height = cell.width * (sprite.height / sprite.width);
     };
+
+    const landmarks = new Map<string, ImageBitmap>();
+    const count = Math.min(parkLandmarkCount(weeks), park.landmarks.length);
+    for (const slot of placeLandmarks(span, count, (week, day) => !byKey.get(`${week}:${day}`)?.underConstruction)) {
+      landmarks.set(`${slot.week}:${slot.day}`, park.landmarks[slot.index]);
+    }
 
     for (const cell of this.cells) {
       const { week, day } = cell.data;
@@ -385,23 +399,14 @@ export class IsoRenderer {
       const pick = (list: ImageBitmap[]) => list[Math.floor(rng() * list.length)];
       const frontRight = week === span.lastWeek;
       const frontLeft = day === 6;
+      const landmark = landmarks.get(`${week}:${day}`);
 
-      if (lake && Math.abs(week - lake.week) <= 1 && Math.abs(day - lake.day) <= 1) {
-        cell.sprite = null;
-        cell.height = 0;
-        if (week === lake.week && day === lake.day) {
-          place(cell, park.lake!, 3);
-          if (park.bridge) cell.overlay = { sprite: park.bridge, height: cell.width * (park.bridge.height / park.bridge.width) };
-        }
-        continue;
-      }
+      const treeBehindWall = park.canopy.length > 0 && (week * 3 + day) % 3 === 2;
       if (frontLeft && frontRight) place(cell, park.edgeCorner);
-      else if (frontLeft) place(cell, park.edgeLeft);
-      else if (frontRight) place(cell, park.edgeRight);
-      else if (day === crossingDay) {
-        const junction = park.junction.length > 0 && (week === span.firstWeek + 2 || week === span.lastWeek - 2);
-        place(cell, junction ? pick(park.junction) : pick(park.path));
-      } else place(cell, pick(park.lawn));
+      else if (frontLeft || frontRight) place(cell, treeBehindWall ? pick(park.canopy) : frontLeft ? park.edgeLeft : park.edgeRight);
+      else if (landmark) place(cell, landmark, PARK_LANDMARK_SCALE);
+      else if (park.canopy.length && rng() < 0.62) place(cell, pick(park.canopy));
+      else place(cell, pick(park.lawn));
     }
     this.cells.sort((a, b) => a.gx + a.gy - (b.gx + b.gy));
   }
@@ -441,6 +446,11 @@ export class IsoRenderer {
     this.avenues.push(half);
     for (let w = BLOCK_WEEKS; w < this.weeks; w += BLOCK_WEEKS) this.avenues.push(this.gxOf(w) - half);
     this.avenues.push(this.extentX - half);
+    const park = this.parkRect;
+    if (park) {
+      const inside = this.avenues.filter((x) => x > park.x0 && x < park.x1);
+      for (const x of inside) this.avenues.splice(this.avenues.indexOf(x), 1);
+    }
     this.streets.push(half, this.gyOf(STREET_BEFORE_DAY) - half, this.extentY - half);
 
     const rows: Array<[number, number]> = [[0, STREET_BEFORE_DAY - 1], [STREET_BEFORE_DAY, 6]];
@@ -522,6 +532,7 @@ export class IsoRenderer {
     for (const b of this.blocks) {
       this.fillQuad(ctx, b, this.isCity ? g0 : base);
     }
+    if (this.parkRect) this.fillQuad(ctx, this.parkRect, this.parkColour);
 
     if (this.isCity) this.drawRoadMarkings(ctx);
     this.drawShadows(ctx);
@@ -935,12 +946,17 @@ export class IsoRenderer {
       ctx.stroke();
     }
     for (const y of this.streets) {
-      const p = this.toScreen(inset, y);
-      const q = this.toScreen(this.extentX - inset, y);
-      ctx.beginPath();
-      ctx.moveTo(p.x, p.y);
-      ctx.lineTo(q.x, q.y);
-      ctx.stroke();
+      const park = this.parkRect;
+      const crossesPark = park !== null && y > park.y0 && y < park.y1;
+      const runs = crossesPark ? [[inset, park.x0], [park.x1, this.extentX - inset]] : [[inset, this.extentX - inset]];
+      for (const [from, to] of runs) {
+        const p = this.toScreen(from, y);
+        const q = this.toScreen(to, y);
+        ctx.beginPath();
+        ctx.moveTo(p.x, p.y);
+        ctx.lineTo(q.x, q.y);
+        ctx.stroke();
+      }
     }
     ctx.restore();
   }
@@ -1021,10 +1037,6 @@ export class IsoRenderer {
       } else {
         ctx.drawImage(cell.sprite, r.x, r.y, r.w, r.h);
       }
-      if (cell.overlay) {
-        const o = { ...r, y: r.y + r.h - cell.overlay.height * this.scale, h: cell.overlay.height * this.scale };
-        ctx.drawImage(this.selected && cell !== this.selected ? this.mutedSprite(cell.overlay.sprite) : cell.overlay.sprite, o.x, o.y, o.w, o.h);
-      }
     }
     for (; ci < cars.length; ci++) this.drawCar(cars[ci].car, cars[ci].gx, cars[ci].gy);
     this.drawViaduct();
@@ -1068,10 +1080,12 @@ export class IsoRenderer {
         const lines = alongX ? this.streets : this.avenues;
         const fixed = lines[Math.floor(rng() * lines.length)];
         const span = alongX ? this.extentX : this.extentY;
+        let pos = STREET / 2 + rng() * (span - STREET);
+        if (alongX && this.inParkRow(fixed) && pos > this.parkRect!.x0 && pos < this.parkRect!.x1) pos = this.parkRect!.x0;
         this.cars.push({
           alongX,
           fixed,
-          pos: STREET / 2 + rng() * (span - STREET),
+          pos,
           dir: rng() < 0.5 ? 1 : -1,
           speed: 0.9 + rng() * 0.6,
           colour: hasTaxis && rng() < 0.45 ? TAXI_YELLOW : CAR_COLOURS[Math.floor(rng() * CAR_COLOURS.length)],
@@ -1108,9 +1122,20 @@ export class IsoRenderer {
       : { gx: car.fixed - lane, gy: car.pos };
   }
 
+  private inParkRow(y: number): boolean {
+    return this.parkRect !== null && y > this.parkRect.y0 && y < this.parkRect.y1;
+  }
+
   private stepCar(car: Car, dt: number) {
     const crossings = car.alongX ? this.avenues : this.streets;
     const next = car.pos + car.dir * car.speed * dt;
+    const park = this.parkRect;
+    if (park && car.alongX && this.inParkRow(car.fixed)) {
+      if ((car.pos <= park.x0 && next > park.x0) || (car.pos >= park.x1 && next < park.x1)) {
+        car.dir = car.dir === 1 ? -1 : 1;
+        return;
+      }
+    }
     const lo = Math.min(car.pos, next);
     const hi = Math.max(car.pos, next);
     const hit = crossings.find((c) => c > lo && c <= hi && c !== car.lastTurn);

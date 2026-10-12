@@ -5,6 +5,7 @@
  * for the lazily rendered calendar, then inject the canvas, stats and toggle.
  */
 
+import { PARK_LANDMARKS } from './parks';
 import { IsoRenderer, type ContributionData, type ParkSprites, type Sprite, type SpriteSet, type ThemeConfig } from './renderer';
 import { addDays, averagePerDay, computeStats, fetchDays, reconcileStart, todayKey, tooltipCounts, extendWithHistory, formatDate, formatRange, longestStreak, currentStreak, type ContributionStats, type Streak } from './stats';
 import contentCss from './content.css?inline';
@@ -137,12 +138,13 @@ async function loadParkSprites(themeId: string, config: ThemeConfig): Promise<Pa
   if (!names) return null;
   const load = async (name: string | undefined) => (name ? loadBitmap(`themes/${themeId}/sprites/${name}`) : null);
   const loadAll = async (list: string[] | undefined) => (await Promise.all((list ?? []).map(load))).filter((b): b is ImageBitmap => b !== null);
-  const [edgeLeft, edgeRight, edgeCorner, lake, bridge, lawn, path, junction] = await Promise.all([
-    load(names.edge_left), load(names.edge_right), load(names.edge_corner), load(names.lake), load(names.bridge),
-    loadAll(names.lawn), loadAll(names.path), loadAll(names.junction),
+  const [edgeLeft, edgeRight, edgeCorner, lawn, canopy, landmarks] = await Promise.all([
+    load(names.edge_left), load(names.edge_right), load(names.edge_corner),
+    loadAll(names.lawn), loadAll(names.canopy),
+    Promise.all(PARK_LANDMARKS.map((role) => load(names.landmarks?.[role]))),
   ]);
-  if (!edgeLeft || !edgeRight || !edgeCorner || !lawn.length || !path.length) return null;
-  return { edgeLeft, edgeRight, edgeCorner, lake, bridge, lawn, path, junction };
+  if (!edgeLeft || !edgeRight || !edgeCorner || !lawn.length) return null;
+  return { edgeLeft, edgeRight, edgeCorner, lawn, canopy, landmarks: landmarks.filter((b): b is ImageBitmap => b !== null) };
 }
 
 async function loadTheme(): Promise<{ config: ThemeConfig; sprites: SpriteSet; todayStages: Array<ImageBitmap | null>; park: ParkSprites | null }> {
