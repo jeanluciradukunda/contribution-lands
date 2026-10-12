@@ -9,7 +9,7 @@
     "preview": "vite preview",
     "harness": "vite --config dev/vite.harness.config.ts",
     "build:card": "vite build --config card/vite.card.config.ts",
-    "test": "tsc src/content/parks.ts --outDir .test-build --module es2022 --target es2022 --skipLibCheck && node --test tests/"
+    "test": "tsc src/content/parks.ts --outDir .test-build --module es2022 --target es2022 --skipLibCheck && node --test tests/*.test.mjs"
   },
   "dependencies": {
     "react": "^19.0.0",
