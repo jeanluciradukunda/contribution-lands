@@ -60,19 +60,19 @@ export function paintParkMap(layout: ParkLayout, textures: ParkTextures | null, 
   };
 
   fillWith('canopy', '#5d8a35');
-  g.filter = 'brightness(1.1) saturate(1.15)';
+  g.filter = 'brightness(0.88) saturate(1.05)';
   g.fillRect(0, 0, map.width, map.height);
   g.filter = 'none';
-  g.fillStyle = 'rgba(28, 74, 26, 0.34)';
+  g.fillStyle = 'rgba(14, 50, 20, 0.42)';
   g.fillRect(0, 0, map.width, map.height);
 
-  for (let i = 0; i < layout.width * 1.4; i++) {
+  for (let i = 0; i < layout.width * layout.height * 2.2; i++) {
     const x = rng() * map.width;
     const y = rng() * map.height;
-    const r = (1.2 + rng() * 2.4) * px;
-    const warm = rng() < 0.4;
+    const r = (0.35 + rng() * 0.8) * px;
+    const warm = rng() < 0.08;
     const grad = g.createRadialGradient(x, y, 0, x, y, r);
-    grad.addColorStop(0, warm ? 'rgba(255, 196, 90, 0.16)' : 'rgba(10, 40, 10, 0.2)');
+    grad.addColorStop(0, warm ? 'rgba(255, 196, 90, 0.12)' : 'rgba(6, 30, 10, 0.34)');
     grad.addColorStop(1, 'rgba(0, 0, 0, 0)');
     g.fillStyle = grad;
     g.fillRect(x - r, y - r, r * 2, r * 2);
@@ -112,10 +112,10 @@ export function paintParkMap(layout: ParkLayout, textures: ParkTextures | null, 
     g.moveTo(path[0].x * px, path[0].y * px);
     for (const p of path.slice(1)) g.lineTo(p.x * px, p.y * px);
     g.strokeStyle = 'rgba(92, 70, 40, 0.55)';
-    g.lineWidth = 0.17 * px;
+    g.lineWidth = 0.12 * px;
     g.stroke();
     g.strokeStyle = '#dccba2';
-    g.lineWidth = 0.11 * px;
+    g.lineWidth = 0.075 * px;
     g.stroke();
   }
 
@@ -124,7 +124,7 @@ export function paintParkMap(layout: ParkLayout, textures: ParkTextures | null, 
     tracePolys(g, region.polys, px);
     g.lineJoin = 'round';
     g.strokeStyle = reservoir ? '#b2705a' : '#d4c39a';
-    g.lineWidth = (reservoir ? 0.55 : 0.22) * px;
+    g.lineWidth = (reservoir ? 0.34 : 0.2) * px;
     g.stroke();
 
     fillWith('water', '#1f6178');
@@ -144,7 +144,7 @@ export function paintParkMap(layout: ParkLayout, textures: ParkTextures | null, 
     }
   }
 
-  g.fillStyle = 'rgba(8, 20, 6, 0.3)';
+  g.fillStyle = 'rgba(4, 16, 6, 0.4)';
   for (const t of layout.trees) {
     g.beginPath();
     g.ellipse((t.x + 0.16) * px, (t.y + 0.04) * px, t.size * 0.3 * px, t.size * 0.17 * px, 0, 0, Math.PI * 2);

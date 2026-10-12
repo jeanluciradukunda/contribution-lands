@@ -60,7 +60,7 @@ test('layout is deterministic and keeps trees inside the park', () => {
     assert.deepEqual(layout, parkLayout(w, h));
     assert.ok(layout.trees.length > 0);
     for (const t of layout.trees) assert.ok(t.x > 0 && t.x < w && t.y > 0 && t.y < h);
-    assert.ok(layout.trees.length <= 1400);
+    assert.ok(layout.trees.length <= 2400);
   }
 });
 
@@ -104,4 +104,16 @@ test('landmarks sit on their shores, not in the water', () => {
   assert.ok(!nearRegion(bethesda, lake, 0) && nearRegion(bethesda, lake, 1.2));
   assert.ok(!nearRegion(belvedere, reservoir, 0) && nearRegion(belvedere, reservoir, 1.2));
   assert.ok(nearRegion({ x: layout.bridge.x0, y: (layout.bridge.y0 + layout.bridge.y1) / 2 }, lake, 0), 'bow bridge spans the lake');
+});
+
+test('canopy is about 70% of the park, with only the Lake and Harlem Meer as water', () => {
+  const area = (poly) => Math.abs(poly.reduce((sum, p, i) => sum + (p.x * poly[(i + 1) % poly.length].y - poly[(i + 1) % poly.length].x * p.y), 0) / 2);
+  for (const [w, h] of sizes) {
+    const layout = parkLayout(w, h);
+    const open = layout.regions.reduce((s, r) => s + r.polys.reduce((a, p) => a + area(p), 0), 0) / (w * h);
+    assert.ok(open > 0.22 && open < 0.38, `open share ${open} at ${w}`);
+    const water = layout.regions.filter((r) => r.kind === 'water').length;
+    assert.equal(water, w >= 12 ? 2 : 1);
+    assert.ok(layout.regions.filter((r) => r.kind === 'lawn').length <= 5);
+  }
 });

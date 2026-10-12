@@ -108,13 +108,14 @@ export function parkLayout(width: number, height: number, seed = 11): ParkLayout
   const H = height;
   const inset = 0.2;
 
-  const blob = (cx: number, cy: number, rx: number, ry: number, wobble: number): Pt[] => {
+  const blob = (cx: number, cy: number, rx: number, ry: number, wobble: number, dent = 0): Pt[] => {
     const phases = [rng() * 6.28, rng() * 6.28, rng() * 6.28];
     const points: Pt[] = [];
-    const n = 72;
+    const n = 96;
     for (let i = 0; i < n; i++) {
       const a = (i / n) * Math.PI * 2;
-      const r = 1 + phases.reduce((sum, ph, k) => sum + (wobble / (k + 2)) * Math.cos((k + 2) * a + ph), 0);
+      const bite = dent * Math.exp(-(((a - Math.PI * 0.5) / 0.55) ** 2));
+      const r = 1 - bite + phases.reduce((sum, ph, k) => sum + (wobble / (k + 2)) * Math.cos((k + 2) * a + ph), 0);
       points.push({
         x: Math.min(W - inset, Math.max(inset, cx + Math.cos(a) * rx * r)),
         y: Math.min(H - inset, Math.max(inset, cy + Math.sin(a) * ry * r)),
@@ -126,36 +127,38 @@ export function parkLayout(width: number, height: number, seed = 11): ParkLayout
   const across = (s: number) => s * H;
   const reach = (fraction: number, minimum: number) => Math.max(minimum, fraction * W);
 
-  const lakeX = along(0.27);
-  const lakeRx = reach(0.055, 0.75);
-  const reservoirX = along(0.65);
-  const reservoirRx = reach(0.115, 1.5);
+  const lakeX = along(0.22);
+  const lakeRx = reach(0.05, 0.75);
+  const reservoirX = along(0.64);
+  const reservoirRx = reach(0.16, 1.4);
+  const roomy = W >= 12;
+  const wide = W >= 18;
 
   const regions: ParkRegion[] = [
-    { kind: 'lawn', polys: [blob(along(0.095), across(0.45), reach(0.06, 0.9), across(0.26), 0.1)] },
-    { kind: 'lawn', polys: [blob(along(0.43), across(0.5), reach(0.045, 0.8), across(0.24), 0.08)] },
-    { kind: 'lawn', polys: [blob(along(0.865), across(0.4), reach(0.035, 0.7), across(0.17), 0.12)] },
+    { kind: 'lawn', polys: [blob(along(0.07), across(0.45), reach(0.045, 0.85), across(0.21), 0.14)] },
+    { kind: 'lawn', polys: [blob(along(0.37), across(0.5), reach(0.04, 0.7), across(0.2), 0.13)] },
+    { kind: 'lawn', polys: [blob(along(0.85), across(0.2), reach(0.022, 0.5), across(0.09), 0.16)] },
+    { kind: 'lawn', polys: [blob(along(0.87), across(0.8), reach(0.02, 0.45), across(0.08), 0.16)] },
+    ...(wide ? [{ kind: 'lawn' as const, polys: [blob(along(0.15), across(0.82), reach(0.018, 0.4), across(0.07), 0.16)] }] : []),
     {
       kind: 'water',
       polys: [
-        blob(lakeX, across(0.52), lakeRx, across(0.16), 0.16),
-        blob(lakeX - along(0.02), across(0.24), lakeRx * 0.6, across(0.08), 0.2),
-        blob(lakeX + along(0.025), across(0.78), lakeRx * 0.65, across(0.09), 0.2),
+        blob(lakeX, across(0.52), lakeRx, across(0.16), 0.15),
+        blob(lakeX - along(0.018), across(0.32), lakeRx * 0.55, across(0.1), 0.18),
       ],
     },
-    { kind: 'water', polys: [blob(along(0.955), across(0.68), reach(0.024, 0.65), across(0.15), 0.12)] },
-    { kind: 'reservoir', polys: [blob(reservoirX, across(0.5), reservoirRx, across(0.36), 0.05)] },
+    ...(roomy ? [{ kind: 'water' as const, polys: [blob(along(0.955), across(0.52), reach(0.02, 0.5), across(0.12), 0.12)] }] : []),
+    { kind: 'reservoir', polys: [blob(reservoirX, across(0.5), reservoirRx, across(0.31), 0.1, 0.3)] },
   ];
 
   const waypoints: Array<Array<[number, number]>> = [
-    [[0, 0.88], [0.1, 0.82], [0.2, 0.95], [0.33, 0.9], [0.42, 0.88], [0.5, 0.92], [0.64, 0.96], [0.8, 0.9], [0.92, 0.95], [1, 0.9]],
-    [[0, 0.14], [0.1, 0.08], [0.2, 0.18], [0.31, 0.1], [0.4, 0.12], [0.52, 0.08], [0.65, 0.05], [0.78, 0.1], [0.9, 0.2], [1, 0.3]],
-    [[0.04, 0.58], [0.12, 0.66], [0.2, 0.5], [0.3, 0.55], [0.37, 0.4], [0.46, 0.18], [0.52, 0.5], [0.58, 0.9]],
-    [[0.36, 0.7], [0.45, 0.78], [0.54, 0.62], [0.78, 0.55], [0.85, 0.7], [0.93, 0.5]],
+    [[0, 0.9], [0.1, 0.84], [0.2, 0.94], [0.33, 0.9], [0.5, 0.93], [0.7, 0.95], [0.85, 0.9], [1, 0.88]],
+    [[0, 0.12], [0.1, 0.08], [0.22, 0.16], [0.4, 0.1], [0.55, 0.06], [0.7, 0.04], [0.85, 0.12], [1, 0.25]],
+    [[0.04, 0.6], [0.12, 0.68], [0.2, 0.5], [0.3, 0.78], [0.45, 0.86], [0.52, 0.5]],
   ];
   const paths = waypoints.map((line) => spline(line.map(([t, s]) => ({ x: along(t), y: across(s) }))));
 
-  const belvedere = { x: along(0.503), y: across(0.56) };
+  const belvedere = { x: reservoirX - reservoirRx * 1.02 - 0.45, y: across(0.56) };
   const bridgeX = lakeX - along(0.004);
   const bridge = { x0: bridgeX, y0: across(0.4), x1: bridgeX, y1: across(0.64) };
   const rock = { x: belvedere.x, y: belvedere.y, r: 0.5 };
@@ -211,13 +214,13 @@ export function nearRegion(p: Pt, region: ParkRegion, clearance: number): boolea
   return probes.some((q) => region.polys.some((poly) => inPolygon(q, poly)));
 }
 
-const CLEARANCE = { lawn: 0.12, water: 0.45, reservoir: 0.7 } as const;
-const MAX_TREES = 1400;
+const CLEARANCE = { lawn: 0.1, water: 0.35, reservoir: 0.45 } as const;
+const MAX_TREES = 2400;
 
 function scatterTrees(layout: ParkLayout, rng: () => number): ParkTree[] {
   const { width: W, height: H } = layout;
   const edge = 0.22;
-  const spacing = Math.max(0.3,Math.sqrt((W * H) / 0.55 / MAX_TREES));
+  const spacing = Math.max(0.26, Math.sqrt((W * H) / 0.7 / MAX_TREES));
   const near = (p: Pt, q: Pt, d: number) => (p.x - q.x) ** 2 + (p.y - q.y) ** 2 < d * d;
   const trees: ParkTree[] = [];
 
@@ -225,8 +228,8 @@ function scatterTrees(layout: ParkLayout, rng: () => number): ParkTree[] {
     for (let gy = edge; gy < H - edge; gy += spacing) {
       const p = { x: gx + (rng() - 0.5) * spacing * 0.9, y: gy + (rng() - 0.5) * spacing * 0.9 };
       const roll = rng();
-      const variant = rng() < 0.7 ? 0 : 1;
-      const size = 0.34 + rng() * 0.18;
+      const variant = rng() < 0.88 ? 0 : 1;
+      const size = 0.22 + rng() * 0.14;
       if (p.x < edge || p.y < edge || p.x > W - edge || p.y > H - edge) continue;
       if (roll > 0.97) continue;
       if (layout.regions.some((r) => nearRegion(p, r, CLEARANCE[r.kind]))) continue;
