@@ -38,5 +38,15 @@
     { "sprite": "level-3-g.png", "name": "The Vessel" }
   ],
   "today_sprites": ["special-today-0.png", "special-today-1.png", "special-today-2.png", "special-today-3.png", "special-today-4.png"],
-  "park_sprites": ["level-0-d.png", "level-0-f.png", "level-0-g.png", "level-0-h.png", "level-0-o.png", "level-0-p.png", "level-0-r.png", "level-0-s.png", "level-0-t.png", "level-0-v.png"]
+  "park_sprites": ["level-0-d.png", "level-0-f.png", "level-0-g.png", "level-0-h.png", "level-0-o.png", "level-0-p.png", "level-0-r.png", "level-0-s.png", "level-0-t.png", "level-0-v.png"],
+  "central_park_sprites": {
+    "edge_left": "park-cp-edge-a.png",
+    "edge_right": "park-cp-edge-b.png",
+    "edge_corner": "park-cp-edge-c.png",
+    "lake": "park-cp-lake.png",
+    "bridge": "park-cp-bridge.png",
+    "lawn": ["park-cp-lawn-a.png", "park-cp-lawn-b.png", "park-cp-lawn-c.png", "park-cp-lawn-d.png"],
+    "path": ["park-cp-path-a.png"],
+    "junction": ["park-cp-path-b.png"]
+  }
 }

@@ -157,6 +157,16 @@ export default function PopupApp() {
         />
       </section>
 
+      <section className="section">
+        <h2>Testing</h2>
+        <Toggle
+          label="Central Park for long gaps"
+          hint="Turns your longest empty stretch (8+ weeks) into one park"
+          checked={display.centralPark}
+          onChange={(v) => updateDisplay('centralPark', v)}
+        />
+      </section>
+
       <footer className="popup-footer">Changes apply instantly to open GitHub profiles.</footer>
     </main>
   );

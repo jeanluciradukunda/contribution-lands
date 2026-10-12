@@ -40,3 +40,4 @@ reports/
 
 # README card build
 extension/card-dist/
+.test-build/

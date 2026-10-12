@@ -9,6 +9,7 @@ export const RELEASE_THEMES = (process.env.CL_THEMES ?? 'city-nyc').split(',').m
 export interface ThemeIndexEntry {
   definition: Record<string, unknown>;
   sprites: Record<number, string[]>;
+  parkSprites: string[];
 }
 
 export function buildThemeIndex(allow?: string[]): Record<string, ThemeIndexEntry> {
@@ -18,11 +19,13 @@ export function buildThemeIndex(allow?: string[]): Record<string, ThemeIndexEntr
     if (!existsSync(themeJson) || (allow && !allow.includes(id))) continue;
     const spritesDir = resolve(THEMES_DIR, id, 'sprites');
     const sprites: Record<number, string[]> = { 0: [], 1: [], 2: [], 3: [], 4: [] };
+    const parkSprites: string[] = [];
     for (const file of existsSync(spritesDir) ? readdirSync(spritesDir).sort() : []) {
+      if (/^park-cp-.*\.png$/.test(file)) parkSprites.push(file);
       const level = file.match(/^level-([0-4])-.*\.png$/)?.[1];
       if (level && !file.includes('-road-')) sprites[Number(level)].push(file);
     }
-    index[id] = { definition: JSON.parse(readFileSync(themeJson, 'utf8')), sprites };
+    index[id] = { definition: JSON.parse(readFileSync(themeJson, 'utf8')), sprites, parkSprites };
   }
   return index;
 }

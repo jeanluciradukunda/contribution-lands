@@ -11,12 +11,13 @@ export interface DisplaySettings {
   motion: boolean;
   showStats: boolean;
   scale: Scale;
+  centralPark: boolean;
 }
 
 const STORAGE_KEY = 'contributionLandsPopupSettings';
 
 export const DEFAULT_SETTINGS: PopupSettings = { selectedThemeId: null };
-export const DEFAULT_DISPLAY: DisplaySettings = { viewSetting: 'cubes', motion: true, showStats: true, scale: 'absolute' };
+export const DEFAULT_DISPLAY: DisplaySettings = { viewSetting: 'cubes', motion: true, showStats: true, scale: 'absolute', centralPark: false };
 
 function hasChromeStorage(): boolean {
   return typeof chrome !== 'undefined' && !!chrome.storage?.sync;

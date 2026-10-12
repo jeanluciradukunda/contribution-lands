@@ -13,12 +13,12 @@ function copyThemesPlugin() {
   return {
     name: 'copy-themes',
     writeBundle() {
-      for (const [id, { sprites }] of Object.entries(themeIndex)) {
+      for (const [id, { sprites, parkSprites }] of Object.entries(themeIndex)) {
         const dest = resolve(__dirname, 'dist', 'themes', id);
         mkdirSync(resolve(dest, 'sprites'), { recursive: true });
         cpSync(resolve(THEMES_DIR, id, 'theme.json'), resolve(dest, 'theme.json'));
         const extras = ['special-today.png', ...[0, 1, 2, 3, 4].map((n) => `special-today-${n}.png`)];
-        for (const file of [...Object.values(sprites).flat(), ...extras]) {
+        for (const file of [...Object.values(sprites).flat(), ...parkSprites, ...extras]) {
           const from = resolve(THEMES_DIR, id, 'sprites', file);
           if (existsSync(from)) cpSync(from, resolve(dest, 'sprites', file));
         }

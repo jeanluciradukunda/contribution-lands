@@ -6,6 +6,8 @@
  * year keeps its own tile.
  */
 
+import { findPark, type ParkSpan } from './parks';
+
 export interface ContributionData {
   date: string;
   week: number;
@@ -24,6 +26,16 @@ export interface ThemeConfig {
   entities?: Array<{ type: string; count: number; speed: number; flyer?: boolean }>;
   landmarks?: Array<{ sprite: string; name: string }>;
   park_sprites?: string[];
+  central_park_sprites?: {
+    edge_left: string;
+    edge_right: string;
+    edge_corner: string;
+    lake?: string;
+    bridge?: string;
+    lawn: string[];
+    path: string[];
+    junction?: string[];
+  };
   today_sprite?: string;
   today_sprites?: string[];
 }
@@ -46,6 +58,17 @@ export interface Sprite {
 
 export type SpriteSet = Record<number, Sprite[]>;
 
+export interface ParkSprites {
+  edgeLeft: ImageBitmap;
+  edgeRight: ImageBitmap;
+  edgeCorner: ImageBitmap;
+  lake: ImageBitmap | null;
+  bridge: ImageBitmap | null;
+  lawn: ImageBitmap[];
+  path: ImageBitmap[];
+  junction: ImageBitmap[];
+}
+
 export interface RendererOptions {
   motion: boolean;
   /** Overlays (in canvas CSS px, measured from the top) that tall sprites must not hide behind. */
@@ -54,6 +77,8 @@ export interface RendererOptions {
   /** Construction sprites for today's lot: one per level, or a single one used only while today is empty. */
   today?: { date: string; stages: Array<ImageBitmap | null> };
   streaks?: Streaks;
+  /** Sprites for a Central Park over the one long empty stretch, if there is one. */
+  centralPark?: ParkSprites | null;
 }
 
 const TW = 20;
@@ -69,6 +94,7 @@ const BUILDING_WIDTH = 0.95;
 const LOT_MAX_RISE = 7;
 const SHADOW_ALPHA = 0.35;
 const FOREST_WIDTH = 1.25;
+const PARK_LAKE_WEEKS = 10;
 
 const FRAME_MS = 1000 / 30;
 const VIADUCT_HEIGHT = 12;
@@ -86,6 +112,7 @@ interface Cell {
   height: number;
   landmark: { name: string; rank: number } | null;
   underConstruction: boolean;
+  overlay?: { sprite: ImageBitmap; height: number };
 }
 
 interface StreakPath {
@@ -220,6 +247,7 @@ export class IsoRenderer {
     this.extentY = this.gyOf(6) + 1 + this.margin;
 
     this.buildCells(contributions, options.today);
+    if (options.centralPark) this.buildPark(contributions, options.centralPark, options.today?.date ?? new Date().toISOString().slice(0, 10));
     this.buildStreets();
     this.buildStreakPaths();
     this.spawnEntities();
@@ -310,6 +338,70 @@ export class IsoRenderer {
         landmark: landmark ? { name: landmark.name, rank: landmark.rank } : null,
         underConstruction,
       });
+    }
+    this.cells.sort((a, b) => a.gx + a.gy - (b.gx + b.gy));
+  }
+
+  /** The lake takes 3x3 cells, kept inside one block of weeks and clear of today's construction site. */
+  private lakeCentre(span: ParkSpan, byKey: Map<string, Cell>): { week: number; day: number } | null {
+    const day = 2;
+    const middle = (span.firstWeek + span.lastWeek) / 2;
+    const candidates: number[] = [];
+    for (let w = span.firstWeek + 1; w < span.lastWeek; w++) {
+      if (Math.floor((w - 1) / BLOCK_WEEKS) === Math.floor((w + 1) / BLOCK_WEEKS)) candidates.push(w);
+    }
+    candidates.sort((a, b) => Math.abs(a - middle) - Math.abs(b - middle));
+    return (
+      candidates
+        .map((week) => ({ week, day }))
+        .find(({ week }) => {
+          for (let dw = -1; dw <= 1; dw++) for (let dd = -1; dd <= 1; dd++) if (byKey.get(`${week + dw}:${day + dd}`)?.underConstruction) return false;
+          return true;
+        }) ?? null
+    );
+  }
+
+  private buildPark(contributions: ContributionData[], park: ParkSprites, today: string) {
+    const span = findPark(contributions, today);
+    if (!span) return;
+    const byKey = new Map(this.cells.map((c) => [`${c.data.week}:${c.data.day}`, c]));
+    const weeks = span.lastWeek - span.firstWeek + 1;
+    const lake = park.lake && weeks >= PARK_LAKE_WEEKS ? this.lakeCentre(span, byKey) : null;
+    const crossingDay = lake ? lake.day : 3;
+
+    const place = (cell: Cell, sprite: ImageBitmap, factor = 1) => {
+      let f = factor;
+      const rise = (sprite.height / sprite.width - TH / TW) * TW;
+      if (factor === 1 && rise > LOT_MAX_RISE) f = LOT_MAX_RISE / rise;
+      cell.sprite = sprite;
+      cell.width = TW * f;
+      cell.height = cell.width * (sprite.height / sprite.width);
+    };
+
+    for (const cell of this.cells) {
+      const { week, day } = cell.data;
+      if (week < span.firstWeek || week > span.lastWeek || cell.underConstruction) continue;
+      const rng = mulberry32((week * 7 + day) * 7919 + 4242);
+      const pick = (list: ImageBitmap[]) => list[Math.floor(rng() * list.length)];
+      const frontRight = week === span.lastWeek;
+      const frontLeft = day === 6;
+
+      if (lake && Math.abs(week - lake.week) <= 1 && Math.abs(day - lake.day) <= 1) {
+        cell.sprite = null;
+        cell.height = 0;
+        if (week === lake.week && day === lake.day) {
+          place(cell, park.lake!, 3);
+          if (park.bridge) cell.overlay = { sprite: park.bridge, height: cell.width * (park.bridge.height / park.bridge.width) };
+        }
+        continue;
+      }
+      if (frontLeft && frontRight) place(cell, park.edgeCorner);
+      else if (frontLeft) place(cell, park.edgeLeft);
+      else if (frontRight) place(cell, park.edgeRight);
+      else if (day === crossingDay) {
+        const junction = park.junction.length > 0 && (week === span.firstWeek + 2 || week === span.lastWeek - 2);
+        place(cell, junction ? pick(park.junction) : pick(park.path));
+      } else place(cell, pick(park.lawn));
     }
     this.cells.sort((a, b) => a.gx + a.gy - (b.gx + b.gy));
   }
@@ -928,6 +1020,10 @@ export class IsoRenderer {
         ctx.drawImage(this.mutedSprite(cell.sprite), r.x, r.y, r.w, r.h);
       } else {
         ctx.drawImage(cell.sprite, r.x, r.y, r.w, r.h);
+      }
+      if (cell.overlay) {
+        const o = { ...r, y: r.y + r.h - cell.overlay.height * this.scale, h: cell.overlay.height * this.scale };
+        ctx.drawImage(this.selected && cell !== this.selected ? this.mutedSprite(cell.overlay.sprite) : cell.overlay.sprite, o.x, o.y, o.w, o.h);
       }
     }
     for (; ci < cars.length; ci++) this.drawCar(cars[ci].car, cars[ci].gx, cars[ci].gy);

@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## [Unreleased]
+
+### Added
+- Testing toggle "Central Park for long gaps" (off by default): the one longest empty stretch of eight or more whole weeks becomes a park with a lake and a bridge.
+
 ## [0.2.1] - 2026-10-06
 
 ### Added

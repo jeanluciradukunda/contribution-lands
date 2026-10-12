@@ -22,6 +22,11 @@ jobs:
           else
             echo "No extension/package.json found — skipping (extension not yet on this branch)"
           fi
+      - name: Test park detection
+        run: |
+          if [ -f extension/package.json ]; then
+            cd extension && pnpm test
+          fi
       - name: Build extension
         run: |
           if [ -f extension/package.json ]; then
