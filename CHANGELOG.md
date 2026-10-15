@@ -2,10 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
-## [Unreleased]
+## [0.3.0] - 2026-10-15
 
 ### Added
-- Testing toggle "Central Park for long gaps" (off by default): the one longest empty stretch of eight or more whole weeks becomes a park with a lake and a bridge.
+- Testing toggle "Central Park for long gaps" (popup, Testing section, off by default). An empty stretch of eight or more whole weeks becomes Central Park: dense canopy, the Reservoir, the Great Lawn, the Lake with Bow Bridge, Harlem Meer, Bethesda Terrace and Belvedere Castle. One park per view: a stretch that reaches into the future wins, otherwise the longest past one. No streets or traffic run through it.
+- The site's sprite library has a Central Park shelf.
 
 ## [0.2.1] - 2026-10-06
 
