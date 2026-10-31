@@ -145,7 +145,7 @@ code { font-family: var(--mono); font-size: 13px; background: var(--soft); borde
     <div class="fig-top"><span class="mono"><span class="sht">P-101</span> how data moves</span><span class="mono">one site, no servers of ours</span></div>
     <svg viewBox="0 0 760 300" preserveAspectRatio="xMidYMid meet" role="img" aria-labelledby="flow-t flow-d">
   <title id="flow-t">How data moves</title>
-  <desc id="flow-d">The extension reads the contribution calendar from a github.com profile page, may fetch earlier calendars from github.com, draws the city on the same page and keeps four settings in Chrome storage. No other server is contacted.</desc>
+  <desc id="flow-d">The extension reads the contribution calendar from a github.com profile page, may fetch earlier calendars from github.com, draws the city on the same page and keeps display settings, watched usernames and cached public calendars in Chrome storage. No other server is contacted.</desc>
   <g class="hl" fill="none" stroke-linejoin="round" stroke-linecap="round" font-family="IBM Plex Mono, ui-monospace, monospace" font-size="11">
     <!-- github page -->
     <g transform="translate(36,64)">
@@ -181,7 +181,7 @@ code { font-family: var(--mono); font-size: 13px; background: var(--soft); borde
     <!-- storage -->
     <g transform="translate(368,256)">
       <path d="M0 0h204v28H0Z" stroke="var(--edge)"/>
-      <text x="10" y="18" fill="var(--muted)" stroke="none">chrome.storage · 4 settings</text>
+      <text x="10" y="18" fill="var(--muted)" stroke="none">chrome.storage · settings + cache</text>
     </g>
     <path d="M470 230v26" stroke="var(--mid)"/>
     <!-- nowhere else -->
@@ -194,12 +194,12 @@ code { font-family: var(--mono); font-size: 13px; background: var(--soft); borde
     <text x="606" y="202" fill="var(--text)" stroke="none">never contacted</text>
   </g>
 </svg>
-    <div class="fig-bot"><span class="mono">reads github.com, writes nothing elsewhere</span><span class="mono">4 settings stored</span></div>
+    <div class="fig-bot"><span class="mono">reads github.com, writes nothing elsewhere</span><span class="mono">settings + calendars stored</span></div>
   </figure>
 
   <div class="cards">
     <div class="card"><span class="mono">01 · reads</span><h2>The calendar on the page</h2><p>Dates, contribution counts and the yearly total on github.com profile pages.</p></div>
-    <div class="card"><span class="mono">02 · stores</span><h2>Four display settings</h2><p>Your chosen world, view mode, stats panel and motion, in Chrome storage.</p></div>
+    <div class="card"><span class="mono">02 · stores</span><h2>Settings and watched calendars</h2><p>Your chosen world, display settings, watched usernames and cached public calendars, in Chrome storage.</p></div>
     <div class="card"><span class="mono">03 · never</span><h2>Sends data anywhere</h2><p>No analytics, advertising or tracking. Nothing is sold or shared.</p></div>
   </div>
 
@@ -210,12 +210,12 @@ code { font-family: var(--mono); font-size: 13px; background: var(--soft); borde
     <h2>What it stores</h2>
     <ul>
       <li>Your chosen world, in Chrome sync storage, so Chrome may sync it across browsers where you are signed in.</li>
-      <li>Three display settings (view mode, stats panel and motion), in Chrome local storage.</li>
+      <li>Display settings (view mode, stats, motion, scale and Central Park), watched usernames and cached public calendars, in Chrome local storage.</li>
     </ul>
-    <p>Contribution data is processed in memory to draw the page and is not stored.</p>
+    <p>The popup stores up to 10 public account calendars locally and normally refreshes them after 30 minutes. Failed refreshes preserve saved data with a warning. Removing all watched accounts clears the calendar cache. The popup requests public calendars directly from github.com without GitHub cookies or a token.</p>
 
     <h2>What it does not do</h2>
-    <p>It sends no data to the developer or to any third party. It has no analytics, advertising or tracking, and it does not sell or share data. Removing the extension removes its settings.</p>
+    <p>It sends no data to the developer or to any third party. It has no analytics, advertising or tracking, and it does not sell or share data. Removing the extension removes its settings and locally cached calendars.</p>
 
     <h2>Chrome Web Store User Data Policy</h2>
     <p class="statement">The use of information received by this extension adheres to the Chrome Web Store User Data Policy, including the Limited Use requirements.</p>

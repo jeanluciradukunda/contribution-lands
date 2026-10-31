@@ -73,6 +73,10 @@ interface Scenery {
 
 export interface RendererOptions {
   motion: boolean;
+  /** Optional canvas height cap for compact surfaces such as the toolbar popup. */
+  maxHeight?: number;
+  /** Keep hover labels inside a compact extension viewport. */
+  clampTooltips?: boolean;
   /** Overlays (in canvas CSS px, measured from the top) that tall sprites must not hide behind. */
   obstacles?: () => Array<{ left: number; right: number; bottom: number }>;
   onSelect?: (date: string) => void;
@@ -193,6 +197,8 @@ export class IsoRenderer {
   private scenery: Scenery[] = [];
 
   private motion: boolean;
+  private readonly maxHeight: number | undefined;
+  private readonly clampTooltips: boolean;
   private readonly obstacles: RendererOptions['obstacles'];
   private scale = 1;
   private originX = 0;
@@ -237,6 +243,8 @@ export class IsoRenderer {
     this.sprites = sprites;
     this.isCity = theme.category === 'city';
     this.motion = options.motion;
+    this.maxHeight = options.maxHeight;
+    this.clampTooltips = options.clampTooltips ?? false;
     this.obstacles = options.obstacles;
     this.onSelect = options.onSelect;
     this.streaks = options.streaks ?? null;
@@ -510,7 +518,10 @@ export class IsoRenderer {
     const padX = 16;
     const padBottom = 28;
     this.scale = (cssWidth - padX * 2) / (right - left);
-    this.originX = padX - left * this.scale;
+    if (this.maxHeight !== undefined) {
+      this.scale = Math.min(this.scale, Math.max(1, this.maxHeight - 24 - padBottom) / (bottom - top));
+    }
+    this.originX = (cssWidth - (right - left) * this.scale) / 2 - left * this.scale;
     this.originY = 24 - top * this.scale;
     this.cssWidth = cssWidth;
 
@@ -1397,6 +1408,17 @@ export class IsoRenderer {
     return el;
   }
 
+  private showTooltip(x: number, y: number) {
+    this.tooltip.classList.add('is-visible');
+    if (this.clampTooltips) {
+      const halfWidth = this.tooltip.offsetWidth / 2;
+      x = Math.max(halfWidth + 8, Math.min(window.innerWidth - halfWidth - 8, x));
+      y = Math.max(this.tooltip.offsetHeight + 8, Math.min(window.innerHeight - 8, y));
+    }
+    this.tooltip.style.left = `${x}px`;
+    this.tooltip.style.top = `${y}px`;
+  }
+
   private bindPointer() {
     const onMove = (e: PointerEvent) => {
       const rect = this.canvas.getBoundingClientRect();
@@ -1413,9 +1435,7 @@ export class IsoRenderer {
         line.className = 'cl-tooltip-landmark';
         line.textContent = `${fmtDay(streak.span.start!)} → ${fmtDay(streak.span.end!)}`;
         this.tooltip.append(line);
-        this.tooltip.style.left = `${e.clientX}px`;
-        this.tooltip.style.top = `${e.clientY - 12}px`;
-        this.tooltip.classList.add('is-visible');
+        this.showTooltip(e.clientX, e.clientY - 12);
         return;
       }
       const cell = this.cellAt(e.clientX - rect.left, e.clientY - rect.top);
@@ -1445,9 +1465,7 @@ export class IsoRenderer {
         this.tooltip.append(line);
       }
       const r = this.spriteRect(cell);
-      this.tooltip.style.left = `${rect.left + r.x + r.w / 2}px`;
-      this.tooltip.style.top = `${rect.top + (cell.sprite ? r.y : r.y + r.h) - 6}px`;
-      this.tooltip.classList.add('is-visible');
+      this.showTooltip(rect.left + r.x + r.w / 2, rect.top + (cell.sprite ? r.y : r.y + r.h) - 6);
     };
     const onLeave = () => {
       this.hovered = null;
