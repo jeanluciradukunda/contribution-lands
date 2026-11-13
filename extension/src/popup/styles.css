@@ -8,6 +8,10 @@
   --fg-muted: #59636e;
   --accent: #0969da;
   --focus: #0969da;
+  --warning-bg: #fff8c5;
+  --warning-border: #d4a72c66;
+  --error: #cf222e;
+  --success: #1a7f37;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -20,6 +24,10 @@
     --fg-muted: #9198a1;
     --accent: #4493f8;
     --focus: #4493f8;
+    --warning-bg: #bb80091c;
+    --warning-border: #9e6a0366;
+    --error: #ff7b72;
+    --success: #3fb950;
   }
 }
 
@@ -27,13 +35,16 @@
 
 body {
   margin: 0;
-  width: 340px;
+  width: 720px;
+  max-height: 600px;
+  overflow: hidden;
   background: var(--bg);
   color: var(--fg);
   font: 13px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans", Helvetica, Arial, sans-serif;
 }
 
-button { font: inherit; color: inherit; }
+button, input { font: inherit; }
+button { color: inherit; }
 :focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
 
 .popup { padding: 16px; }
@@ -42,7 +53,7 @@ button { font: inherit; color: inherit; }
   display: flex;
   align-items: center;
   gap: 10px;
-  margin-bottom: 16px;
+  margin-bottom: 18px;
 }
 .popup-icon { width: 32px; height: 32px; }
 .popup-header h1 { margin: 0; font-size: 15px; font-weight: 600; }
@@ -182,3 +193,57 @@ button { font: inherit; color: inherit; }
   color: var(--fg-muted);
   font-size: 11px;
 }
+
+/* Standalone viewer: retain the extension's GitHub palette and controls. */
+button:disabled { opacity: .55; cursor: default; }
+.viewer-popup { max-height: 600px; overflow-y: auto; scrollbar-width: thin; padding: 16px 20px; }
+.brand-copy { flex: 1; }
+.quiet-button, .primary-button { padding: 6px 10px; border: 1px solid var(--border); border-radius: 6px; background: var(--bg-muted); color: var(--fg); cursor: pointer; font-size: 12px; font-weight: 500; white-space: nowrap; }
+.quiet-button:hover:not(:disabled) { border-color: var(--fg-muted); }
+.primary-button { background: #1f883d; color: white; border-color: #1a7f37; }
+.primary-button:hover:not(:disabled) { background: #1a7f37; }
+.viewer-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.viewer-toolbar h2 { font-size: 15px; font-weight: 600; margin: 0 0 2px; }
+.muted { color: var(--fg-muted); font-size: 12px; }
+.toolbar-actions { display: flex; gap: 6px; }
+.account-manager { margin-top: 12px; padding: 12px; border: 1px solid var(--border-muted); border-radius: 8px; background: var(--bg-muted); }
+.account-manager label { display: block; margin-bottom: 6px; font-weight: 600; font-size: 12px; }
+.input-row { display: flex; gap: 8px; }
+.input-row input { flex: 1; min-width: 0; padding: 7px 10px; border-radius: 6px; border: 1px solid var(--border); background: var(--bg); color: var(--fg); }
+.account-manager p { margin: 6px 0 0; }
+.error-text { color: var(--error); font-size: 12px; }
+.account-chips { display: flex; flex-wrap: wrap; gap: 6px; padding: 0; margin: 10px 0 0; list-style: none; }
+.account-chips li { display: flex; align-items: center; gap: 8px; padding: 3px 5px 3px 9px; background: var(--bg); border: 1px solid var(--border); border-radius: 20px; font-size: 12px; }
+.account-chips button { width: 22px; height: 22px; border: 0; border-radius: 50%; background: none; color: var(--fg-muted); font-size: 17px; cursor: pointer; }
+.account-chips button:hover { background: var(--bg-muted); color: var(--fg); }
+.empty-state { min-height: 250px; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; padding: 20px 60px; }
+.empty-state h3 { font-size: 16px; margin: 10px 0 0; font-weight: 600; }
+.empty-state p { margin: 6px 0 12px; color: var(--fg-muted); font-size: 13px; max-width: 410px; }
+.empty-city { display: flex; align-items: flex-end; justify-content: center; height: 115px; gap: 0; }
+.empty-city img { width: 65px; max-height: 115px; object-fit: contain; object-position: bottom; }
+.empty-city img:nth-child(3) { width: 78px; }
+.land-view { position: relative; min-height: 90px; margin: 8px 0 0; }
+.land-canvas { display: block; }
+.land-status { color: var(--fg-muted); text-align: center; padding: 50px 20px; }
+.land-stats { display: grid; grid-template-columns: repeat(5, 1fr); margin: 0; padding: 12px 0; border-top: 1px solid var(--border-muted); border-bottom: 1px solid var(--border-muted); }
+.land-stats > div { padding: 0 14px; border-right: 1px solid var(--border-muted); }
+.land-stats > div:first-child { padding-left: 4px; }
+.land-stats > div:last-child { border-right: 0; }
+.land-stats dt { font-size: 11px; color: var(--fg-muted); }
+.land-stats dd { margin: 2px 0 0; font-size: 23px; font-weight: 600; color: var(--success); font-variant-numeric: tabular-nums; }
+.land-stats dd small { font-size: 11px; font-weight: 400; color: var(--fg-muted); }
+.day-detail { display: flex; flex-direction: column; gap: 3px; min-height: 42px; justify-content: center; padding: 8px 0; font-size: 12px; }
+.day-detail > span { color: var(--fg-muted); }
+.data-warning { margin: 10px 0 0; border: 1px solid var(--warning-border); background: var(--warning-bg); border-radius: 6px; padding: 8px 10px; font-size: 12px; }
+.data-warning p { margin: 0; }
+.data-warning p + p { margin-top: 4px; }
+.viewer-footer { display: flex; gap: 10px; justify-content: space-between; padding-top: 8px; border-top: 1px solid var(--border-muted); font-size: 10px; color: var(--fg-muted); }
+.viewer-footer > span:last-child { white-space: nowrap; }
+.settings-body { max-width: 540px; margin: 0 auto; padding-bottom: 6px; }
+.settings-body .section:first-child { margin-top: 0; }
+.settings-note { font-size: 11px; color: var(--fg-muted); padding-top: 12px; border-top: 1px solid var(--border-muted); }
+#cl-tooltip { position: fixed; z-index: 10000; max-width: calc(100vw - 16px); padding: 5px 9px; border-radius: 6px; font: 12px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; color: #fff; background: #25292e; white-space: nowrap; pointer-events: none; transform: translate(-50%, -100%); opacity: 0; transition: opacity 80ms ease-out; }
+#cl-tooltip.is-visible { opacity: 1; }
+.cl-tooltip-landmark { display: block; font-weight: 600; opacity: .85; }
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { transition: none !important; animation: none !important; } }
+

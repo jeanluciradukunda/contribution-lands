@@ -22,7 +22,7 @@
 
 A browser extension that rebuilds GitHub's contribution calendar as a small isometric New York. Every day of the year is a lot in the city: quiet days stay as empty lots or weekend parks, busier days become taller buildings, and your best days are marked with landmark towers. Streets run between the blocks with taxis in them, your longest streak becomes an elevated railway, and today's lot is a construction site that grows as you contribute.
 
-A stats panel shows your total, best day, daily average and streaks. Hover a building to see its day, or click it to filter GitHub's activity feed to that day. It works with GitHub's light and dark modes, and the toolbar popup switches between the flat graph, the land or both.
+A stats panel shows your total, best day, daily average and streaks. Hover a building to see its day, or click it to filter GitHub's activity feed to that day. It works with GitHub's light and dark modes, and the popup settings switch profile pages between the flat graph, the land or both.
 
 NYC is the only world in the extension for now. The repository also holds earlier sprite sets (Paris, Cape Town, a rainforest) used by the README card and theme experiments.
 
@@ -64,6 +64,12 @@ pnpm install && pnpm build   # then load extension/dist
 ```
 
 Then visit any GitHub profile: the contribution graph becomes a city. Requires Chrome 111 or later. See the [privacy policy](https://jeanluciradukunda.github.io/contribution-lands/privacy.html).
+
+### Watch accounts from the toolbar
+
+Click the extension icon and add GitHub usernames or profile URLs to see their combined land without opening GitHub. Watch up to 10 accounts; contributions are summed by date over the past year, and clicking a building shows each account’s contribution count for that day.
+
+Watched accounts and cached public calendars stay in local extension storage. Refresh updates the land; unavailable calendars are marked and the last saved data is retained. Settings keeps the existing world and display controls.
 
 ### Put your land in your profile README
 
